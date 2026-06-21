@@ -37,4 +37,11 @@ describe('renderSignature', () => {
   it('minimal does NOT include the logo image', () => {
     expect(renderSignature(kit, fields, 'minimal')).not.toContain('https://x/logo.png');
   });
+
+  it('escapes a malicious color value (no attribute breakout)', () => {
+    const evil = { ...kit, primaryColor: '#1a2b3c" onmouseover="x' };
+    const html = renderSignature(evil, fields, 'minimal');
+    expect(html).not.toContain('onmouseover="x"');   // raw double-quote breakout did not survive
+    expect(html).toContain('&quot;');                  // the quote was escaped
+  });
 });
