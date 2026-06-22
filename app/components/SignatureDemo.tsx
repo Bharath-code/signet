@@ -54,7 +54,7 @@ export default function SignatureDemo() {
       {LAYOUTS.map(layout => (
         <div key={layout} style={{ margin: '12px 0' }}>
           <small style={{ textTransform: 'uppercase', color: '#888' }}>{layout}</small>
-          <iframe title={layout} style={{ width: '100%', height: 130, border: '1px solid #eee' }}
+          <iframe title={layout} sandbox="" style={{ width: '100%', height: 130, border: '1px solid #eee' }}
             srcDoc={renderSignature(kit, fields, layout)} />
         </div>
       ))}
