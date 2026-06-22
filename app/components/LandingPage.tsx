@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Link from 'next/link';
@@ -111,8 +111,31 @@ const lbl = 'text-[0.65rem] uppercase tracking-[0.18em] text-muted';
 export default function LandingPage() {
   const root     = useRef<HTMLDivElement>(null);
   const demoRef  = useRef<HTMLElement>(null);
-  const [navSolid, setNavSolid] = useState(false);
-  const [typed,    setTyped]    = useState('');
+  const [navSolid,   setNavSolid]   = useState(false);
+  const [typed,      setTyped]      = useState('');
+  const [wlEmail,    setWlEmail]    = useState('');
+  const [wlLoading,  setWlLoading]  = useState(false);
+  const [wlDone,     setWlDone]     = useState(false);
+  const [wlError,    setWlError]    = useState('');
+
+  const handleWaitlist = async (e: FormEvent) => {
+    e.preventDefault();
+    setWlLoading(true);
+    setWlError('');
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: wlEmail }),
+      });
+      if (!res.ok) throw new Error('failed');
+      setWlDone(true);
+    } catch {
+      setWlError("Something went wrong — try again.");
+    } finally {
+      setWlLoading(false);
+    }
+  };
 
   /* Scroll-aware nav */
   useEffect(() => {
@@ -264,18 +287,53 @@ export default function LandingPage() {
           </p>
 
           <div
-            className="rise mt-10 flex flex-wrap items-center gap-4"
+            className="rise mt-10"
             style={{ animationDelay: '310ms' }}
           >
-            <Link
-              href="/app"
-              className="group inline-flex items-center gap-2.5 px-8 py-4 text-sm font-medium transition-opacity hover:opacity-90"
-              style={{ background: 'var(--color-accent)', color: 'var(--color-ink)' }}
-            >
-              Generate yours free
-              <span className="transition-transform group-hover:translate-x-1">→</span>
-            </Link>
-            <a href="#how" className="btn-ghost-dark px-6 py-4 text-sm">
+            {wlDone ? (
+              <p
+                className="inline-flex items-center gap-2.5 text-sm"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                <span aria-hidden>✓</span>
+                You&rsquo;re on the list. We&rsquo;ll be in touch.
+              </p>
+            ) : (
+              <form onSubmit={handleWaitlist} noValidate>
+                <div className="flex flex-wrap gap-3">
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@company.com"
+                    value={wlEmail}
+                    onChange={e => setWlEmail(e.target.value)}
+                    disabled={wlLoading}
+                    suppressHydrationWarning
+                    aria-label="Work email address"
+                    className="min-w-[220px] flex-1 px-4 py-3.5 text-sm outline-none"
+                    style={{
+                      background: 'rgba(249,246,240,0.07)',
+                      border: '1px solid rgba(249,246,240,0.15)',
+                      color: 'var(--color-paper)',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={wlLoading}
+                    className="px-7 py-3.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ background: 'var(--color-accent)', color: 'var(--color-ink)' }}
+                  >
+                    {wlLoading ? 'Joining…' : 'Get early access →'}
+                  </button>
+                </div>
+                {wlError && (
+                  <p className="mt-2 text-xs" style={{ color: 'rgba(249,246,240,0.5)' }} role="alert">
+                    {wlError}
+                  </p>
+                )}
+              </form>
+            )}
+            <a href="#how" className="btn-ghost-dark mt-4 inline-block px-0 py-2 text-xs">
               See how it works ↓
             </a>
           </div>
