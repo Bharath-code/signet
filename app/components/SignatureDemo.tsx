@@ -1,0 +1,292 @@
+'use client';
+import { useState } from 'react';
+import { renderSignature } from '@/lib/render-signature';
+import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
+import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
+
+const LAYOUTS: { id: Layout; label: string; h: number }[] = [
+  { id: 'minimal', label: 'Minimal', h: 140 },
+  { id: 'logo', label: 'With logo', h: 160 },
+  { id: 'logo-cta', label: 'Logo + CTA', h: 200 },
+];
+
+const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
+  { key: 'fullName', label: 'Full name' },
+  { key: 'jobTitle', label: 'Job title' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'phone', label: 'Phone' },
+];
+
+const EMAIL_FONTS: { label: string; value: string }[] = [
+  { label: 'Georgia',    value: 'Georgia, serif' },
+  { label: 'Arial',      value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Verdana',    value: 'Verdana, Geneva, sans-serif' },
+  { label: 'Trebuchet',  value: 'Trebuchet MS, sans-serif' },
+  { label: 'Times',      value: 'Times New Roman, serif' },
+];
+
+// Map any AI-extracted web font to the nearest email-safe font.
+function toEmailSafeFont(extracted: string): string {
+  const f = extracted.toLowerCase();
+  if (/georgia|merriweather|playfair|lora|cormorant|fraunces/.test(f)) return 'Georgia, serif';
+  if (/times/.test(f)) return 'Times New Roman, serif';
+  if (/verdana/.test(f)) return 'Verdana, Geneva, sans-serif';
+  if (/trebuchet|nunito|raleway/.test(f)) return 'Trebuchet MS, sans-serif';
+  return 'Arial, Helvetica, sans-serif'; // inter, roboto, poppins, etc.
+}
+
+// preview-only chrome: pad + vertically center the signature inside its card.
+// renderSignature stays the true email output; this wrapper is just presentation.
+const frameDoc = (html: string) =>
+  `<!doctype html><meta charset="utf-8">` +
+  `<style>html,body{margin:0;height:100%}` +
+  `body{display:flex;align-items:center;box-sizing:border-box;` +
+  `padding:18px 20px;background:#fff}</style>${html}`;
+
+const label = 'text-[0.68rem] uppercase tracking-[0.18em] text-muted';
+const field =
+  'w-full bg-transparent border-b border-line py-2 text-ink ' +
+  'placeholder:text-muted focus:border-accent transition-colors';
+const btn =
+  'inline-flex items-center justify-center gap-2 px-6 py-3 font-medium ' +
+  'text-paper transition-colors disabled:opacity-50';
+
+export default function SignatureDemo() {
+  const [url, setUrl] = useState('');
+  const [siteUrl, setSiteUrl] = useState('');
+  const [kit, setKit] = useState<BrandKit>(NEUTRAL_BRAND_KIT);
+  const [font, setFont] = useState(EMAIL_FONTS[0].value); // Georgia default
+  const [fields, setFields] = useState<SignatureFields>(DEMO_FIELDS);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState('');
+  const [sent, setSent] = useState(false);
+  const [copied, setCopied] = useState<Layout | null>(null);
+
+  async function copyLayout(id: Layout) {
+    const html = renderSignature({ ...kit, fontFamily: font }, fields, id, siteUrl || undefined);
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([html], { type: 'text/plain' }),
+        }),
+      ]);
+    } catch {
+      await navigator.clipboard.writeText(html);
+    }
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function generate(e: React.FormEvent) {
+    e.preventDefault();
+    const domain = url.trim();
+    if (!domain) return;
+    // the visible "https://" is a prefix label; add a real scheme so new URL() parses.
+    const target = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
+    setLoading(true);
+    setNote('');
+    try {
+      const res = await fetch('/api/brand-kit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: target }),
+      });
+      const data = await res.json();
+      setKit(data.brandKit);
+      // use the post-redirect URL (e.g. bharathkumar.dev → www.bharathkumar.dev)
+      setSiteUrl(data.finalUrl ?? target);
+      setFont(toEmailSafeFont(data.brandKit.fontFamily));
+      if (data.contact && Object.keys(data.contact).length > 0) {
+        // Replace all fields so demo values (e.g. demo phone) don't bleed through
+        setFields({
+          fullName: data.contact.fullName ?? '',
+          jobTitle: data.contact.jobTitle ?? '',
+          email: data.contact.email ?? '',
+          phone: data.contact.phone ?? '',
+        });
+      }
+      if (data.fallback)
+        setNote("Couldn't read that site — showing a neutral signature. Try another URL.");
+      else if (data.cached)
+        setNote('');
+    } catch {
+      setNote('Something went wrong reading that site. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const set =
+    (k: keyof SignatureFields) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setFields((f) => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <main className="mx-auto w-full max-w-5xl px-6 py-16 md:px-10 md:py-24">
+      {/* hero */}
+      <header className="rise max-w-3xl" style={{ animationDelay: '40ms' }}>
+        <span className={`${label} text-accent`}>Email signature studio</span>
+        <h1 className="mt-5 font-display text-[2.7rem] leading-[1.04] tracking-[-0.02em] text-ink md:text-[4.25rem]">
+          Your signature,{' '}
+          <em className="font-display italic text-accent">perfectly on-brand</em>,
+          <br className="hidden md:block" /> in ten seconds.
+        </h1>
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
+          Paste your website. We read your logo, your colors, and your typeface — and
+          build a signature that looks like it came from your design team.
+        </p>
+      </header>
+
+      {/* url input */}
+      <form
+        onSubmit={generate}
+        className="rise mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
+        style={{ animationDelay: '140ms' }}
+      >
+        <div className="flex flex-1 items-center border-b-2 border-ink/80 focus-within:border-accent transition-colors">
+          <span className="pr-1 text-muted select-none">https://</span>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
+            placeholder="yourcompany.com"
+            suppressHydrationWarning
+            className="w-full bg-transparent py-3 text-lg text-ink placeholder:text-muted"
+          />
+        </div>
+        <button disabled={loading} className={`group ${btn} bg-ink hover:bg-accent`}>
+          {loading ? 'Reading…' : 'Generate'}
+          <span className="transition-transform group-hover:translate-x-1">→</span>
+        </button>
+      </form>
+      {note && <p className="mt-3 text-sm text-accent-deep">{note}</p>}
+
+      {/* divider */}
+      <div
+        className="rise mt-16 flex items-center gap-4"
+        style={{ animationDelay: '240ms' }}
+      >
+        <span className={label}>Live preview</span>
+        <span className="h-px flex-1 bg-line" />
+        <span className={`${label} hidden sm:inline`}>edit any field</span>
+      </div>
+
+      {/* personal fields */}
+      <div
+        className="rise mt-8 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2"
+        style={{ animationDelay: '300ms' }}
+      >
+        {FIELDS.map((f) => (
+          <label key={f.key} className="block">
+            <span className={label}>{f.label}</span>
+            <input
+              type={f.type ?? 'text'}
+              value={fields[f.key]}
+              onChange={set(f.key)}
+              suppressHydrationWarning
+              className={`${field} mt-1`}
+            />
+          </label>
+        ))}
+        {/* font picker spans full width */}
+        <div className="col-span-full">
+          <span className={label}>Font</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {EMAIL_FONTS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFont(f.value)}
+                style={{ fontFamily: f.value }}
+                className={`rounded border px-3 py-1.5 text-sm transition-colors ${
+                  font === f.value
+                    ? 'border-ink bg-ink text-paper'
+                    : 'border-line text-muted hover:border-ink hover:text-ink'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* preview cards */}
+      <div
+        className="rise mt-10 grid grid-cols-1 gap-5 md:grid-cols-3"
+        style={{ animationDelay: '380ms' }}
+      >
+        {LAYOUTS.map(({ id, label: name, h }) => (
+          <figure
+            key={id}
+            className="overflow-hidden border border-line bg-card shadow-[0_1px_0_rgba(24,22,15,0.04),0_18px_40px_-28px_rgba(24,22,15,0.45)]"
+          >
+            <figcaption className="flex items-center justify-between border-b border-line/70 px-4 py-3">
+              <span className={label}>{name}</span>
+              <button
+                onClick={() => copyLayout(id)}
+                className="text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-ink transition-colors"
+              >
+                {copied === id ? 'Copied ✓' : 'Copy'}
+              </button>
+            </figcaption>
+            <iframe
+              title={name}
+              sandbox="allow-popups"
+              style={{ height: h }}
+              className="block w-full bg-white"
+              srcDoc={frameDoc(renderSignature({ ...kit, fontFamily: font }, fields, id, siteUrl || undefined))}
+            />
+          </figure>
+        ))}
+      </div>
+
+      {/* copy hint */}
+      <p className="mt-4 text-[0.72rem] text-muted">
+        Copy any layout → Gmail Settings → See all settings → General → Signature → paste.
+      </p>
+
+      {/* email CTA */}
+      <section
+        className="rise mt-20 border-t border-line pt-10"
+        style={{ animationDelay: '460ms' }}
+      >
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-md">
+            <h2 className="font-display text-2xl text-ink md:text-3xl">
+              Want this live for your whole team?
+            </h2>
+            <p className="mt-2 text-muted">
+              One sign-in. Every teammate&rsquo;s signature deployed in about two minutes.
+            </p>
+          </div>
+          {sent ? (
+            <p className="text-accent-deep">Thanks — we&rsquo;ll be in touch about team deploy.</p>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setSent(true);
+              }}
+              className="flex w-full max-w-sm items-end gap-3"
+            >
+              <label className="flex-1">
+                <span className={label}>Work email</span>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@work.com"
+                  suppressHydrationWarning
+                  className={`${field} mt-1`}
+                />
+              </label>
+              <button className={`${btn} bg-accent hover:bg-accent-deep`}>Notify me</button>
+            </form>
+          )}
+        </div>
+      </section>
+
+      <footer className="mt-16 text-[0.68rem] uppercase tracking-[0.18em] text-muted">
+        No template picker · No IT ticket · No filling forms
+      </footer>
+    </main>
+  );
+}
