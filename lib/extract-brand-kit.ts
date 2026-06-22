@@ -5,11 +5,15 @@ import type { BrandKit } from './types';
 
 const HTML_TRUNCATE = 20_000;
 
+// gemini-2.0-flash was shut down 2026-06-01. Default to the GA Gemini 3.5 Flash;
+// override with GEMINI_MODEL (e.g. gemini-3-flash-preview, gemini-3.1-flash-lite).
+export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.5-flash';
+
 export async function extractBrandKit(html: string, screenshotUrl: string): Promise<BrandKit> {
   const truncatedHtml = html.length > HTML_TRUNCATE ? html.slice(0, HTML_TRUNCATE) + '\n...[truncated]' : html;
 
   const { object } = await generateObject({
-    model: google('gemini-2.0-flash'),
+    model: google(GEMINI_MODEL),
     schema: brandKitSchema,
     messages: [
       {

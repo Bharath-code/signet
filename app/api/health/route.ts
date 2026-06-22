@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { GEMINI_MODEL } from '@/lib/extract-brand-kit';
 
 // GET /api/health — pings each provider so key/quota problems are obvious.
 export async function GET() {
@@ -12,7 +13,7 @@ export async function GET() {
   } else {
     try {
       await generateText({
-        model: google('gemini-2.0-flash'),
+        model: google(GEMINI_MODEL),
         prompt: 'ping',
         maxOutputTokens: 1,
       });
@@ -25,12 +26,12 @@ export async function GET() {
       gemini =
         code === 429 || /quota|exceeded|rate.?limit/i.test(msg)
           ? 'quota-exceeded (limit 0 = no free tier; use an AIza… key or enable billing)'
-        : code === 401 || code === 403 || /api[_ ]?key|unauthor|forbidden|invalid/i.test(msg)
-          ? 'bad-key (rejected by Google)'
+        : code === 401 || code === 403 || /api[_ ]?key|unauthor|forbidden|invalid|denied/i.test(msg)
+          ? 'bad-key / project-denied (create a fresh key at aistudio.google.com/apikey — format AIza…)'
         : `error: ${msg.slice(0, 120)}`;
     }
   }
 
   const ok = firecrawl === 'key-set' && gemini === 'ok';
-  return NextResponse.json({ ok, firecrawl, gemini }, { status: ok ? 200 : 503 });
+  return NextResponse.json({ ok, firecrawl, gemini, model: GEMINI_MODEL }, { status: ok ? 200 : 503 });
 }
