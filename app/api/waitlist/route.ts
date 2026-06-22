@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       from: 'Signet Waitlist <onboarding@resend.dev>',
       to: 'kumarbharath63@gmail.com',
       subject: `Waitlist signup: ${email}`,
-      html: `<p><strong>${email}</strong> joined the Signet waitlist.</p>`,
+      text: `${email} joined the Signet waitlist.`,
     }),
   ];
 
