@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #f6f3ec;
-  --color-paper-deep: #efeadf;
-  --color-ink: #18160f;
-  --color-muted: #6f6857;
-  --color-line: #ddd5c4;
-  --color-card: #fffdf8;
-  --color-accent: #b23a20;
-  --color-accent-deep: #8f2c16;
+  /* Paper — warm off-white, slightly lighter/cleaner than before */
+  --color-paper:      #F9F6F0;
+  --color-paper-deep: #EDE8DF;
+
+  /* Ink — warm near-black (design system spec) */
+  --color-ink:        #1C1917;
+  --color-muted:      #78716C;
+  --color-line:       #DDD8CF;
+  --color-card:       #FEFCF8;
+
+  /* Seal — amber wax. The one word we own: automatic. */
+  --color-accent:     #D97706;   /* amber-600  — CTAs, highlights, italic hero */
+  --color-accent-deep: #B45309;  /* amber-700  — hover states */
 
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-body: var(--font-hanken), system-ui, sans-serif;
@@ -36,7 +41,7 @@
     font-family: var(--font-body);
     /* warm paper: soft top glow + faint grain so it never reads as flat white */
     background-image:
-      radial-gradient(120% 80% at 50% -10%, rgba(178, 58, 32, 0.06), transparent 60%),
+      radial-gradient(120% 80% at 50% -10%, rgba(217, 119, 6, 0.05), transparent 60%),
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
     background-attachment: fixed;
   }
@@ -73,8 +78,48 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise {
-    animation: none;
-    opacity: 1;
-  }
+  .rise { animation: none; opacity: 1; }
+}
+
+/* Marquee ticker — seamless horizontal scroll */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Nav ghost button on dark sections */
+.btn-ghost-dark {
+  border: 1px solid rgba(249,246,240,0.18);
+  color: rgba(249,246,240,0.55);
+  transition: border-color 200ms ease, color 200ms ease;
+}
+.btn-ghost-dark:hover {
+  border-color: rgba(249,246,240,0.5);
+  color: rgba(249,246,240,0.95);
+}
+
+/* Scroll-aware nav link — driven by data-solid attribute on <nav> */
+nav[data-solid="false"] .nav-link { color: rgba(249,246,240,0.42); }
+nav[data-solid="false"] .nav-link:hover { color: rgba(249,246,240,0.92); }
+nav[data-solid="true"]  .nav-link { color: var(--color-muted); }
+nav[data-solid="true"]  .nav-link:hover { color: var(--color-ink); }
+
+/* Pricing plan CTA buttons */
+.plan-cta-outline {
+  border: 1px solid var(--color-line);
+  color: var(--color-muted);
+  transition: border-color 150ms, color 150ms;
+}
+.plan-cta-outline:hover {
+  border-color: var(--color-ink);
+  color: var(--color-ink);
+}
+.plan-cta-primary {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  transition: background 150ms, color 150ms;
+}
+.plan-cta-primary:hover {
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
