@@ -17,6 +17,14 @@ const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
   { key: 'phone', label: 'Phone' },
 ];
 
+// preview-only chrome: pad + vertically center the signature inside its card.
+// renderSignature stays the true email output; this wrapper is just presentation.
+const frameDoc = (html: string) =>
+  `<!doctype html><meta charset="utf-8">` +
+  `<style>html,body{margin:0;height:100%}` +
+  `body{display:flex;align-items:center;box-sizing:border-box;` +
+  `padding:18px 20px;background:#fff}</style>${html}`;
+
 const label = 'text-[0.68rem] uppercase tracking-[0.18em] text-muted';
 const field =
   'w-full bg-transparent border-b border-line py-2 text-ink outline-none ' +
@@ -144,8 +152,8 @@ export default function SignatureDemo() {
             <iframe
               title={name}
               sandbox=""
-              className="block h-[150px] w-full bg-white"
-              srcDoc={renderSignature(kit, fields, id)}
+              className="block h-[168px] w-full bg-white"
+              srcDoc={frameDoc(renderSignature(kit, fields, id))}
             />
           </figure>
         ))}
