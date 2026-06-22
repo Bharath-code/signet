@@ -1,14 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { renderSignature } from '@/lib/render-signature';
-import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
-import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
-
-const LAYOUTS: { id: Layout; label: string; h: number }[] = [
-  { id: 'minimal', label: 'Minimal', h: 140 },
-  { id: 'logo', label: 'With logo', h: 160 },
-  { id: 'logo-cta', label: 'Logo + CTA', h: 200 },
-];
+import { useBrandKit, LAYOUTS } from './useBrandKit';
+import { SignaturePreview } from './SignaturePreview';
+import type { SignatureFields } from '@/lib/types';
 
 const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
   { key: 'fullName', label: 'Full name' },
@@ -25,24 +19,6 @@ const EMAIL_FONTS: { label: string; value: string }[] = [
   { label: 'Times',      value: 'Times New Roman, serif' },
 ];
 
-// Map any AI-extracted web font to the nearest email-safe font.
-function toEmailSafeFont(extracted: string): string {
-  const f = extracted.toLowerCase();
-  if (/georgia|merriweather|playfair|lora|cormorant|fraunces/.test(f)) return 'Georgia, serif';
-  if (/times/.test(f)) return 'Times New Roman, serif';
-  if (/verdana/.test(f)) return 'Verdana, Geneva, sans-serif';
-  if (/trebuchet|nunito|raleway/.test(f)) return 'Trebuchet MS, sans-serif';
-  return 'Arial, Helvetica, sans-serif'; // inter, roboto, poppins, etc.
-}
-
-// preview-only chrome: pad + vertically center the signature inside its card.
-// renderSignature stays the true email output; this wrapper is just presentation.
-const frameDoc = (html: string) =>
-  `<!doctype html><meta charset="utf-8">` +
-  `<style>html,body{margin:0;height:100%}` +
-  `body{display:flex;align-items:center;box-sizing:border-box;` +
-  `padding:18px 20px;background:#fff}</style>${html}`;
-
 const label = 'text-[0.68rem] uppercase tracking-[0.18em] text-muted';
 const field =
   'w-full bg-transparent border-b border-line py-2 text-ink ' +
@@ -52,74 +28,8 @@ const btn =
   'text-paper transition-colors disabled:opacity-50';
 
 export default function SignatureDemo() {
-  const [url, setUrl] = useState('');
-  const [siteUrl, setSiteUrl] = useState('');
-  const [kit, setKit] = useState<BrandKit>(NEUTRAL_BRAND_KIT);
-  const [font, setFont] = useState(EMAIL_FONTS[0].value); // Georgia default
-  const [fields, setFields] = useState<SignatureFields>(DEMO_FIELDS);
-  const [loading, setLoading] = useState(false);
-  const [note, setNote] = useState('');
+  const brand = useBrandKit();
   const [sent, setSent] = useState(false);
-  const [copied, setCopied] = useState<Layout | null>(null);
-
-  async function copyLayout(id: Layout) {
-    const html = renderSignature({ ...kit, fontFamily: font }, fields, id, siteUrl || undefined);
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([html], { type: 'text/plain' }),
-        }),
-      ]);
-    } catch {
-      await navigator.clipboard.writeText(html);
-    }
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
-  }
-
-  async function generate(e: React.FormEvent) {
-    e.preventDefault();
-    const domain = url.trim();
-    if (!domain) return;
-    // the visible "https://" is a prefix label; add a real scheme so new URL() parses.
-    const target = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
-    setLoading(true);
-    setNote('');
-    try {
-      const res = await fetch('/api/brand-kit', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: target }),
-      });
-      const data = await res.json();
-      setKit(data.brandKit);
-      // use the post-redirect URL (e.g. bharathkumar.dev → www.bharathkumar.dev)
-      setSiteUrl(data.finalUrl ?? target);
-      setFont(toEmailSafeFont(data.brandKit.fontFamily));
-      if (data.contact && Object.keys(data.contact).length > 0) {
-        // Replace all fields so demo values (e.g. demo phone) don't bleed through
-        setFields({
-          fullName: data.contact.fullName ?? '',
-          jobTitle: data.contact.jobTitle ?? '',
-          email: data.contact.email ?? '',
-          phone: data.contact.phone ?? '',
-        });
-      }
-      if (data.fallback)
-        setNote("Couldn't read that site — showing a neutral signature. Try another URL.");
-      else if (data.cached)
-        setNote('');
-    } catch {
-      setNote('Something went wrong reading that site. Try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const set =
-    (k: keyof SignatureFields) => (e: React.ChangeEvent<HTMLInputElement>) =>
-      setFields((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-16 md:px-10 md:py-24">
@@ -139,26 +49,26 @@ export default function SignatureDemo() {
 
       {/* url input */}
       <form
-        onSubmit={generate}
+        onSubmit={brand.generate}
         className="rise mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
         style={{ animationDelay: '140ms' }}
       >
         <div className="flex flex-1 items-center border-b-2 border-ink/80 focus-within:border-accent transition-colors">
           <span className="pr-1 text-muted select-none">https://</span>
           <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
+            value={brand.url}
+            onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
             placeholder="yourcompany.com"
             suppressHydrationWarning
             className="w-full bg-transparent py-3 text-lg text-ink placeholder:text-muted"
           />
         </div>
-        <button disabled={loading} className={`group ${btn} bg-ink hover:bg-accent`}>
-          {loading ? 'Reading…' : 'Generate'}
+        <button disabled={brand.loading} className={`group ${btn} bg-ink hover:bg-accent`}>
+          {brand.loading ? 'Reading…' : 'Generate'}
           <span className="transition-transform group-hover:translate-x-1">→</span>
         </button>
       </form>
-      {note && <p className="mt-3 text-sm text-accent-deep">{note}</p>}
+      {brand.note && <p className="mt-3 text-sm text-accent-deep">{brand.note}</p>}
 
       {/* divider */}
       <div
@@ -180,8 +90,8 @@ export default function SignatureDemo() {
             <span className={label}>{f.label}</span>
             <input
               type={f.type ?? 'text'}
-              value={fields[f.key]}
-              onChange={set(f.key)}
+              value={brand.fields[f.key]}
+              onChange={brand.setField(f.key)}
               suppressHydrationWarning
               className={`${field} mt-1`}
             />
@@ -194,10 +104,10 @@ export default function SignatureDemo() {
             {EMAIL_FONTS.map((f) => (
               <button
                 key={f.value}
-                onClick={() => setFont(f.value)}
+                onClick={() => brand.setFont(f.value)}
                 style={{ fontFamily: f.value }}
                 className={`rounded border px-3 py-1.5 text-sm transition-colors ${
-                  font === f.value
+                  brand.font === f.value
                     ? 'border-ink bg-ink text-paper'
                     : 'border-line text-muted hover:border-ink hover:text-ink'
                 }`}
@@ -215,33 +125,23 @@ export default function SignatureDemo() {
         style={{ animationDelay: '380ms' }}
       >
         {LAYOUTS.map(({ id, label: name, h }) => (
-          <figure
+          <SignaturePreview
             key={id}
-            className="overflow-hidden border border-line bg-card shadow-[0_1px_0_rgba(24,22,15,0.04),0_18px_40px_-28px_rgba(24,22,15,0.45)]"
-          >
-            <figcaption className="flex items-center justify-between border-b border-line/70 px-4 py-3">
-              <span className={label}>{name}</span>
-              <button
-                onClick={() => copyLayout(id)}
-                className="text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-ink transition-colors"
-              >
-                {copied === id ? 'Copied ✓' : 'Copy'}
-              </button>
-            </figcaption>
-            <iframe
-              title={name}
-              sandbox="allow-popups"
-              style={{ height: h }}
-              className="block w-full bg-white"
-              srcDoc={frameDoc(renderSignature({ ...kit, fontFamily: font }, fields, id, siteUrl || undefined))}
-            />
-          </figure>
+            kit={brand.kit}
+            fields={brand.fields}
+            layout={id}
+            label={name}
+            height={h}
+            font={brand.font}
+            siteUrl={brand.siteUrl || undefined}
+            proHref="/#notify"
+          />
         ))}
       </div>
 
       {/* copy hint */}
       <p className="mt-4 text-[0.72rem] text-muted">
-        Copy any layout → Gmail Settings → See all settings → General → Signature → paste.
+        Upgrade to Pro to copy any layout into Gmail Settings → Signature → paste.
       </p>
 
       {/* email CTA */}

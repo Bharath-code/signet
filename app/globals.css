@@ -14,11 +14,14 @@
   /* Seal — amber wax. The one word we own: automatic. */
   --color-accent:     #D97706;   /* amber-600  — CTAs, highlights, italic hero */
   --color-accent-deep: #B45309;  /* amber-700  — hover states */
+  --color-accent-tint: #FEF3C7;  /* amber-100  — subtle background tints */
 
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-body: var(--font-hanken), system-ui, sans-serif;
 
   --tracking-label: 0.18em;
+
+  --shadow-seal: 0 0 0 3px rgba(217, 119, 6, 0.22);
 }
 
 @layer base {
@@ -81,10 +84,28 @@
   .rise { animation: none; opacity: 1; }
 }
 
-/* Marquee ticker — seamless horizontal scroll */
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+/* Hero URL input + button — the demo IS the hero */
+.hero-input-row {
+  height: 64px;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.hero-input-row:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-seal);
+}
+.hero-button {
+  height: 64px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: background 150ms ease, color 150ms ease;
+}
+.hero-button:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
 
 /* Nav ghost button on dark sections */
@@ -98,9 +119,9 @@
   color: rgba(249,246,240,0.95);
 }
 
-/* Scroll-aware nav link — driven by data-solid attribute on <nav> */
-nav[data-solid="false"] .nav-link { color: rgba(249,246,240,0.42); }
-nav[data-solid="false"] .nav-link:hover { color: rgba(249,246,240,0.92); }
+/* Scroll-aware nav — hero is now paper/light, so both states use ink tones */
+nav[data-solid="false"] .nav-link { color: var(--color-muted); }
+nav[data-solid="false"] .nav-link:hover { color: var(--color-ink); }
 nav[data-solid="true"]  .nav-link { color: var(--color-muted); }
 nav[data-solid="true"]  .nav-link:hover { color: var(--color-ink); }
 

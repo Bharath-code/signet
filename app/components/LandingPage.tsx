@@ -4,10 +4,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Link from 'next/link';
-import { renderSignature } from '@/lib/render-signature';
-import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
+import { useBrandKit, LAYOUTS } from './useBrandKit';
+import { SignaturePreview } from './SignaturePreview';
+import type { BrandKit, SignatureFields } from '@/lib/types';
 
-/* ─── Demo data ─────────────────────────────────────────────────────────── */
+/* ─── Demo data (initial state for hero previews) ──────────────────────── */
 
 const ACME_KIT: BrandKit = {
   companyName: 'Acme Corp',
@@ -26,52 +27,19 @@ const ACME_PERSON: SignatureFields = {
   phone: '+1 415 555 0101',
 };
 
-const LAYOUTS: { id: Layout; label: string; h: number }[] = [
-  { id: 'minimal',  label: 'Minimal',    h: 110 },
-  { id: 'logo',     label: 'With logo',  h: 148 },
-  { id: 'logo-cta', label: 'Logo + CTA', h: 188 },
-];
-
-const frameDoc = (html: string) =>
-  `<!doctype html><meta charset="utf-8">` +
-  `<style>html,body{margin:0;height:100%}` +
-  `body{display:flex;align-items:center;box-sizing:border-box;` +
-  `padding:16px 20px;background:#fff}</style>${html}`;
-
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
-const TICKER = [
-  'Generated in 9 seconds',
-  'Zero configuration',
-  'No template picker',
-  'Your brand, not a template',
-  '3 minutes to deploy',
-  'Auto-extracted',
-  'No IT ticket',
-  'No hex codes',
-];
-
 const STEPS = [
-  { n: '01', title: 'Paste your URL',   body: 'Drop in your company website. No setup, no credentials.' },
-  { n: '02', title: 'Brand extracted',  body: 'Logo, colors, and fonts — read from your site automatically.' },
-  { n: '03', title: 'Pick a layout',    body: 'Three polished options, all on-brand. Pick one or all.' },
-  { n: '04', title: 'Deploy',           body: 'Connect Google Workspace. One click. Every inbox updated.' },
+  { n: '01', title: 'Paste your URL',  body: 'Drop in your company website. No setup, no credentials.' },
+  { n: '02', title: 'Brand extracted', body: 'Logo, colors, and fonts — read from your site automatically.' },
+  { n: '03', title: 'Pick a layout',   body: 'Three polished options, all on-brand. Pick one or all.' },
+  { n: '04', title: 'Copy & install',  body: 'Copy the HTML. Paste into Gmail. Done.' },
 ];
 
-const BEFORE = [
-  'Find your hex codes (manually)',
-  'Pick a template that almost fits',
-  'Fill in every field for every employee',
-  'Email everyone a PDF and hope',
-  '40% do it wrong. 20% never bother.',
-];
-
-const AFTER = [
-  'Paste your URL',
-  'We read your brand automatically',
-  'Zero fields to fill',
-  'One deploy button',
-  'Whole team live in 3 minutes',
+const OLD_WAY_FIELDS = [
+  'Full name', 'Job title', 'Email', 'Phone', 'Company',
+  'Website', 'Logo URL', 'Primary color', 'Secondary color',
+  'Font family', 'LinkedIn URL', 'Twitter URL', 'Office address',
 ];
 
 const PLANS = [
@@ -83,6 +51,7 @@ const PLANS = [
     cta: 'Get started free',
     href: '/app',
     highlight: false,
+    soon: false,
   },
   {
     name: 'Pro',
@@ -90,17 +59,19 @@ const PLANS = [
     desc: '/ month',
     features: ['Unlimited brand kits', 'All layouts', 'No Signet footer', 'Font picker'],
     cta: 'Start Pro',
-    href: '/app',
+    href: '#notify',
     highlight: true,
+    soon: false,
   },
   {
     name: 'Team',
-    price: '$8',
-    desc: '/ seat / mo',
-    features: ['Everything in Pro', 'Google Workspace sync', 'One-click team deploy', 'Admin controls'],
-    cta: 'Contact us',
-    href: 'mailto:hello@signet.so',
+    price: 'Soon',
+    desc: '',
+    features: ['Google Workspace sync', 'One-click team deploy', 'Admin controls'],
+    cta: 'Join the waitlist',
+    href: '#notify',
     highlight: false,
+    soon: true,
   },
 ];
 
@@ -110,13 +81,27 @@ const lbl = 'text-[0.65rem] uppercase tracking-[0.18em] text-muted';
 
 export default function LandingPage() {
   const root     = useRef<HTMLDivElement>(null);
-  const demoRef  = useRef<HTMLElement>(null);
-  const [navSolid,   setNavSolid]   = useState(false);
-  const [typed,      setTyped]      = useState('');
-  const [wlEmail,    setWlEmail]    = useState('');
-  const [wlLoading,  setWlLoading]  = useState(false);
-  const [wlDone,     setWlDone]     = useState(false);
-  const [wlError,    setWlError]    = useState('');
+  const heroRef  = useRef<HTMLElement>(null);
+  const [navSolid,     setNavSolid]     = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const [wlEmail,      setWlEmail]      = useState('');
+  const [wlLoading,    setWlLoading]    = useState(false);
+  const [wlDone,       setWlDone]       = useState(false);
+  const [wlError,      setWlError]      = useState('');
+
+  const brand = useBrandKit({
+    initialKit: ACME_KIT,
+    initialFields: ACME_PERSON,
+    initialFont: 'Georgia, serif',
+  });
+
+  const handleGenerate = async (e: FormEvent) => {
+    await brand.generate(e);
+    setHasGenerated(true);
+    requestAnimationFrame(() => {
+      heroRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   const handleWaitlist = async (e: FormEvent) => {
     e.preventDefault();
@@ -131,53 +116,27 @@ export default function LandingPage() {
       if (!res.ok) throw new Error('failed');
       setWlDone(true);
     } catch {
-      setWlError("Something went wrong — try again.");
+      setWlError('Something went wrong — try again.');
     } finally {
       setWlLoading(false);
     }
   };
 
-  /* Scroll-aware nav */
   useEffect(() => {
-    const onScroll = () => setNavSolid(window.scrollY > window.innerHeight * 0.72);
+    const onScroll = () => setNavSolid(window.scrollY > 40);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  /* Typewriter for demo URL bar — starts when demo enters view */
-  useEffect(() => {
-    const section = demoRef.current;
-    if (!section) return;
-    const URL_TEXT = 'acmecorp.com';
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        obs.disconnect();
-        let i = 0;
-        const tick = setInterval(() => {
-          i++;
-          setTyped(URL_TEXT.slice(0, i));
-          if (i >= URL_TEXT.length) clearInterval(tick);
-        }, 65);
-      },
-      { threshold: 0.25 }
-    );
-    obs.observe(section);
-    return () => obs.disconnect();
-  }, []);
-
-  /* GSAP scroll reveals */
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     const ctx = gsap.context(() => {
-
       gsap.utils.toArray<HTMLElement>('.sc-reveal').forEach(el => {
         gsap.from(el, {
           y: 20, opacity: 0, duration: 0.7, ease: 'power2.out',
           scrollTrigger: { trigger: el, start: 'top 90%', once: true },
         });
       });
-
       gsap.utils.toArray<HTMLElement>('.sc-stagger').forEach(container => {
         const kids = Array.from(container.children);
         if (!kids.length) return;
@@ -186,8 +145,6 @@ export default function LandingPage() {
           scrollTrigger: { trigger: container, start: 'top 90%', once: true },
         });
       });
-
-      /* Step rows slide in from left */
       gsap.utils.toArray<HTMLElement>('.sc-step').forEach((el, i) => {
         gsap.from(el, {
           x: -24, opacity: 0, duration: 0.65, ease: 'power2.out',
@@ -195,7 +152,6 @@ export default function LandingPage() {
           delay: i * 0.06,
         });
       });
-
     }, root);
     return () => ctx.revert();
   }, []);
@@ -203,7 +159,7 @@ export default function LandingPage() {
   return (
     <div ref={root}>
 
-      {/* Skip link — keyboard / screen reader users jump to content */}
+      {/* Skip link */}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:px-4 focus:py-2 focus:text-sm"
@@ -218,31 +174,21 @@ export default function LandingPage() {
         data-solid={navSolid ? 'true' : 'false'}
         className="sticky top-0 z-50 flex h-14 items-center justify-between px-6 transition-all duration-300 md:px-10"
         style={navSolid
-          ? { background: 'rgba(249,246,240,0.9)', backdropFilter: 'blur(8px)', borderBottom: '1px solid var(--color-line)' }
-          : { background: 'var(--color-ink)', borderBottom: '1px solid rgba(249,246,240,0.08)' }
+          ? { background: 'rgba(249,246,240,0.92)', backdropFilter: 'blur(8px)', borderBottom: '1px solid var(--color-line)' }
+          : { background: 'transparent', borderBottom: '1px solid transparent' }
         }
       >
         <Link
           href="/"
-          className="font-display text-[1.05rem] font-semibold tracking-tight transition-colors"
-          style={{ color: navSolid ? 'var(--color-ink)' : 'var(--color-paper)' }}
+          className="font-display text-[1.05rem] font-semibold tracking-tight text-ink transition-colors"
         >
           Signet
         </Link>
         <div className="flex items-center gap-5">
-          <a
-            href="#pricing"
-            className="nav-link hidden text-[0.65rem] uppercase tracking-[0.18em] transition-colors sm:block"
-          >
-            Pricing
-          </a>
           <Link
             href="/app"
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-[0.7rem] font-medium uppercase tracking-[0.1em] transition-all"
-            style={navSolid
-              ? { background: 'var(--color-ink)', color: 'var(--color-paper)' }
-              : { background: 'var(--color-accent)', color: 'var(--color-ink)' }
-            }
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[0.7rem] font-medium uppercase tracking-[0.1em] text-paper transition-opacity hover:opacity-90"
+            style={{ background: 'var(--color-ink)' }}
           >
             Try it free
           </Link>
@@ -252,208 +198,163 @@ export default function LandingPage() {
       {/* ── MAIN ────────────────────────────────────────────────────────── */}
       <main id="main-content">
 
-      {/* ── HERO ────────────────────────────────────────────────────────── */}
+      {/* ── HERO (the demo IS the hero) ─────────────────────────────────── */}
       <section
-        className="relative flex min-h-[100svh] flex-col justify-center px-6 pb-24 pt-24 md:px-10 md:pb-32"
-        style={{ background: 'var(--color-ink)' }}
+        ref={heroRef}
+        className="relative px-6 pt-24 pb-20 md:px-10 md:pt-40 md:pb-32"
+        style={{ background: 'var(--color-paper)' }}
       >
-        <div className="mx-auto w-full max-w-5xl">
+        <div className="mx-auto w-full max-w-4xl text-center">
+
           <span
             className="rise block text-[0.64rem] uppercase tracking-[0.2em]"
-            style={{ color: 'rgba(249,246,240,0.32)', animationDelay: '40ms' }}
+            style={{ animationDelay: '40ms', color: 'var(--color-accent)' }}
           >
-            AI Brand Signatures
+            Brand signatures, automated
           </span>
 
           <h1
-            className="rise mt-6 font-display leading-[1.0] tracking-[-0.04em]"
+            className="rise mt-7 font-display leading-[0.98] tracking-[-0.04em] text-ink"
             style={{
               animationDelay: '110ms',
-              fontSize: 'clamp(3rem, 10vw, 9rem)',
-              color: 'var(--color-paper)',
+              fontSize: 'clamp(3rem, 9vw, 8rem)',
             }}
           >
-            Your mark on<br />
-            <em style={{ color: 'var(--color-accent)', fontStyle: 'italic' }}>every email.</em>
+            Your mark on every email.
           </h1>
 
           <p
-            className="rise mt-8 max-w-[46ch] text-lg leading-relaxed"
-            style={{ animationDelay: '210ms', color: 'rgba(249,246,240,0.46)' }}
+            className="rise mx-auto mt-6 max-w-[48ch] text-base leading-relaxed"
+            style={{ animationDelay: '180ms', color: 'var(--color-muted)' }}
           >
-            Paste your company URL. We extract your logo, colors, and fonts —
-            then generate polished signatures for your whole team.
-            Deploy to Google Workspace in one click.
+            Paste your company URL. Watch your logo, colors, and fonts
+            appear as a polished signature in 9 seconds.
           </p>
 
-          <div
-            className="rise mt-10"
-            style={{ animationDelay: '310ms' }}
+          {/* URL INPUT — the hero element */}
+          <form
+            onSubmit={handleGenerate}
+            className="rise mx-auto mt-12 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
+            style={{ animationDelay: '260ms' }}
+            noValidate
           >
-            {wlDone ? (
-              <p
-                className="inline-flex items-center gap-2.5 text-sm"
-                style={{ color: 'var(--color-accent)' }}
-              >
-                <span aria-hidden>✓</span>
-                You&rsquo;re on the list. We&rsquo;ll be in touch.
-              </p>
-            ) : (
-              <form onSubmit={handleWaitlist} noValidate>
-                <div className="flex flex-wrap gap-3">
-                  <input
-                    type="email"
-                    required
-                    placeholder="you@company.com"
-                    value={wlEmail}
-                    onChange={e => setWlEmail(e.target.value)}
-                    disabled={wlLoading}
-                    suppressHydrationWarning
-                    aria-label="Work email address"
-                    className="min-w-[220px] flex-1 px-4 py-3.5 text-sm outline-none"
-                    style={{
-                      background: 'rgba(249,246,240,0.07)',
-                      border: '1px solid rgba(249,246,240,0.15)',
-                      color: 'var(--color-paper)',
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={wlLoading}
-                    className="px-7 py-3.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ background: 'var(--color-accent)', color: 'var(--color-ink)' }}
-                  >
-                    {wlLoading ? 'Joining…' : 'Get early access →'}
-                  </button>
-                </div>
-                {wlError && (
-                  <p className="mt-2 text-xs" style={{ color: 'rgba(249,246,240,0.5)' }} role="alert">
-                    {wlError}
+            <div className="hero-input-row flex flex-1 items-center gap-2 px-5">
+              <span className="select-none text-sm text-muted">https://</span>
+              <input
+                type="text"
+                value={brand.url}
+                onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
+                placeholder="yourcompany.com"
+                suppressHydrationWarning
+                aria-label="Company URL"
+                className="w-full bg-transparent py-4 text-lg text-ink outline-none placeholder:text-muted"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={brand.loading}
+              className="hero-button px-8 text-base disabled:opacity-50"
+            >
+              {brand.loading ? 'Reading…' : 'Generate →'}
+            </button>
+          </form>
+
+          {/* Loading / note — ink/muted, not amber */}
+          {brand.loading && (
+            <p className="rise mt-5 flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--color-muted)' }}>
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--color-ink)' }} />
+              Reading your site…
+            </p>
+          )}
+          {brand.note && !brand.loading && (
+            <p className="mt-5 text-sm text-muted" role="status">
+              {brand.note}
+            </p>
+          )}
+
+          {/* LIVE PREVIEWS — above the fold on desktop */}
+          <div className="mt-14 grid grid-cols-1 gap-5 md:grid-cols-3">
+            {LAYOUTS.map(({ id, label: name, h }) => (
+              <SignaturePreview
+                key={id}
+                kit={brand.kit}
+                fields={brand.fields}
+                layout={id}
+                label={name}
+                height={h}
+                font={brand.font}
+                siteUrl={brand.siteUrl || undefined}
+                proHref="#notify"
+              />
+            ))}
+          </div>
+
+          {!hasGenerated && (
+            <p className="mt-4 text-xs text-muted">
+              ↑ Example signature. Paste your URL to see yours.
+            </p>
+          )}
+
+          {/* POST-GENERATION EMAIL CAPTURE */}
+          {hasGenerated && !brand.loading && (
+            <div className="mt-10 border-t border-line pt-8">
+              {wlDone ? (
+                <p className="flex items-center justify-center gap-2.5 text-sm text-ink">
+                  <span aria-hidden>✓</span>
+                  You&rsquo;re on the list. We&rsquo;ll be in touch.
+                </p>
+              ) : (
+                <form onSubmit={handleWaitlist} noValidate>
+                  <p className="mb-3 text-sm text-muted">
+                    Like what you see? Save your kit — enter your email and
+                    we&rsquo;ll notify you when Pro is ready.
                   </p>
-                )}
-              </form>
-            )}
-            <a href="#how" className="btn-ghost-dark mt-4 inline-block px-0 py-2 text-xs">
-              See how it works ↓
-            </a>
-          </div>
-        </div>
-
-        {/* Bottom decorative rule — signals content below */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-px"
-          style={{ background: 'rgba(249,246,240,0.06)' }}
-        />
-      </section>
-
-      {/* ── MARQUEE TICKER ──────────────────────────────────────────────── */}
-      <div
-        className="overflow-hidden border-b border-line py-3"
-        style={{ background: 'var(--color-paper-deep)' }}
-        aria-hidden="true"
-      >
-        <div
-          style={{
-            display: 'flex',
-            width: 'max-content',
-            animation: 'marquee 28s linear infinite',
-          }}
-        >
-          {[0, 1].map(copy => (
-            <div
-              key={copy}
-              style={{ display: 'flex', alignItems: 'center', gap: '2rem', paddingRight: '2rem', flexShrink: 0 }}
-            >
-              {TICKER.map(item => (
-                <span key={item} style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexShrink: 0 }}>
-                  <span className="whitespace-nowrap text-[0.63rem] uppercase tracking-[0.18em] text-muted">
-                    {item}
-                  </span>
-                  <span style={{ color: 'var(--color-accent)', fontSize: '0.5rem' }}>✦</span>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── DEMO ────────────────────────────────────────────────────────── */}
-      <section ref={demoRef} className="px-6 py-20 md:px-10" style={{ background: 'var(--color-paper)' }}>
-        <div className="mx-auto max-w-5xl">
-
-          <div className="sc-reveal mb-6 flex items-end justify-between gap-4">
-            <div>
-              <span className={lbl}>Live output</span>
-              <p className="mt-1.5 text-sm text-muted">
-                Generated from{' '}
-                <span className="font-medium text-ink">acmecorp.com</span>{' '}
-                in 9 seconds — logo, colors, font, all automatic.
-              </p>
-            </div>
-          </div>
-
-          {/* Browser shell */}
-          <div
-            className="sc-reveal overflow-hidden border border-line"
-            style={{ boxShadow: '0 2px 0 rgba(28,25,23,0.04), 0 28px 72px -20px rgba(28,25,23,0.14)' }}
-          >
-            {/* Chrome bar */}
-            <div
-              className="flex items-center gap-3 border-b border-line px-4 py-2.5"
-              style={{ background: 'var(--color-paper-deep)' }}
-            >
-              <div className="flex shrink-0 gap-1.5">
-                {['#fc5753','#fdbc40','#33c748'].map(bg => (
-                  <span key={bg} className="block h-2.5 w-2.5 rounded-full" style={{ background: bg }} />
-                ))}
-              </div>
-
-              <div
-                className="flex flex-1 items-center gap-1 border border-line px-3 py-[5px]"
-                style={{ background: 'var(--color-paper)', borderRadius: 3 }}
-              >
-                <span className="select-none text-[0.67rem]" style={{ color: 'rgba(120,113,108,0.5)' }}>https://</span>
-                <span className="min-w-[7rem] text-[0.67rem] text-muted">
-                  {typed}
-                  {typed.length < 'acmecorp.com'.length && (
-                    <span className="animate-pulse" style={{ color: 'var(--color-accent)' }}>|</span>
-                  )}
-                </span>
-              </div>
-
-              <span
-                className="hidden shrink-0 text-[0.63rem] uppercase tracking-[0.15em] sm:block"
-                style={{ color: '#4ade80' }}
-              >
-                ✓ Generated
-              </span>
-            </div>
-
-            {/* Signature cards */}
-            <div className="sc-stagger grid grid-cols-1 divide-y divide-line md:grid-cols-3 md:divide-x md:divide-y-0">
-              {LAYOUTS.map(({ id, label: name, h }) => (
-                <div key={id} style={{ background: '#fff' }}>
-                  <div className="border-b border-line px-4 py-2.5" style={{ background: 'var(--color-card)' }}>
-                    <span className={lbl}>{name}</span>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    <input
+                      type="email"
+                      required
+                      placeholder="you@company.com"
+                      value={wlEmail}
+                      onChange={(e) => setWlEmail(e.target.value)}
+                      disabled={wlLoading}
+                      suppressHydrationWarning
+                      aria-label="Work email address"
+                      className="min-w-[220px] flex-1 px-4 py-3 text-sm outline-none"
+                      style={{
+                        background: 'var(--color-card)',
+                        border: '1px solid var(--color-line)',
+                        color: 'var(--color-ink)',
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={wlLoading}
+                      className="px-6 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                      style={{ background: 'var(--color-ink)', color: 'var(--color-paper)' }}
+                    >
+                      {wlLoading ? 'Saving…' : 'Save my kit →'}
+                    </button>
                   </div>
-                  <iframe
-                    title={name}
-                    sandbox="allow-popups"
-                    style={{ height: h, display: 'block', width: '100%' }}
-                    srcDoc={frameDoc(renderSignature(ACME_KIT, ACME_PERSON, id))}
-                  />
-                </div>
-              ))}
+                  {wlError && (
+                    <p className="mt-2 text-xs text-muted" role="alert">
+                      {wlError}
+                    </p>
+                  )}
+                </form>
+              )}
             </div>
-          </div>
+          )}
 
+          <a href="#how" className="mt-8 inline-block text-xs text-muted transition-colors hover:text-ink">
+            See how it works ↓
+          </a>
         </div>
       </section>
 
-      {/* ── STEPS ───────────────────────────────────────────────────────── */}
+      {/* ── HOW IT WORKS ────────────────────────────────────────────────── */}
       <section
         id="how"
-        className="px-6 pb-24 pt-20 md:px-10"
+        className="px-6 py-20 md:px-10 md:py-32"
         style={{ background: 'var(--color-paper)' }}
       >
         <div className="mx-auto max-w-5xl">
@@ -464,7 +365,7 @@ export default function LandingPage() {
               className="mt-3 font-display leading-tight tracking-[-0.03em] text-ink"
               style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)' }}
             >
-              From URL to deployed.<br />Under 3 minutes.
+              From URL to signature.<br />Under 3 minutes.
             </h2>
           </div>
 
@@ -501,52 +402,87 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CONTRAST ────────────────────────────────────────────────────── */}
+      {/* ── BEFORE / AFTER (visual) ─────────────────────────────────────── */}
       <section
-        className="px-6 py-24 md:px-10"
-        style={{ background: 'var(--color-ink)' }}
+        className="px-6 py-20 md:px-10 md:py-32"
+        style={{ background: 'var(--color-paper-deep)' }}
       >
         <div className="mx-auto max-w-5xl">
 
-          <div className="sc-reveal border-b pb-6" style={{ borderColor: 'rgba(249,246,240,0.08)' }}>
-            <span className="text-[0.65rem] uppercase tracking-[0.18em]" style={{ color: 'rgba(249,246,240,0.28)' }}>
-              Why Signet
-            </span>
+          <div className="sc-reveal mb-10 border-b border-line pb-6">
+            <span className={lbl}>The difference</span>
             <h2
-              className="mt-3 font-display leading-tight tracking-[-0.03em]"
-              style={{ color: 'var(--color-paper)', fontSize: 'clamp(1.8rem, 4vw, 3rem)' }}
+              className="mt-3 font-display leading-tight tracking-[-0.03em] text-ink"
+              style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)' }}
             >
-              The old way is broken.
+              One URL. Or fifteen fields.
             </h2>
           </div>
 
-          <div className="sc-stagger mt-0 grid grid-cols-1 gap-0 md:grid-cols-2">
-            <div className="border-b py-12 md:border-b-0 md:border-r md:pr-14" style={{ borderColor: 'rgba(249,246,240,0.08)' }}>
-              <p className="mb-8 text-[0.65rem] uppercase tracking-[0.18em]" style={{ color: 'rgba(249,246,240,0.25)' }}>
-                Before
-              </p>
-              <ul className="space-y-5">
-                {BEFORE.map(item => (
-                  <li key={item} className="flex items-start gap-3.5" style={{ color: 'rgba(249,246,240,0.35)' }}>
-                    <span className="mt-0.5 shrink-0 text-xs">✗</span>
-                    <span className="text-[0.9rem] leading-snug">{item}</span>
-                  </li>
+          <div className="sc-stagger grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* OLD WAY */}
+            <div className="border border-line bg-card p-6">
+              <div className="mb-5 flex items-center gap-1.5">
+                {['#fc5753','#fdbc40','#33c748'].map(bg => (
+                  <span key={bg} className="block h-2.5 w-2.5 rounded-full" style={{ background: bg }} />
                 ))}
-              </ul>
+              </div>
+              <p className="mb-5 text-[0.65rem] uppercase tracking-[0.18em] text-muted">
+                The old way — fill every field
+              </p>
+              <div className="space-y-2.5">
+                {OLD_WAY_FIELDS.map(f => (
+                  <div key={f} className="flex items-center gap-3">
+                    <span className="w-28 shrink-0 truncate text-[0.7rem] text-muted">{f}</span>
+                    <span className="h-7 flex-1 border border-line bg-paper" />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 text-[0.72rem] text-muted">Per employee. Every time.</p>
             </div>
 
-            <div className="py-12 md:pl-14">
-              <p className="mb-8 text-[0.65rem] uppercase tracking-[0.18em]" style={{ color: 'var(--color-accent)' }}>
-                With Signet
-              </p>
-              <ul className="space-y-5">
-                {AFTER.map(item => (
-                  <li key={item} className="flex items-start gap-3.5" style={{ color: 'var(--color-paper)' }}>
-                    <span className="mt-0.5 shrink-0 text-xs" style={{ color: 'var(--color-accent)' }}>✓</span>
-                    <span className="text-[0.9rem] leading-snug">{item}</span>
-                  </li>
+            {/* WITH SIGNET — one amber instance: the card border */}
+            <div className="border-2 p-6" style={{ borderColor: 'var(--color-accent)', background: 'var(--color-card)' }}>
+              <div className="mb-5 flex items-center gap-1.5">
+                {['#fc5753','#fdbc40','#33c748'].map(bg => (
+                  <span key={bg} className="block h-2.5 w-2.5 rounded-full" style={{ background: bg }} />
                 ))}
-              </ul>
+              </div>
+              <p className="mb-5 text-[0.65rem] uppercase tracking-[0.18em] text-muted">
+                With Signet — paste your URL
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="text-[0.7rem] text-muted">https://</span>
+                <span className="flex h-10 flex-1 items-center border border-line bg-paper px-3 text-[0.8rem] text-muted">
+                  yourcompany.com
+                </span>
+                <span
+                  className="flex h-10 items-center px-5 text-[0.8rem] font-medium"
+                  style={{ background: 'var(--color-ink)', color: 'var(--color-paper)' }}
+                >
+                  Generate →
+                </span>
+              </div>
+              <div className="mt-5 space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-[0.7rem] text-muted">Logo</span>
+                  <span className="h-7 flex-1 border border-line bg-paper" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-[0.7rem] text-muted">Colors</span>
+                  <span className="flex h-7 flex-1 items-center gap-1 px-1">
+                    <span className="h-5 w-5" style={{ background: '#b23a20' }} />
+                    <span className="h-5 w-5" style={{ background: '#6f6857' }} />
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-[0.7rem] text-muted">Font</span>
+                  <span className="h-7 flex-1 border border-line bg-paper" />
+                </div>
+              </div>
+              <p className="mt-5 text-[0.72rem] text-ink">
+                Done. In 9 seconds.
+              </p>
             </div>
           </div>
 
@@ -554,7 +490,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ─────────────────────────────────────────────────────── */}
-      <section id="pricing" className="px-6 py-24 md:px-10">
+      <section id="pricing" className="px-6 py-20 md:px-10 md:py-32">
         <div className="mx-auto max-w-5xl">
 
           <div className="sc-reveal border-b border-line pb-6">
@@ -573,10 +509,12 @@ export default function LandingPage() {
                 key={plan.name}
                 className={[
                   'p-8',
-                  plan.highlight ? '' : '',
                   i < 2 ? 'border-b border-line md:border-b-0 md:border-r' : '',
                 ].join(' ')}
-                style={{ background: plan.highlight ? 'var(--color-card)' : undefined }}
+                style={{
+                  background: plan.highlight ? 'var(--color-card)' : undefined,
+                  opacity: plan.soon ? 0.7 : 1,
+                }}
               >
                 <div className="flex items-start justify-between">
                   <span className={lbl}>{plan.name}</span>
@@ -588,6 +526,14 @@ export default function LandingPage() {
                       Popular
                     </span>
                   )}
+                  {plan.soon && (
+                    <span
+                      className="px-2 py-0.5 text-[0.58rem] uppercase tracking-wider"
+                      style={{ background: 'var(--color-paper-deep)', color: 'var(--color-muted)' }}
+                    >
+                      Coming soon
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-5 flex items-baseline gap-1.5">
@@ -597,26 +543,35 @@ export default function LandingPage() {
                   >
                     {plan.price}
                   </span>
-                  <span className="text-xs text-muted">{plan.desc}</span>
+                  {plan.desc && <span className="text-xs text-muted">{plan.desc}</span>}
                 </div>
 
                 <ul className="mt-8 space-y-3.5">
                   {plan.features.map(f => (
                     <li key={f} className="flex items-center gap-2.5 text-sm text-muted">
-                      <span className="shrink-0 text-[0.7rem]" style={{ color: 'var(--color-accent)' }}>–</span>
+                      <span className="shrink-0 text-[0.7rem] text-ink">–</span>
                       {f}
                     </li>
                   ))}
                 </ul>
 
-                <Link
-                  href={plan.href}
-                  className={`mt-10 block py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em] ${
-                    plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+                {plan.soon ? (
+                  <a
+                    href={plan.href}
+                    className="plan-cta-outline mt-10 block py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em]"
+                  >
+                    {plan.cta}
+                  </a>
+                ) : (
+                  <Link
+                    href={plan.href}
+                    className={`mt-10 block py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em] ${
+                      plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'
+                    }`}
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
@@ -624,9 +579,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FINAL CTA ───────────────────────────────────────────────────── */}
+      {/* ── FINAL CTA + NOTIFY ──────────────────────────────────────────── */}
       <section
-        className="border-t border-line px-6 py-28 text-center md:px-10"
+        id="notify"
+        className="border-t border-line px-6 py-20 text-center md:px-10 md:py-32"
         style={{ background: 'var(--color-paper-deep)' }}
       >
         <div className="sc-reveal mx-auto max-w-2xl">
@@ -639,7 +595,7 @@ export default function LandingPage() {
             <em style={{ color: 'var(--color-accent)' }}>to be in every email.</em>
           </h2>
           <p className="mt-5 text-sm text-muted">
-            10 seconds. No credit card. No IT ticket.
+            9 seconds. No credit card. No IT ticket.
           </p>
           <Link
             href="/app"
@@ -649,6 +605,50 @@ export default function LandingPage() {
             Generate yours free
             <span className="transition-transform group-hover:translate-x-1">→</span>
           </Link>
+
+          {/* Notify form for Pro / Team interest */}
+          <div className="mx-auto mt-16 max-w-md border-t border-line pt-10">
+            <p className="text-sm text-muted">
+              Want Pro or Team features? Get notified when they launch.
+            </p>
+            {wlDone ? (
+              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-ink">
+                <span aria-hidden>✓</span> You&rsquo;re on the list.
+              </p>
+            ) : (
+              <form onSubmit={handleWaitlist} noValidate className="mt-4 flex flex-wrap justify-center gap-3">
+                <input
+                  type="email"
+                  required
+                  placeholder="you@company.com"
+                  value={wlEmail}
+                  onChange={(e) => setWlEmail(e.target.value)}
+                  disabled={wlLoading}
+                  suppressHydrationWarning
+                  aria-label="Work email address"
+                  className="min-w-[200px] flex-1 px-4 py-3 text-sm outline-none"
+                  style={{
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-line)',
+                    color: 'var(--color-ink)',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={wlLoading}
+                  className="px-6 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ background: 'var(--color-ink)', color: 'var(--color-paper)' }}
+                >
+                  {wlLoading ? 'Saving…' : 'Notify me →'}
+                </button>
+              </form>
+            )}
+            {wlError && (
+              <p className="mt-2 text-xs text-muted" role="alert">
+                {wlError}
+              </p>
+            )}
+          </div>
         </div>
       </section>
 
@@ -661,9 +661,9 @@ export default function LandingPage() {
             Signet
           </Link>
           <p className={lbl}>
-            No template picker · No IT ticket · No filling forms
+            No template picker · No hex codes · No IT ticket
           </p>
-          <p className={`${lbl}`}>© 2026 Signet</p>
+          <p className={lbl}>© 2026 Signet</p>
         </div>
       </footer>
 

@@ -5,9 +5,44 @@ import { NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
 import type { BrandKit, SignatureFields } from '@/lib/types';
 
 type CacheEntry = { brandKit: BrandKit; contact: Partial<SignatureFields>; finalUrl: string; ts: number };
-// ponytail: module-level Map survives across requests in the same Node.js process
+// module-level Map survives across requests in the same Node.js process
 const cache = new Map<string, CacheEntry>();
 const TTL = 60 * 60 * 1000; // 1 hour
+
+// ─── Rate limiter ────────────────────────────────────────────────────────
+// 3 generations/hour, 10/day per IP. Cached responses don't count.
+// Only real scrape attempts (the expensive Firecrawl+Gemini path) are metered.
+type RateEntry = { hourly: number; daily: number; hourReset: number; dayReset: number };
+const rateMap = new Map<string, RateEntry>();
+const HOUR_LIMIT = 3;
+const DAY_LIMIT = 10;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const real = req.headers.get('x-real-ip');
+  if (real) return real.trim();
+  return 'local';
+}
+
+function checkRate(ip: string): boolean {
+  const now = Date.now();
+  let entry = rateMap.get(ip);
+  if (!entry) {
+    entry = { hourly: 0, daily: 0, hourReset: now + HOUR_MS, dayReset: now + DAY_MS };
+    rateMap.set(ip, entry);
+  }
+  if (now > entry.hourReset) { entry.hourly = 0; entry.hourReset = now + HOUR_MS; }
+  if (now > entry.dayReset) { entry.daily = 0; entry.dayReset = now + DAY_MS; }
+  if (entry.hourly >= HOUR_LIMIT || entry.daily >= DAY_LIMIT) return false;
+  entry.hourly++;
+  entry.daily++;
+  // crude guard: don't let the map grow unbounded
+  if (rateMap.size > 10_000) rateMap.clear();
+  return true;
+}
 
 function normalizeUrl(raw: string) {
   try {
@@ -31,6 +66,13 @@ export async function POST(req: Request) {
   const cached = cache.get(key);
   if (cached && Date.now() - cached.ts < TTL) {
     return NextResponse.json({ brandKit: cached.brandKit, contact: cached.contact, finalUrl: cached.finalUrl, fallback: false, cached: true });
+  }
+
+  // Rate-limit check: protects Firecrawl/Gemini budget from bots.
+  // Returns neutral fallback (HTTP 200) so the UI always renders.
+  const ip = getClientIp(req);
+  if (!checkRate(ip)) {
+    return NextResponse.json({ brandKit: NEUTRAL_BRAND_KIT, contact: {}, fallback: true, rateLimited: true });
   }
 
   let finalUrl = url;
