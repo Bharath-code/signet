@@ -4,10 +4,10 @@ import { renderSignature } from '@/lib/render-signature';
 import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
 import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
 
-const LAYOUTS: { id: Layout; label: string }[] = [
-  { id: 'minimal', label: 'Minimal' },
-  { id: 'logo', label: 'With logo' },
-  { id: 'logo-cta', label: 'Logo + CTA' },
+const LAYOUTS: { id: Layout; label: string; h: number }[] = [
+  { id: 'minimal', label: 'Minimal', h: 140 },
+  { id: 'logo', label: 'With logo', h: 160 },
+  { id: 'logo-cta', label: 'Logo + CTA', h: 200 },
 ];
 
 const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
@@ -16,6 +16,24 @@ const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
   { key: 'email', label: 'Email', type: 'email' },
   { key: 'phone', label: 'Phone' },
 ];
+
+const EMAIL_FONTS: { label: string; value: string }[] = [
+  { label: 'Georgia',    value: 'Georgia, serif' },
+  { label: 'Arial',      value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Verdana',    value: 'Verdana, Geneva, sans-serif' },
+  { label: 'Trebuchet',  value: 'Trebuchet MS, sans-serif' },
+  { label: 'Times',      value: 'Times New Roman, serif' },
+];
+
+// Map any AI-extracted web font to the nearest email-safe font.
+function toEmailSafeFont(extracted: string): string {
+  const f = extracted.toLowerCase();
+  if (/georgia|merriweather|playfair|lora|cormorant|fraunces/.test(f)) return 'Georgia, serif';
+  if (/times/.test(f)) return 'Times New Roman, serif';
+  if (/verdana/.test(f)) return 'Verdana, Geneva, sans-serif';
+  if (/trebuchet|nunito|raleway/.test(f)) return 'Trebuchet MS, sans-serif';
+  return 'Arial, Helvetica, sans-serif'; // inter, roboto, poppins, etc.
+}
 
 // preview-only chrome: pad + vertically center the signature inside its card.
 // renderSignature stays the true email output; this wrapper is just presentation.
@@ -35,11 +53,30 @@ const btn =
 
 export default function SignatureDemo() {
   const [url, setUrl] = useState('');
+  const [siteUrl, setSiteUrl] = useState('');
   const [kit, setKit] = useState<BrandKit>(NEUTRAL_BRAND_KIT);
+  const [font, setFont] = useState(EMAIL_FONTS[0].value); // Georgia default
   const [fields, setFields] = useState<SignatureFields>(DEMO_FIELDS);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(false);
+  const [copied, setCopied] = useState<Layout | null>(null);
+
+  async function copyLayout(id: Layout) {
+    const html = renderSignature({ ...kit, fontFamily: font }, fields, id, siteUrl || undefined);
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([html], { type: 'text/plain' }),
+        }),
+      ]);
+    } catch {
+      await navigator.clipboard.writeText(html);
+    }
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
 
   async function generate(e: React.FormEvent) {
     e.preventDefault();
@@ -57,8 +94,22 @@ export default function SignatureDemo() {
       });
       const data = await res.json();
       setKit(data.brandKit);
+      // use the post-redirect URL (e.g. bharathkumar.dev → www.bharathkumar.dev)
+      setSiteUrl(data.finalUrl ?? target);
+      setFont(toEmailSafeFont(data.brandKit.fontFamily));
+      if (data.contact && Object.keys(data.contact).length > 0) {
+        // Replace all fields so demo values (e.g. demo phone) don't bleed through
+        setFields({
+          fullName: data.contact.fullName ?? '',
+          jobTitle: data.contact.jobTitle ?? '',
+          email: data.contact.email ?? '',
+          phone: data.contact.phone ?? '',
+        });
+      }
       if (data.fallback)
         setNote("Couldn't read that site — showing a neutral signature. Try another URL.");
+      else if (data.cached)
+        setNote('');
     } catch {
       setNote('Something went wrong reading that site. Try again.');
     } finally {
@@ -136,6 +187,26 @@ export default function SignatureDemo() {
             />
           </label>
         ))}
+        {/* font picker spans full width */}
+        <div className="col-span-full">
+          <span className={label}>Font</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {EMAIL_FONTS.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFont(f.value)}
+                style={{ fontFamily: f.value }}
+                className={`rounded border px-3 py-1.5 text-sm transition-colors ${
+                  font === f.value
+                    ? 'border-ink bg-ink text-paper'
+                    : 'border-line text-muted hover:border-ink hover:text-ink'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* preview cards */}
@@ -143,24 +214,35 @@ export default function SignatureDemo() {
         className="rise mt-10 grid grid-cols-1 gap-5 md:grid-cols-3"
         style={{ animationDelay: '380ms' }}
       >
-        {LAYOUTS.map(({ id, label: name }) => (
+        {LAYOUTS.map(({ id, label: name, h }) => (
           <figure
             key={id}
             className="overflow-hidden border border-line bg-card shadow-[0_1px_0_rgba(24,22,15,0.04),0_18px_40px_-28px_rgba(24,22,15,0.45)]"
           >
             <figcaption className="flex items-center justify-between border-b border-line/70 px-4 py-3">
               <span className={label}>{name}</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              <button
+                onClick={() => copyLayout(id)}
+                className="text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-ink transition-colors"
+              >
+                {copied === id ? 'Copied ✓' : 'Copy'}
+              </button>
             </figcaption>
             <iframe
               title={name}
-              sandbox=""
-              className="block h-[168px] w-full bg-white"
-              srcDoc={frameDoc(renderSignature(kit, fields, id))}
+              sandbox="allow-popups"
+              style={{ height: h }}
+              className="block w-full bg-white"
+              srcDoc={frameDoc(renderSignature({ ...kit, fontFamily: font }, fields, id, siteUrl || undefined))}
             />
           </figure>
         ))}
       </div>
+
+      {/* copy hint */}
+      <p className="mt-4 text-[0.72rem] text-muted">
+        Copy any layout → Gmail Settings → See all settings → General → Signature → paste.
+      </p>
 
       {/* email CTA */}
       <section
