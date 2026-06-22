@@ -27,8 +27,11 @@ const frameDoc = (html: string) =>
 
 const label = 'text-[0.68rem] uppercase tracking-[0.18em] text-muted';
 const field =
-  'w-full bg-transparent border-b border-line py-2 text-ink outline-none ' +
-  'placeholder:text-muted/60 focus:border-accent transition-colors';
+  'w-full bg-transparent border-b border-line py-2 text-ink ' +
+  'placeholder:text-muted focus:border-accent transition-colors';
+const btn =
+  'inline-flex items-center justify-center gap-2 px-6 py-3 font-medium ' +
+  'text-paper transition-colors disabled:opacity-50';
 
 export default function SignatureDemo() {
   const [url, setUrl] = useState('');
@@ -40,14 +43,17 @@ export default function SignatureDemo() {
 
   async function generate(e: React.FormEvent) {
     e.preventDefault();
-    if (!url.trim()) return;
+    const domain = url.trim();
+    if (!domain) return;
+    // the visible "https://" is a prefix label; add a real scheme so new URL() parses.
+    const target = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
     setLoading(true);
     setNote('');
     try {
       const res = await fetch('/api/brand-kit', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: target }),
       });
       const data = await res.json();
       setKit(data.brandKit);
@@ -90,16 +96,13 @@ export default function SignatureDemo() {
           <span className="pr-1 text-muted select-none">https://</span>
           <input
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
             placeholder="yourcompany.com"
             suppressHydrationWarning
-            className="w-full bg-transparent py-3 text-lg text-ink outline-none placeholder:text-muted/60"
+            className="w-full bg-transparent py-3 text-lg text-ink placeholder:text-muted"
           />
         </div>
-        <button
-          disabled={loading}
-          className="group inline-flex items-center justify-center gap-2 bg-ink px-7 py-3 font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50"
-        >
+        <button disabled={loading} className={`group ${btn} bg-ink hover:bg-accent`}>
           {loading ? 'Reading…' : 'Generate'}
           <span className="transition-transform group-hover:translate-x-1">→</span>
         </button>
@@ -193,15 +196,13 @@ export default function SignatureDemo() {
                   className={`${field} mt-1`}
                 />
               </label>
-              <button className="bg-accent px-5 py-2.5 font-medium text-paper transition-colors hover:bg-accent-deep">
-                Notify me
-              </button>
+              <button className={`${btn} bg-accent hover:bg-accent-deep`}>Notify me</button>
             </form>
           )}
         </div>
       </section>
 
-      <footer className="mt-16 text-[0.68rem] uppercase tracking-[0.18em] text-muted/70">
+      <footer className="mt-16 text-[0.68rem] uppercase tracking-[0.18em] text-muted">
         No template picker · No IT ticket · No filling forms
       </footer>
     </main>

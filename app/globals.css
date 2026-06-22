@@ -46,6 +46,14 @@
   }
 }
 
+/* Unlayered so it beats Tailwind's layered `outline-none` utility on inputs.
+   Visible keyboard focus on every interactive element (WCAG 2.4.7). */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 /* staggered page-load reveal */
 @keyframes rise {
   from {
