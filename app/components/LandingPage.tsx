@@ -76,6 +76,9 @@ const PLANS = [
 ];
 
 const TICKER = ['On-brand', 'Nine seconds', 'No template picker', 'No hex codes', 'No IT ticket'];
+// One track must exceed the widest viewport for a seamless -50% loop; repeat
+// enough to cover ultrawide (~2560px) displays.
+const MARQUEE_ITEMS = Array.from({ length: 5 }, () => TICKER).flat();
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
@@ -330,12 +333,12 @@ export default function LandingPage() {
         aria-hidden
       >
         <div className="marquee">
-          {[0, 1].map((dup) => (
-            <div key={dup} className="flex shrink-0">
-              {TICKER.map((t) => (
-                <span key={t} className="flex items-center gap-6 pr-6 font-mono text-[0.72rem] uppercase tracking-[0.2em]" style={{ color: 'var(--color-paper)' }}>
+          {[0, 1].map((copy) => (
+            <div key={copy} className="marquee-track">
+              {MARQUEE_ITEMS.map((t, i) => (
+                <span key={`${copy}-${i}`} className="marquee-item">
                   {t}
-                  <span style={{ color: 'var(--color-accent)' }}>✶</span>
+                  <span className="marquee-star">✶</span>
                 </span>
               ))}
             </div>

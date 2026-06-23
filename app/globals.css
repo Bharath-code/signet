@@ -158,7 +158,25 @@
 }
 .plan-cta-primary:hover { background: var(--color-accent-deep); border-color: var(--color-accent-deep); }
 
-/* ── Marquee strip ──────────────────────────────────────────────────────── */
+/* ── Marquee strip ──────────────────────────────────────────────────────────
+   Two identical tracks; the row translates by exactly one track width (-50%)
+   so the loop is seamless. Spacing lives on each item (gap + padding-right),
+   not a container gap, so the seam between tracks matches the interior rhythm.
+   The track must be wider than the viewport — repeat the content enough. */
 @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.marquee { display: flex; width: max-content; animation: marquee 30s linear infinite; }
+.marquee { display: flex; width: max-content; animation: marquee 46s linear infinite; }
+.marquee-track { display: flex; align-items: center; }
+.marquee-item {
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+  padding-right: 1.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-paper);
+  white-space: nowrap;
+}
+.marquee-star { color: var(--color-accent); }
 @media (prefers-reduced-motion: reduce) { .marquee { animation: none; } }
