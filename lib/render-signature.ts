@@ -34,8 +34,8 @@ function details(kit: BrandKit, f: SignatureFields, websiteUrl?: string): string
 
 function logoCell(kit: BrandKit): string {
   const primary = esc(kit.primaryColor);
-  return `<td style="padding-right:16px;vertical-align:top;border-right:3px solid ${primary}">
-      <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="40" style="display:block;border:0">
+  return `<td style="padding-right:12px;vertical-align:top;border-right:3px solid ${primary}">
+      <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="40" style="display:block;border:0;max-height:40px;max-width:84px;width:auto;height:auto">
     </td>`;
 }
 
@@ -62,7 +62,7 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
     : '';
 
   return `<table cellpadding="0" cellspacing="0" role="presentation">
-    <tr>${logoCell(kit)}<td style="vertical-align:top;padding-left:14px">${details(kit, fields, websiteUrl)}</td></tr>
+    <tr>${logoCell(kit)}<td style="vertical-align:top;padding-left:12px">${details(kit, fields, websiteUrl)}</td></tr>
     ${ctaRow}
   </table>`;
 }

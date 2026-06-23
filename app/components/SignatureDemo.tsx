@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useBrandKit, LAYOUTS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
+import { BrandMark } from './Logo';
 import { track } from './track';
 import type { SignatureFields } from '@/lib/types';
 
@@ -25,7 +27,7 @@ const field =
   'w-full bg-transparent border-b border-line py-2 text-ink ' +
   'placeholder:text-muted focus:border-accent transition-colors';
 const btn =
-  'inline-flex items-center justify-center gap-2 px-6 py-3 font-medium ' +
+  'inline-flex items-center justify-center gap-2 px-6 py-3 font-mono text-[0.72rem] uppercase tracking-[0.12em] ' +
   'text-paper transition-colors disabled:opacity-50';
 
 export default function SignatureDemo() {
@@ -37,29 +39,47 @@ export default function SignatureDemo() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-16 md:px-10 md:py-24">
+    <>
+    <nav
+      aria-label="Main navigation"
+      className="sticky top-0 z-50 border-b"
+      style={{ background: 'rgba(243,242,236,0.86)', backdropFilter: 'blur(10px)', borderColor: 'var(--color-line)' }}
+    >
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
+        <Link href="/" className="flex items-center gap-2.5">
+          <BrandMark size={24} />
+          <span className="font-display text-lg font-extrabold tracking-tight text-ink">Signet</span>
+        </Link>
+        <Link href="/" className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink">
+          ← Home
+        </Link>
+      </div>
+    </nav>
+    <main className="mx-auto w-full max-w-6xl px-6 py-16 md:px-10 md:py-24">
       {/* hero */}
       <header className="rise max-w-3xl" style={{ animationDelay: '40ms' }}>
         <span className="eyebrow">Email signature studio</span>
-        <h1 className="mt-5 font-display font-bold text-[2.7rem] leading-[1.02] tracking-[-0.03em] text-ink md:text-[4.25rem]">
-          Your signature,{' '}
-          <em className="font-display italic" style={{ color: 'var(--color-accent)' }}>perfectly on-brand</em>,
-          <br className="hidden md:block" /> in ten seconds.
+        <h1
+          className="mt-7 font-display font-extrabold uppercase leading-[0.9] tracking-[-0.03em] text-ink"
+          style={{ fontSize: 'clamp(2.6rem, 7vw, 5rem)' }}
+        >
+          Your signature,<br />perfectly <span style={{ color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>on-brand.</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
-          Paste your website. We read your logo, your colors, and your typeface — and
-          build a signature that looks like it came from your design team.
+          Paste your website. We read your logo, your colors, and your typeface, and
+          build a signature that looks like your design team made it — in
+          <span className="text-ink"> ten seconds</span>.
         </p>
       </header>
 
       {/* url input */}
       <form
         onSubmit={(e) => { track('url_submitted'); void brand.generate(e); }}
-        className="rise mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
+        className="rise mt-10 flex max-w-2xl flex-col sm:flex-row"
         style={{ animationDelay: '140ms' }}
       >
-        <div className="hero-input-row flex flex-1 items-center gap-2 rounded-full px-5">
-          <span className="select-none text-sm text-muted">https://</span>
+        <div className="hero-input-row flex flex-1 items-center gap-3 px-5">
+          <span className="select-none font-mono text-sm text-muted">https://</span>
           <input
             value={brand.url}
             onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
@@ -69,7 +89,7 @@ export default function SignatureDemo() {
             className="w-full bg-transparent py-3 text-lg text-ink outline-none placeholder:text-muted"
           />
         </div>
-        <button disabled={brand.loading} className="hero-button inline-flex items-center gap-2.5 rounded-full px-6 disabled:opacity-50">
+        <button disabled={brand.loading} className="hero-button inline-flex items-center justify-center gap-2.5 px-8 disabled:opacity-50">
           {brand.loading ? 'Reading…' : 'Generate'}
           {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
         </button>
@@ -112,7 +132,7 @@ export default function SignatureDemo() {
                 key={f.value}
                 onClick={() => brand.setFont(f.value)}
                 style={{ fontFamily: f.value }}
-                className={`rounded border px-3 py-1.5 text-sm transition-colors ${
+                className={`border px-3 py-1.5 text-sm transition-colors ${
                   brand.font === f.value
                     ? 'border-ink bg-ink text-paper'
                     : 'border-line text-muted hover:border-ink hover:text-ink'
@@ -194,5 +214,6 @@ export default function SignatureDemo() {
         No template picker · No IT ticket · No filling forms
       </footer>
     </main>
+    </>
   );
 }

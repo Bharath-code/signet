@@ -7,7 +7,7 @@ const frameDoc = (html: string) =>
   `<!doctype html><meta charset="utf-8">` +
   `<style>html,body{margin:0;height:100%}` +
   `body{display:flex;align-items:center;box-sizing:border-box;` +
-  `padding:18px 20px;background:#fff}</style>${html}`;
+  `padding:16px 14px;background:#fff}</style>${html}`;
 
 type Props = {
   kit: BrandKit;
