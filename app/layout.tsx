@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Hanken_Grotesk } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { PostHogProvider } from "./components/PostHogProvider";
 import "./globals.css";
 
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en" className={`${spaceGrotesk.variable} ${hanken.variable}`}>
       <body>
         <PostHogProvider>{children}</PostHogProvider>
+        <Analytics />
       </body>
     </html>
   );
