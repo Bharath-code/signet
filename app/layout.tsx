@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { Fraunces, Hanken_Grotesk } from "next/font/google";
+import { Space_Grotesk, Hanken_Grotesk } from "next/font/google";
 import { PostHogProvider } from "./components/PostHogProvider";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
-  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -26,7 +25,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${hanken.variable}`}>
+    <html lang="en" className={`${spaceGrotesk.variable} ${hanken.variable}`}>
       <body>
         <PostHogProvider>{children}</PostHogProvider>
       </body>

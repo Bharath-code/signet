@@ -22,24 +22,28 @@ type Props = {
 
 export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref }: Props) {
   return (
-    <figure className="overflow-hidden border border-line bg-card shadow-[0_1px_0_rgba(24,22,15,0.04),0_18px_40px_-28px_rgba(24,22,15,0.45)]">
-      <figcaption className="flex items-center justify-between border-b border-line/70 px-4 py-3">
-        <span className="text-[0.68rem] uppercase tracking-[0.18em] text-muted">{label}</span>
-        <a
-          href={proHref}
-          onClick={() => track('pro_link_clicked')}
-          className="text-[0.65rem] uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
-        >
-          Copy with Pro →
-        </a>
-      </figcaption>
-      <iframe
-        title={label}
-        sandbox="allow-popups"
-        style={{ height }}
-        className="block w-full bg-white"
-        srcDoc={frameDoc(renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl))}
-      />
+    <figure className="bezel">
+      {/* Inner core renders the actual email output on white (always white — it's the real email sig) */}
+      <div className="bezel-inner">
+        <figcaption className="flex items-center justify-between border-b border-line/70 px-4 py-3">
+          <span className="text-[0.68rem] uppercase tracking-[0.18em] text-muted">{label}</span>
+          <a
+            href={proHref}
+            onClick={() => track('pro_link_clicked')}
+            className="flex items-center gap-1.5 text-[0.65rem] uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
+          >
+            Copy with Pro
+            <span className="hero-button-trail" style={{ background: 'rgba(9,9,11,0.08)', width: 20, height: 20 }}>→</span>
+          </a>
+        </figcaption>
+        <iframe
+          title={label}
+          sandbox="allow-popups"
+          style={{ height }}
+          className="block w-full bg-white"
+          srcDoc={frameDoc(renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl))}
+        />
+      </div>
     </figure>
   );
 }

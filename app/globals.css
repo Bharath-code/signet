@@ -1,33 +1,54 @@
 @import "tailwindcss";
 
 @theme {
-  /* Paper — warm off-white, slightly lighter/cleaner than before */
-  --color-paper:      #F9F6F0;
-  --color-paper-deep: #EDE8DF;
+  /* ─── "Ink & Stamp" — Pure Monochrome + Single Saturated Pop ─────────────
+     Rotated off the banned warm-craft palette (cream/brass/espresso) per
+     design-taste-frontend §4.2 PREMIUM-CONSUMER PALETTE BAN. Cool zinc
+     neutrals let one saturated electric blue do ALL the accent work.
+  */
+  /* Paper — neutral cool off-white (zinc) */
+  --color-paper:      #FAFAFA;
+  --color-paper-deep: #F4F4F5;
 
-  /* Ink — warm near-black (design system spec) */
-  --color-ink:        #1C1917;
-  --color-muted:      #78716C;
-  --color-line:       #DDD8CF;
-  --color-card:       #FEFCF8;
+  /* Ink — near-black cool (zinc-950, not espresso) */
+  --color-ink:        #09090B;
+  --color-muted:      #52525B;
+  --color-line:       #E4E4E7;
+  --color-card:       #FFFFFF;
 
-  /* Seal — amber wax. The one word we own: automatic. */
-  --color-accent:     #D97706;   /* amber-600  — CTAs, highlights, italic hero */
-  --color-accent-deep: #B45309;  /* amber-700  — hover states */
-  --color-accent-tint: #FEF3C7;  /* amber-100  — subtle background tints */
+  /* Stamp — one saturated pop. Electric blue, used SPARINGLY. */
+  --color-accent:      #2563EB;
+  --color-accent-deep: #1D4ED8;
+  --color-accent-tint: #DBEAFE;
 
-  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --font-body: var(--font-hanken), system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-hanken), system-ui, sans-serif;
+  --font-body:    var(--font-hanken), system-ui, sans-serif;
 
   --tracking-label: 0.18em;
 
-  --shadow-seal: 0 0 0 3px rgba(217, 119, 6, 0.22);
+  /* Spring curve for premium motion (high-end-visual-design §5) */
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Single accent focus ring */
+  --shadow-stamp: 0 0 0 3px rgba(37, 99, 235, 0.22);
+}
+
+/* Dark mode — Tailwind v4 reads prefers-color-scheme automatically for the
+   `dark:` variant; these swaps keep inline `var(--color-*)` styles coherent. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper:      #09090B;
+    --color-paper-deep: #18181B;
+    --color-ink:        #FAFAFA;
+    --color-muted:      #A1A1AA;
+    --color-line:       #27272A;
+    --color-card:       #18181B;
+    --color-accent-tint: #1E293B;
+  }
 }
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
   html {
     -webkit-font-smoothing: antialiased;
@@ -42,16 +63,16 @@
     color: var(--color-ink);
     background-color: var(--color-paper);
     font-family: var(--font-body);
-    /* warm paper: soft top glow + faint grain so it never reads as flat white */
+    /* Reinforce theme: very faint cool top-glow so paper never reads flat.
+       No warm grain — that was the prior palette's signature. */
     background-image:
-      radial-gradient(120% 80% at 50% -10%, rgba(217, 119, 6, 0.05), transparent 60%),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+      radial-gradient(120% 80% at 50% -10%, rgba(37, 99, 235, 0.03), transparent 60%);
     background-attachment: fixed;
   }
 
   ::selection {
     background: var(--color-accent);
-    color: var(--color-paper);
+    color: #fff;
   }
 }
 
@@ -63,84 +84,132 @@
   border-radius: 2px;
 }
 
-/* staggered page-load reveal */
+/* ── Premium motion choreography ───────────────────────────────────────── */
+
+/* Heavy fade-up with blur — the elite reveal (high-end-visual-design §5.C) */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(20px);
+    filter: blur(8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 }
 
 .rise {
   opacity: 0;
-  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: rise 0.9s var(--ease-fluid) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise { animation: none; opacity: 1; }
+  .rise { animation: none; opacity: 1; filter: none; }
 }
 
-/* Hero URL input + button — the demo IS the hero */
+/* ── Hero URL input — the demo IS the hero (Raycast/Cron pattern) ───────── */
+
 .hero-input-row {
   height: 64px;
   background: var(--color-card);
   border: 1px solid var(--color-line);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color 200ms var(--ease-fluid), box-shadow 200ms var(--ease-fluid);
 }
 .hero-input-row:focus-within {
   border-color: var(--color-accent);
-  box-shadow: var(--shadow-seal);
+  box-shadow: var(--shadow-stamp);
 }
+
+/* Double-Bezel hero button (high-end-visual-design §4.B):
+   primary pill + nested trailing-icon circle riding inside the right padding. */
 .hero-button {
   height: 64px;
   background: var(--color-ink);
   color: var(--color-paper);
   font-weight: 500;
   font-size: 0.95rem;
-  transition: background 150ms ease, color 150ms ease;
+  transition: transform 200ms var(--ease-fluid), background 200ms var(--ease-fluid), color 200ms var(--ease-fluid);
 }
 .hero-button:hover:not(:disabled) {
   background: var(--color-accent);
-  color: var(--color-ink);
+  color: #fff;
+}
+.hero-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.hero-button-trail {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 200ms var(--ease-fluid);
+}
+.hero-button:hover:not(:disabled) .hero-button-trail {
+  transform: translate(2px, -1px);
 }
 
-/* Nav ghost button on dark sections */
-.btn-ghost-dark {
-  border: 1px solid rgba(249,246,240,0.18);
-  color: rgba(249,246,240,0.55);
-  transition: border-color 200ms ease, color 200ms ease;
+/* ── Double-Bezel card shell (high-end-visual-design §4.A) ────────────────
+   Outer shell = subtle tint + hairline ring + padding + large radius.
+   Inner core = own bg + inset top highlight + concentric smaller radius. */
+.bezel {
+  position: relative;
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+  border: 1px solid var(--color-line);
+  border-radius: 1.5rem;
+  padding: 0.5rem;
+  transition: transform 300ms var(--ease-fluid), box-shadow 300ms var(--ease-fluid);
 }
-.btn-ghost-dark:hover {
-  border-color: rgba(249,246,240,0.5);
-  color: rgba(249,246,240,0.95);
+.bezel-inner {
+  position: relative;
+  background: var(--color-card);
+  border-radius: calc(1.5rem - 0.5rem);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+@media (prefers-color-scheme: dark) {
+  .bezel { background: color-mix(in srgb, var(--color-card) 60%, transparent); }
+  .bezel-inner { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+}
+.bezel:hover {
+  box-shadow: 0 24px 60px -28px rgba(9, 9, 11, 0.35);
 }
 
-/* Scroll-aware nav — hero is now paper/light, so both states use ink tones */
+/* ── Eyebrow pill (high-end-visual-design §4.C: rounded-full badge) ────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+/* ── Pricing CTA ────────────────────────────────────────────────────────── */
+.plan-cta-outline {
+  border: 1px solid var(--color-line);
+  color: var(--color-muted);
+  transition: border-color 200ms var(--ease-fluid), color 200ms var(--ease-fluid);
+}
+.plan-cta-outline:hover { border-color: var(--color-ink); color: var(--color-ink); }
+.plan-cta-primary {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  transition: background 200ms var(--ease-fluid), color 200ms var(--ease-fluid);
+}
+.plan-cta-primary:hover { background: var(--color-accent); color: #fff; }
+
+/* Scroll-aware nav link */
 nav[data-solid="false"] .nav-link { color: var(--color-muted); }
 nav[data-solid="false"] .nav-link:hover { color: var(--color-ink); }
 nav[data-solid="true"]  .nav-link { color: var(--color-muted); }
 nav[data-solid="true"]  .nav-link:hover { color: var(--color-ink); }
-
-/* Pricing plan CTA buttons */
-.plan-cta-outline {
-  border: 1px solid var(--color-line);
-  color: var(--color-muted);
-  transition: border-color 150ms, color 150ms;
-}
-.plan-cta-outline:hover {
-  border-color: var(--color-ink);
-  color: var(--color-ink);
-}
-.plan-cta-primary {
-  background: var(--color-ink);
-  color: var(--color-paper);
-  transition: background 150ms, color 150ms;
-}
-.plan-cta-primary:hover {
-  background: var(--color-accent);
-  color: var(--color-ink);
-}

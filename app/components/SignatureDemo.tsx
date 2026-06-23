@@ -40,10 +40,10 @@ export default function SignatureDemo() {
     <main className="mx-auto w-full max-w-5xl px-6 py-16 md:px-10 md:py-24">
       {/* hero */}
       <header className="rise max-w-3xl" style={{ animationDelay: '40ms' }}>
-        <span className={`${label} text-accent`}>Email signature studio</span>
-        <h1 className="mt-5 font-display text-[2.7rem] leading-[1.04] tracking-[-0.02em] text-ink md:text-[4.25rem]">
+        <span className="eyebrow">Email signature studio</span>
+        <h1 className="mt-5 font-display font-bold text-[2.7rem] leading-[1.02] tracking-[-0.03em] text-ink md:text-[4.25rem]">
           Your signature,{' '}
-          <em className="font-display italic text-accent">perfectly on-brand</em>,
+          <em className="font-display italic" style={{ color: 'var(--color-accent)' }}>perfectly on-brand</em>,
           <br className="hidden md:block" /> in ten seconds.
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
@@ -58,22 +58,23 @@ export default function SignatureDemo() {
         className="rise mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
         style={{ animationDelay: '140ms' }}
       >
-        <div className="flex flex-1 items-center border-b-2 border-ink/80 focus-within:border-accent transition-colors">
-          <span className="pr-1 text-muted select-none">https://</span>
+        <div className="hero-input-row flex flex-1 items-center gap-2 rounded-full px-5">
+          <span className="select-none text-sm text-muted">https://</span>
           <input
             value={brand.url}
             onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
             placeholder="yourcompany.com"
             suppressHydrationWarning
-            className="w-full bg-transparent py-3 text-lg text-ink placeholder:text-muted"
+            aria-label="Company URL"
+            className="w-full bg-transparent py-3 text-lg text-ink outline-none placeholder:text-muted"
           />
         </div>
-        <button disabled={brand.loading} className={`group ${btn} bg-ink hover:bg-accent`}>
+        <button disabled={brand.loading} className="hero-button inline-flex items-center gap-2.5 rounded-full px-6 disabled:opacity-50">
           {brand.loading ? 'Reading…' : 'Generate'}
-          <span className="transition-transform group-hover:translate-x-1">→</span>
+          {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
         </button>
       </form>
-      {brand.note && <p className="mt-3 text-sm text-accent-deep">{brand.note}</p>}
+      {brand.note && <p className="mt-3 text-sm text-muted">{brand.note}</p>}
 
       {/* divider */}
       <div
