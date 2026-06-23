@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useBrandKit, LAYOUTS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
 import { BrandMark } from './Logo';
-import { track } from './track';
+import { track, setPersonProperty } from './track';
 import type { BrandKit, SignatureFields } from '@/lib/types';
 
 /* ─── Demo data (initial state for hero previews) ──────────────────────── */
@@ -95,6 +95,7 @@ export default function LandingPage() {
   const pickSegment = (segment: 'self' | 'team') => {
     setWlSegment(segment);
     track('waitlist_segment', { segment });
+    setPersonProperty({ waitlist_segment: segment });
   };
 
   const brand = useBrandKit({

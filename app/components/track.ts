@@ -47,6 +47,18 @@ export function register(props: Record<string, unknown>) {
   }
 }
 
+// Set a person property — attaches to the person and applies retroactively
+// to all their events, so funnels can be broken down by it (event properties
+// can't do this). Used for the self-vs-team waitlist segment.
+export function setPersonProperty(props: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  try {
+    posthog.setPersonProperties(props);
+  } catch {
+    // analytics must never break the product
+  }
+}
+
 // Read a multivariate feature flag's variant key (undefined until flags load,
 // or when PostHog is disabled). Calling it records the flag exposure.
 export function getFeatureFlag(key: string): string | boolean | undefined {
