@@ -1,56 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  /* ─── "Ink & Stamp" — Pure Monochrome + Single Saturated Pop ─────────────
-     Rotated off the banned warm-craft palette (cream/brass/espresso) per
-     design-taste-frontend §4.2 PREMIUM-CONSUMER PALETTE BAN. Cool zinc
-     neutrals let one saturated electric blue do ALL the accent work.
-  */
-  /* Paper — neutral cool off-white (zinc) */
-  --color-paper:      #FAFAFA;
-  --color-paper-deep: #F4F4F5;
+  /* ─── "Press & Ink" — Editorial Swiss · International Typographic Style ───
+     Bone paper, near-black ink, one vermilion stamp. Whitespace is structured
+     by hairline rules and a strict grid, not left empty. Monospace carries all
+     metadata (labels, indices, captions). Deliberate LIGHT theme — no OS
+     auto-invert (that was the prior dark-mode complaint). */
 
-  /* Ink — near-black cool (zinc-950, not espresso) */
-  --color-ink:        #09090B;
-  --color-muted:      #52525B;
-  --color-line:       #E4E4E7;
+  /* Paper — warm bone, reads as printed stock */
+  --color-paper:      #F3F2EC;
+  --color-paper-deep: #E9E8DF;
   --color-card:       #FFFFFF;
 
-  /* Stamp — one saturated pop. Electric blue, used SPARINGLY. */
-  --color-accent:      #2563EB;
-  --color-accent-deep: #1D4ED8;
-  --color-accent-tint: #DBEAFE;
+  /* Ink — warm near-black */
+  --color-ink:        #131210;
+  --color-muted:      #5E5A52;
+  --color-line:       #D8D6CC;
 
-  --font-display: var(--font-space-grotesk), var(--font-hanken), system-ui, sans-serif;
+  /* Stamp — one saturated vermilion, used as accent + period */
+  --color-accent:      #E23A1A;
+  --color-accent-deep: #BF2E0F;
+
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
   --font-body:    var(--font-hanken), system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
 
-  --tracking-label: 0.18em;
-
-  /* Spring curve for premium motion (high-end-visual-design §5) */
   --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
-
-  /* Single accent focus ring */
-  --shadow-stamp: 0 0 0 3px rgba(37, 99, 235, 0.22);
-}
-
-/* Dark mode — Tailwind v4 reads prefers-color-scheme automatically for the
-   `dark:` variant; these swaps keep inline `var(--color-*)` styles coherent. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-paper:      #09090B;
-    --color-paper-deep: #18181B;
-    --color-ink:        #FAFAFA;
-    --color-muted:      #A1A1AA;
-    --color-line:       #27272A;
-    --color-card:       #18181B;
-    --color-accent-tint: #1E293B;
-  }
 }
 
 @layer base {
   * { box-sizing: border-box; }
 
   html {
+    color-scheme: light;                /* lock light — no prefers-color-scheme flip */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -63,153 +45,120 @@
     color: var(--color-ink);
     background-color: var(--color-paper);
     font-family: var(--font-body);
-    /* Reinforce theme: very faint cool top-glow so paper never reads flat.
-       No warm grain — that was the prior palette's signature. */
-    background-image:
-      radial-gradient(120% 80% at 50% -10%, rgba(37, 99, 235, 0.03), transparent 60%);
-    background-attachment: fixed;
   }
 
-  ::selection {
-    background: var(--color-accent);
-    color: #fff;
-  }
+  ::selection { background: var(--color-accent); color: #fff; }
 }
 
-/* Unlayered so it beats Tailwind's layered `outline-none` utility on inputs.
-   Visible keyboard focus on every interactive element (WCAG 2.4.7). */
+/* Unlayered so it beats Tailwind's layered `outline-none` on inputs (WCAG 2.4.7). */
 :where(a, button, input, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline-offset: 2px;
 }
 
-/* ── Premium motion choreography ───────────────────────────────────────── */
-
-/* Heavy fade-up with blur — the elite reveal (high-end-visual-design §5.C) */
+/* ── Reveal — crisp editorial slide-up (no blur) ────────────────────────── */
 @keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-    filter: blur(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-.rise {
-  opacity: 0;
-  animation: rise 0.9s var(--ease-fluid) forwards;
-}
-
+.rise { opacity: 0; animation: rise 0.8s var(--ease-fluid) forwards; }
 @media (prefers-reduced-motion: reduce) {
-  .rise { animation: none; opacity: 1; filter: none; }
+  .rise { animation: none; opacity: 1; }
 }
 
-/* ── Hero URL input — the demo IS the hero (Raycast/Cron pattern) ───────── */
+/* ── Eyebrow — mono caption with a vermilion tick ───────────────────────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.eyebrow::before {
+  content: "";
+  width: 1.75rem;
+  height: 1.5px;
+  background: var(--color-accent);
+}
 
+/* ── Hero URL input — sharp bordered bar ────────────────────────────────── */
 .hero-input-row {
-  height: 64px;
+  height: 68px;
   background: var(--color-card);
-  border: 1px solid var(--color-line);
-  transition: border-color 200ms var(--ease-fluid), box-shadow 200ms var(--ease-fluid);
+  border: 1.5px solid var(--color-ink);
+  transition: border-color 0.2s var(--ease-fluid);
 }
-.hero-input-row:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-stamp);
-}
+.hero-input-row:focus-within { border-color: var(--color-accent); }
 
-/* Double-Bezel hero button (high-end-visual-design §4.B):
-   primary pill + nested trailing-icon circle riding inside the right padding. */
+/* ── Buttons — sharp ink rectangle, mono label, vermilion on hover ──────── */
 .hero-button {
-  height: 64px;
+  height: 68px;
   background: var(--color-ink);
   color: var(--color-paper);
+  border: 1.5px solid var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
   font-weight: 500;
-  font-size: 0.95rem;
-  transition: transform 200ms var(--ease-fluid), background 200ms var(--ease-fluid), color 200ms var(--ease-fluid);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: background 0.2s var(--ease-fluid), border-color 0.2s var(--ease-fluid),
+              color 0.2s var(--ease-fluid), transform 0.12s var(--ease-fluid);
 }
 .hero-button:hover:not(:disabled) {
   background: var(--color-accent);
+  border-color: var(--color-accent);
   color: #fff;
 }
-.hero-button:active:not(:disabled) {
-  transform: scale(0.98);
-}
-.hero-button-trail {
-  width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.12);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 200ms var(--ease-fluid);
-}
-.hero-button:hover:not(:disabled) .hero-button-trail {
-  transform: translate(2px, -1px);
-}
+.hero-button:active:not(:disabled) { transform: translateY(1px); }
 
-/* ── Double-Bezel card shell (high-end-visual-design §4.A) ────────────────
-   Outer shell = subtle tint + hairline ring + padding + large radius.
-   Inner core = own bg + inset top highlight + concentric smaller radius. */
+.hero-button-trail {
+  display: inline-flex;
+  transition: transform 0.2s var(--ease-fluid);
+}
+.hero-button:hover:not(:disabled) .hero-button-trail { transform: translateX(3px); }
+
+/* ── Frame — flat hairline card (replaces the old rounded double-bezel) ──── */
 .bezel {
   position: relative;
-  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+  background: var(--color-card);
   border: 1px solid var(--color-line);
-  border-radius: 1.5rem;
-  padding: 0.5rem;
-  transition: transform 300ms var(--ease-fluid), box-shadow 300ms var(--ease-fluid);
+  transition: border-color 0.25s var(--ease-fluid), box-shadow 0.25s var(--ease-fluid);
 }
 .bezel-inner {
   position: relative;
   background: var(--color-card);
-  border-radius: calc(1.5rem - 0.5rem);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   overflow: hidden;
 }
-@media (prefers-color-scheme: dark) {
-  .bezel { background: color-mix(in srgb, var(--color-card) 60%, transparent); }
-  .bezel-inner { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
-}
 .bezel:hover {
-  box-shadow: 0 24px 60px -28px rgba(9, 9, 11, 0.35);
+  border-color: var(--color-ink);
+  box-shadow: 6px 6px 0 -1px var(--color-line);
 }
 
-/* ── Eyebrow pill (high-end-visual-design §4.C: rounded-full badge) ────── */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 9999px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.625rem;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  background: var(--color-accent-tint);
-  color: var(--color-accent);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
-}
-
-/* ── Pricing CTA ────────────────────────────────────────────────────────── */
+/* ── Pricing CTAs ───────────────────────────────────────────────────────── */
 .plan-cta-outline {
-  border: 1px solid var(--color-line);
-  color: var(--color-muted);
-  transition: border-color 200ms var(--ease-fluid), color 200ms var(--ease-fluid);
+  border: 1.5px solid var(--color-ink);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: background 0.2s var(--ease-fluid), color 0.2s var(--ease-fluid);
 }
-.plan-cta-outline:hover { border-color: var(--color-ink); color: var(--color-ink); }
+.plan-cta-outline:hover { background: var(--color-ink); color: var(--color-paper); }
 .plan-cta-primary {
-  background: var(--color-ink);
-  color: var(--color-paper);
-  transition: background 200ms var(--ease-fluid), color 200ms var(--ease-fluid);
+  background: var(--color-accent);
+  color: #fff;
+  border: 1.5px solid var(--color-accent);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: background 0.2s var(--ease-fluid), border-color 0.2s var(--ease-fluid);
 }
-.plan-cta-primary:hover { background: var(--color-accent); color: #fff; }
+.plan-cta-primary:hover { background: var(--color-accent-deep); border-color: var(--color-accent-deep); }
 
-/* Scroll-aware nav link */
-nav[data-solid="false"] .nav-link { color: var(--color-muted); }
-nav[data-solid="false"] .nav-link:hover { color: var(--color-ink); }
-nav[data-solid="true"]  .nav-link { color: var(--color-muted); }
-nav[data-solid="true"]  .nav-link:hover { color: var(--color-ink); }
+/* ── Marquee strip ──────────────────────────────────────────────────────── */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee { display: flex; width: max-content; animation: marquee 30s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .marquee { animation: none; } }

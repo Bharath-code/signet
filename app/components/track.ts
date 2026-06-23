@@ -33,3 +33,37 @@ export function track(name: string, path?: string) {
     // analytics must never break the product
   }
 }
+
+// Register super properties — persisted by PostHog and attached to every
+// subsequent event. Used for the logo A/B split so the existing funnel can be
+// broken down by `logo_variant` with no call-site changes.
+export function register(props: Record<string, unknown>) {
+  if (typeof window === 'undefined') return;
+  try {
+    posthog.register(props);
+  } catch {
+    // analytics must never break the product
+  }
+}
+
+// Read a multivariate feature flag's variant key (undefined until flags load,
+// or when PostHog is disabled). Calling it records the flag exposure.
+export function getFeatureFlag(key: string): string | boolean | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return posthog.getFeatureFlag(key);
+  } catch {
+    return undefined;
+  }
+}
+
+// Subscribe to flag (re)evaluation; returns an unsubscribe fn. Flags load
+// asynchronously after init, so consumers re-resolve on this callback.
+export function onFeatureFlags(cb: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  try {
+    return posthog.onFeatureFlags(cb) ?? (() => {});
+  } catch {
+    return () => {};
+  }
+}

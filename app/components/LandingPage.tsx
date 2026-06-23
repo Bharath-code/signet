@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Link from 'next/link';
 import { useBrandKit, LAYOUTS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
+import { BrandMark } from './Logo';
 import { track } from './track';
 import type { BrandKit, SignatureFields } from '@/lib/types';
 
@@ -28,8 +29,6 @@ const ACME_PERSON: SignatureFields = {
   phone: '+1 415 555 0101',
 };
 
-/* ─── How-it-works — asymmetric 2×2 bento (not stacked rows) ───────────── */
-
 const STEPS = [
   { n: '01', title: 'Paste your URL',  body: 'Drop in your company website. No setup, no credentials.' },
   { n: '02', title: 'Brand extracted', body: 'Logo, colors, and fonts — read from your site automatically.' },
@@ -49,7 +48,7 @@ const PLANS = [
     price: '$0',
     desc: 'forever',
     features: ['1 brand kit', '3 signature layouts', 'Copy HTML', '"Made with Signet" footer'],
-    cta: 'Generate yours →',
+    cta: 'Generate yours',
     href: '/app',
     highlight: false,
     soon: false,
@@ -59,7 +58,7 @@ const PLANS = [
     price: '$12',
     desc: '/ month',
     features: ['Unlimited brand kits', 'All layouts', 'No Signet footer', 'Font picker'],
-    cta: 'Generate yours →',
+    cta: 'Generate yours',
     href: '#notify',
     highlight: true,
     soon: false,
@@ -76,11 +75,12 @@ const PLANS = [
   },
 ];
 
+const TICKER = ['On-brand', 'Nine seconds', 'No template picker', 'No hex codes', 'No IT ticket'];
+
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
-  const root     = useRef<HTMLDivElement>(null);
-  const heroRef  = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const [navSolid,     setNavSolid]     = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [wlEmail,      setWlEmail]      = useState('');
@@ -120,29 +120,6 @@ export default function LandingPage() {
     }
   };
 
-  // Hero input: magnetic micro-physics (high-end §5.B) — track pointer pull,
-  // never via React state. Pure DOM mutation in rAF so it can't jank.
-  useEffect(() => {
-    const btn = document.getElementById('hero-cta');
-    if (!btn) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const onMove = (e: MouseEvent) => {
-      const r = btn.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const dx = (e.clientX - cx) * 0.15;
-      const dy = (e.clientY - cy) * 0.25;
-      btn.style.transform = `translate(${dx}px, ${dy}px)`;
-    };
-    const onLeave = () => { btn.style.transform = ''; };
-    btn.addEventListener('mousemove', onMove);
-    btn.addEventListener('mouseleave', onLeave);
-    return () => {
-      btn.removeEventListener('mousemove', onMove);
-      btn.removeEventListener('mouseleave', onLeave);
-    };
-  }, []);
-
   useEffect(() => { track('page_view'); }, []);
 
   useEffect(() => {
@@ -151,14 +128,13 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Choreographed scene reveals (high-end §5.C): blur-up with stagger.
-  // GSAP animates transform + opacity + filter blur.
+  // Crisp editorial reveals — slide-up + fade, staggered grids.
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     const ctx = gsap.context(() => {
       gsap.utils.toArray<HTMLElement>('.sc-reveal').forEach(el => {
         gsap.from(el, {
-          y: 32, opacity: 0, filter: 'blur(8px)', duration: 0.9, ease: 'power3.out',
+          y: 28, opacity: 0, duration: 0.85, ease: 'power3.out',
           scrollTrigger: { trigger: el, start: 'top 88%', once: true },
         });
       });
@@ -166,13 +142,15 @@ export default function LandingPage() {
         const kids = Array.from(container.children);
         if (!kids.length) return;
         gsap.from(kids, {
-          y: 24, opacity: 0, filter: 'blur(6px)', duration: 0.8, ease: 'power3.out', stagger: 0.1,
+          y: 20, opacity: 0, duration: 0.7, ease: 'power3.out', stagger: 0.08,
           scrollTrigger: { trigger: container, start: 'top 88%', once: true },
         });
       });
     }, root);
     return () => ctx.revert();
   }, []);
+
+  const monoLabel = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted';
 
   return (
     <div ref={root}>
@@ -188,68 +166,66 @@ export default function LandingPage() {
       {/* ── NAV ─────────────────────────────────────────────────────────── */}
       <nav
         aria-label="Main navigation"
-        data-solid={navSolid ? 'true' : 'false'}
-        className="sticky top-0 z-50 flex h-14 items-center justify-between px-6 transition-all duration-300 md:px-10"
+        className="sticky top-0 z-50 border-b transition-colors duration-300"
         style={navSolid
-          ? { background: 'rgba(250,250,250,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-line)' }
-          : { background: 'transparent', borderBottom: '1px solid transparent' }
+          ? { background: 'rgba(243,242,236,0.86)', backdropFilter: 'blur(10px)', borderColor: 'var(--color-ink)' }
+          : { background: 'transparent', borderColor: 'var(--color-line)' }
         }
       >
-        <Link
-          href="/"
-          className="font-display text-[1.05rem] font-bold tracking-tight text-ink transition-colors"
-        >
-          Signet
-        </Link>
-        <Link
-          href="/app"
-          id="hero-cta-nav"
-          className="hero-button inline-flex items-center gap-2.5 rounded-full px-5 text-[0.72rem] font-medium uppercase tracking-[0.1em] transition-transform hover:opacity-95"
-          style={{ height: 40 }}
-        >
-          Generate yours →
-        </Link>
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
+          <Link href="/" className="flex items-center gap-2.5">
+            <BrandMark size={26} />
+            <span className="font-display text-lg font-extrabold tracking-tight text-ink">Signet</span>
+          </Link>
+          <div className="flex items-center gap-7">
+            <a href="#how"     className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>How</a>
+            <a href="#pricing" className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>Pricing</a>
+            <Link href="/app" className="hero-button inline-flex items-center gap-2.5 px-5" style={{ height: 40 }}>
+              Generate <span className="hero-button-trail" aria-hidden>→</span>
+            </Link>
+          </div>
+        </div>
       </nav>
 
       <main id="main-content">
 
-      {/* ── HERO (demo IS the hero · centered manifesto layout) ──────────── */}
-      <section
-        ref={heroRef}
-        className="relative px-6 pt-24 pb-24 md:px-10 md:pt-32 md:pb-40"
-        style={{ background: 'var(--color-paper)' }}
-      >
-        <div className="mx-auto w-full max-w-4xl text-center">
+      {/* ── HERO — oversized caps, structural rules, demo grid ───────────── */}
+      <section className="px-6 pt-14 pb-16 md:px-10 md:pt-20 md:pb-24">
+        <div className="mx-auto max-w-6xl">
 
-          {/* ONE eyebrow per 3 sections — this is the only one on the page */}
-          <span className="eyebrow rise" style={{ animationDelay: '40ms' }}>
-            Brand signatures, automated
-          </span>
+          <div className="rise flex items-center justify-between" style={{ animationDelay: '40ms' }}>
+            <span className="eyebrow">Brand signatures, automated</span>
+            <span className={`${monoLabel} hidden md:inline`}>Est. 2026 — Email identity</span>
+          </div>
 
           <h1
-            className="rise mt-8 font-display font-bold leading-[0.98] tracking-[-0.04em] text-ink"
-            style={{ animationDelay: '110ms', fontSize: 'clamp(3rem, 8vw, 6rem)' }}
+            className="rise mt-9 font-display font-extrabold uppercase tracking-[-0.03em] text-ink"
+            style={{ animationDelay: '110ms', fontSize: 'clamp(2.8rem, 11vw, 9rem)', lineHeight: 0.88 }}
           >
-            Your mark on every email.
+            Your mark<br />on every<br />email<span style={{ color: 'var(--color-accent)' }}>.</span>
           </h1>
 
-          <p
-            className="rise mx-auto mt-7 max-w-[48ch] text-lg leading-relaxed text-muted"
-            style={{ animationDelay: '180ms' }}
+          <div
+            className="rise mt-10 grid grid-cols-1 gap-6 border-t pt-6 md:grid-cols-[1fr_auto] md:items-end"
+            style={{ animationDelay: '180ms', borderColor: 'var(--color-ink)' }}
           >
-            Paste your company URL. Watch your logo, colors, and fonts
-            appear as a polished signature in 9 seconds.
-          </p>
+            <p className="max-w-[46ch] text-lg leading-relaxed text-muted">
+              Paste your company URL. Watch your logo, colors, and fonts become a
+              polished signature in <span className="text-ink">nine seconds</span> — no
+              template picker, no hex codes.
+            </p>
+            <span className={`${monoLabel} md:text-right`}>[ Validation demo ]</span>
+          </div>
 
-          {/* URL INPUT — the hero element, Double-Bezel button-in-button */}
+          {/* URL INPUT — sharp bar + flush ink button */}
           <form
             onSubmit={handleGenerate}
-            className="rise mx-auto mt-12 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
-            style={{ animationDelay: '260ms' }}
+            className="rise mt-7 flex flex-col sm:flex-row"
+            style={{ animationDelay: '250ms' }}
             noValidate
           >
-            <div className="hero-input-row flex flex-1 items-center gap-2 rounded-full px-5">
-              <span className="select-none text-sm text-muted">https://</span>
+            <div className="hero-input-row flex flex-1 items-center gap-3 px-5">
+              <span className="select-none font-mono text-sm text-muted">https://</span>
               <input
                 type="text"
                 value={brand.url}
@@ -264,60 +240,59 @@ export default function LandingPage() {
               id="hero-cta"
               type="submit"
               disabled={brand.loading}
-              className="hero-button inline-flex items-center justify-center gap-2.5 rounded-full px-7 text-base disabled:opacity-50"
+              className="hero-button inline-flex items-center justify-center gap-3 px-8 disabled:opacity-50"
             >
-              {brand.loading ? 'Reading…' : 'Generate yours'}
-              {!brand.loading && (
-                <span className="hero-button-trail" aria-hidden>→</span>
-              )}
+              {brand.loading ? 'Reading…' : 'Generate'}
+              {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
             </button>
           </form>
 
           {brand.loading && (
-            <p className="rise mt-6 flex items-center justify-center gap-2 text-sm text-muted">
+            <p className={`${monoLabel} mt-5 flex items-center gap-2`}>
               <span className="inline-block h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--color-accent)' }} />
               Reading your site…
             </p>
           )}
           {brand.note && !brand.loading && (
-            <p className="mt-6 text-sm text-muted" role="status">{brand.note}</p>
+            <p className={`${monoLabel} mt-5`} role="status">{brand.note}</p>
           )}
 
-          {/* LIVE PREVIEWS — Double-Bezel cards, above the fold on desktop */}
-          <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {LAYOUTS.map(({ id, label: name, h }) => (
-              <SignaturePreview
-                key={id}
-                kit={brand.kit}
-                fields={brand.fields}
-                layout={id}
-                label={name}
-                height={h}
-                font={brand.font}
-                siteUrl={brand.siteUrl || undefined}
-                proHref="#notify"
-              />
-            ))}
+          {/* LIVE PREVIEWS — strict 3-col grid of framed white cards */}
+          <div className="mt-14">
+            <div className="flex items-center justify-between border-t pb-4 pt-4" style={{ borderColor: 'var(--color-ink)' }}>
+              <span className={monoLabel}>Live preview — three layouts</span>
+              {!hasGenerated && <span className={monoLabel}>Example ↓ paste a URL</span>}
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {LAYOUTS.map(({ id, label: name, h }) => (
+                <SignaturePreview
+                  key={id}
+                  kit={brand.kit}
+                  fields={brand.fields}
+                  layout={id}
+                  label={name}
+                  height={h}
+                  font={brand.font}
+                  siteUrl={brand.siteUrl || undefined}
+                  proHref="#notify"
+                />
+              ))}
+            </div>
           </div>
-
-          {!hasGenerated && (
-            <p className="mt-5 text-xs text-muted">↑ Example signature. Paste your URL to see yours.</p>
-          )}
 
           {/* POST-GENERATION EMAIL CAPTURE */}
           {hasGenerated && !brand.loading && (
-            <div className="mt-12 border-t border-line pt-10">
+            <div className="mt-12 border-t pt-9" style={{ borderColor: 'var(--color-line)' }}>
               {wlDone ? (
-                <p className="flex items-center justify-center gap-2.5 text-sm text-ink">
-                  <span aria-hidden>✓</span> You&rsquo;re on the list. We&rsquo;ll be in touch.
+                <p className="flex items-center gap-2.5 text-sm text-ink">
+                  <span aria-hidden style={{ color: 'var(--color-accent)' }}>✓</span> You&rsquo;re on the list. We&rsquo;ll be in touch.
                 </p>
               ) : (
                 <form onSubmit={handleWaitlist} noValidate>
-                  <p className="mb-3 text-sm text-muted">
-                    Like what you see? Save your kit — enter your email and
-                    we&rsquo;ll notify you when Pro is ready.
+                  <p className={`${monoLabel} mb-3`}>
+                    Like it? Save your kit — we&rsquo;ll notify you when Pro ships.
                   </p>
-                  <div className="flex flex-wrap justify-center gap-3">
+                  <div className="flex flex-col gap-0 sm:flex-row sm:max-w-xl">
                     <input
                       type="email"
                       required
@@ -327,261 +302,257 @@ export default function LandingPage() {
                       disabled={wlLoading}
                       suppressHydrationWarning
                       aria-label="Work email address"
-                      className="min-w-[220px] flex-1 rounded-full px-4 py-3 text-sm outline-none"
-                      style={{ background: 'var(--color-card)', border: '1px solid var(--color-line)', color: 'var(--color-ink)' }}
+                      className="h-12 flex-1 px-4 text-sm outline-none"
+                      style={{ background: 'var(--color-card)', border: '1.5px solid var(--color-ink)', color: 'var(--color-ink)' }}
                     />
                     <button
                       type="submit"
                       disabled={wlLoading}
-                      className="hero-button inline-flex items-center justify-center gap-2.5 rounded-full px-6 text-sm disabled:opacity-50"
+                      className="hero-button inline-flex items-center justify-center gap-2.5 px-6 disabled:opacity-50"
+                      style={{ height: 48 }}
                     >
                       {wlLoading ? 'Saving…' : 'Save my kit'}
                       {!wlLoading && <span className="hero-button-trail" aria-hidden>→</span>}
                     </button>
                   </div>
-                  {wlError && <p className="mt-2 text-xs text-muted" role="alert">{wlError}</p>}
+                  {wlError && <p className={`${monoLabel} mt-2`} role="alert">{wlError}</p>}
                 </form>
               )}
             </div>
           )}
-
-          <a href="#how" className="mt-10 inline-block text-xs text-muted transition-colors hover:text-ink">
-            See how it works ↓
-          </a>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS — asymmetric 2×2 bento, no section eyebrow ─────── */}
-      <section
-        id="how"
-        className="px-6 py-24 md:px-10 md:py-40"
-        style={{ background: 'var(--color-paper)' }}
+      {/* ── MARQUEE — black strip, bone mono, vermilion ticks ────────────── */}
+      <div
+        className="overflow-hidden border-y py-3"
+        style={{ background: 'var(--color-ink)', borderColor: 'var(--color-ink)' }}
+        aria-hidden
       >
-        <div className="mx-auto max-w-5xl">
+        <div className="marquee">
+          {[0, 1].map((dup) => (
+            <div key={dup} className="flex shrink-0">
+              {TICKER.map((t) => (
+                <span key={t} className="flex items-center gap-6 pr-6 font-mono text-[0.72rem] uppercase tracking-[0.2em]" style={{ color: 'var(--color-paper)' }}>
+                  {t}
+                  <span style={{ color: 'var(--color-accent)' }}>✶</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
 
-          <div className="sc-reveal mb-12">
+      {/* ── HOW IT WORKS — tabular 4-step grid with hairline rules ───────── */}
+      <section id="how" className="px-6 py-24 md:px-10 md:py-32">
+        <div className="mx-auto max-w-6xl">
+          <div className="sc-reveal flex items-end justify-between border-b pb-6" style={{ borderColor: 'var(--color-ink)' }}>
             <h2
-              className="font-display font-semibold leading-tight tracking-[-0.03em] text-ink"
-              style={{ fontSize: 'clamp(1.9rem, 4vw, 3.25rem)' }}
+              className="font-display font-extrabold uppercase tracking-[-0.02em] text-ink"
+              style={{ fontSize: 'clamp(1.8rem, 5vw, 3.5rem)', lineHeight: 0.94 }}
             >
-              From URL to signature.<br />Under 3 minutes.
+              From URL<br />to signature
             </h2>
+            <span className={`${monoLabel} hidden md:inline`}>§ 01 — Process</span>
           </div>
 
-          {/* 2×2 bento — never stacked border-b rows */}
-          <div className="sc-stagger grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="sc-stagger grid grid-cols-1 gap-px md:grid-cols-4" style={{ background: 'var(--color-line)' }}>
             {STEPS.map(s => (
-              <div key={s.n} className="bezel">
-                <div className="bezel-inner p-8">
-                  <span
-                    className="font-display font-semibold leading-none tracking-tight text-ink/15"
-                    style={{ fontSize: 'clamp(3rem, 6vw, 4.5rem)' }}
-                  >
-                    {s.n}
-                  </span>
-                  <h3
-                    className="mt-4 font-display font-semibold tracking-tight text-ink"
-                    style={{ fontSize: 'clamp(1.1rem, 2vw, 1.5rem)' }}
-                  >
-                    {s.title}
-                  </h3>
-                  <p className="mt-2 max-w-[36ch] text-sm leading-relaxed text-muted">{s.body}</p>
+              <div key={s.n} className="bg-paper p-7 md:p-8">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-medium" style={{ color: 'var(--color-accent)' }}>{s.n}</span>
+                  <span className="font-mono text-[0.65rem] text-muted">/ 04</span>
                 </div>
+                <h3 className="mt-12 font-display text-xl font-bold tracking-tight text-ink">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{s.body}</p>
               </div>
             ))}
           </div>
-
         </div>
       </section>
 
-      {/* ── BEFORE/AFTER — split-screen asymmetric, no section eyebrow ───── */}
-      <section
-        className="px-6 py-24 md:px-10 md:py-40"
-        style={{ background: 'var(--color-paper-deep)' }}
-      >
-        <div className="mx-auto max-w-5xl">
-
-          <div className="sc-reveal mb-12">
+      {/* ── BEFORE / AFTER — orthogonal split, hairline field rows ───────── */}
+      <section className="px-6 py-24 md:px-10 md:py-32" style={{ background: 'var(--color-paper-deep)' }}>
+        <div className="mx-auto max-w-6xl">
+          <div className="sc-reveal flex items-end justify-between border-b pb-6" style={{ borderColor: 'var(--color-ink)' }}>
             <h2
-              className="font-display font-semibold leading-tight tracking-[-0.03em] text-ink"
-              style={{ fontSize: 'clamp(1.9rem, 4vw, 3.25rem)' }}
+              className="font-display font-extrabold uppercase tracking-[-0.02em] text-ink"
+              style={{ fontSize: 'clamp(1.8rem, 5vw, 3.5rem)', lineHeight: 0.94 }}
             >
-              One URL. Or fifteen fields.
+              One URL.<br />Or fifteen fields.
             </h2>
+            <span className={`${monoLabel} hidden md:inline`}>§ 02 — The difference</span>
           </div>
 
-          <div className="sc-stagger grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="sc-stagger mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
 
-            {/* OLD WAY — tilted card, muted */}
-            <div className="bezel" style={{ transform: 'rotate(-1.2deg)' }}>
-              <div className="bezel-inner p-7">
-                <p className="mb-5 text-[0.65rem] uppercase tracking-[0.18em] text-muted">
-                  The old way — fill every field
-                </p>
-                <div className="space-y-2.5">
-                  {OLD_WAY_FIELDS.map(f => (
-                    <div key={f} className="flex items-center gap-3">
-                      <span className="w-28 shrink-0 truncate text-[0.7rem] text-muted">{f}</span>
-                      <span className="h-7 flex-1 border border-line bg-paper" />
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-5 text-[0.72rem] text-muted">Per employee. Every time.</p>
+            {/* OLD WAY */}
+            <div className="border bg-card p-7" style={{ borderColor: 'var(--color-line)' }}>
+              <p className={`${monoLabel} mb-6`}>The old way — fill every field</p>
+              <div className="divide-y" style={{ borderColor: 'var(--color-line)' }}>
+                {OLD_WAY_FIELDS.map(f => (
+                  <div key={f} className="flex items-center gap-3 py-2">
+                    <span className="w-28 shrink-0 truncate font-mono text-[0.68rem] text-muted">{f}</span>
+                    <span className="h-6 flex-1 border" style={{ borderColor: 'var(--color-line)', background: 'var(--color-paper)' }} />
+                  </div>
+                ))}
               </div>
+              <p className={`${monoLabel} mt-6`}>Per employee. Every time.</p>
             </div>
 
-            {/* WITH SIGNET — clean Double-Bezel, single accent pop on the field */}
-            <div className="bezel" style={{ transform: 'rotate(0.8deg)' }}>
-              <div className="bezel-inner p-7">
-                <p className="mb-5 text-[0.65rem] uppercase tracking-[0.18em] text-muted">
-                  With Signet — paste your URL
-                </p>
-                <div className="flex items-center gap-3">
-                  <span className="text-[0.7rem] text-muted">https://</span>
-                  <span className="flex h-10 flex-1 items-center border bg-paper px-3 text-[0.8rem] text-muted rounded-full"
-                    style={{ borderColor: 'var(--color-accent)' }}>
-                    yourcompany.com
-                  </span>
-                  <span
-                    className="flex h-10 items-center gap-1.5 rounded-full px-4 text-[0.8rem] font-medium"
-                    style={{ background: 'var(--color-ink)', color: 'var(--color-paper)' }}
-                  >
-                    Generate
-                    <span className="hero-button-trail" aria-hidden style={{ width: 20, height: 20 }}>→</span>
-                  </span>
-                </div>
-                <div className="mt-5 space-y-2.5">
-                  <div className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-[0.7rem] text-muted">Logo</span>
-                    <span className="h-7 flex-1 border border-line bg-paper" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-[0.7rem] text-muted">Colors</span>
-                    <span className="flex h-7 flex-1 items-center gap-1 px-1">
-                      <span className="h-5 w-5 rounded" style={{ background: '#1d4ed8' }} />
-                      <span className="h-5 w-5 rounded" style={{ background: '#475569' }} />
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-[0.7rem] text-muted">Font</span>
-                    <span className="h-7 flex-1 border border-line bg-paper" />
-                  </div>
-                </div>
-                <p className="mt-5 text-[0.72rem] text-ink">Done. In 9 seconds.</p>
+            {/* WITH SIGNET */}
+            <div className="border-2 bg-card p-7" style={{ borderColor: 'var(--color-ink)' }}>
+              <p className="mb-6 font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }}>
+                With Signet — paste your URL
+              </p>
+              <div className="flex">
+                <span className="flex flex-1 items-center gap-2 border px-3 py-2.5 font-mono text-[0.78rem] text-muted"
+                  style={{ borderColor: 'var(--color-ink)', background: 'var(--color-paper)' }}>
+                  https://yourcompany.com
+                </span>
+                <span className="flex items-center gap-1.5 px-4 py-2.5 font-mono text-[0.72rem] uppercase tracking-[0.1em]"
+                  style={{ background: 'var(--color-accent)', color: '#fff' }}>
+                  Go →
+                </span>
               </div>
+              <div className="mt-6 divide-y" style={{ borderColor: 'var(--color-line)' }}>
+                <div className="flex items-center gap-3 py-2.5">
+                  <span className="w-24 shrink-0 font-mono text-[0.68rem] text-muted">Logo</span>
+                  <span className="font-mono text-[0.78rem] text-ink">✓ extracted</span>
+                </div>
+                <div className="flex items-center gap-3 py-2.5">
+                  <span className="w-24 shrink-0 font-mono text-[0.68rem] text-muted">Colors</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-4 w-4" style={{ background: '#1d4ed8' }} />
+                    <span className="h-4 w-4" style={{ background: '#475569' }} />
+                    <span className="ml-1 font-mono text-[0.78rem] text-ink">✓ extracted</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 py-2.5">
+                  <span className="w-24 shrink-0 font-mono text-[0.68rem] text-muted">Font</span>
+                  <span className="font-mono text-[0.78rem] text-ink">✓ extracted</span>
+                </div>
+              </div>
+              <p className="mt-6 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink">Done. In nine seconds.</p>
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* ── PRICING — elevated middle card (Double-Bezel with shadow lift) ─ */}
-      <section id="pricing" className="px-6 py-24 md:px-10 md:py-40">
-        <div className="mx-auto max-w-5xl">
-
-          <div className="sc-reveal mb-12">
+      {/* ── PRICING — aligned 3-col, Pro framed in ink + vermilion bar ───── */}
+      <section id="pricing" className="px-6 py-24 md:px-10 md:py-32">
+        <div className="mx-auto max-w-6xl">
+          <div className="sc-reveal flex items-end justify-between border-b pb-6" style={{ borderColor: 'var(--color-ink)' }}>
             <h2
-              className="font-display font-semibold tracking-[-0.03em] text-ink"
-              style={{ fontSize: 'clamp(1.9rem, 4vw, 3.25rem)' }}
+              className="font-display font-extrabold uppercase tracking-[-0.02em] text-ink"
+              style={{ fontSize: 'clamp(1.8rem, 5vw, 3.5rem)', lineHeight: 0.94 }}
             >
-              Start free. Scale when you&rsquo;re ready.
+              Start free.<br />Scale when ready.
             </h2>
+            <span className={`${monoLabel} hidden md:inline`}>§ 03 — Pricing</span>
           </div>
 
-          <div className="sc-stagger grid grid-cols-1 gap-5 md:grid-cols-3 md:items-center">
+          <div className="sc-stagger mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
             {PLANS.map(plan => (
               <div
                 key={plan.name}
-                className="bezel"
-                style={plan.highlight ? { transform: 'scale(1.04)' } : undefined}
+                className={`flex flex-col bg-card p-8 ${plan.highlight ? 'border-2' : 'border'}`}
+                style={{ borderColor: plan.highlight ? 'var(--color-ink)' : 'var(--color-line)' }}
               >
-                <div className="bezel-inner p-8">
-                  <div className="flex items-start justify-between">
-                    <span className="text-[0.65rem] uppercase tracking-[0.18em] text-muted">{plan.name}</span>
-                    {plan.highlight && (
-                      <span className="rounded-full px-2.5 py-0.5 text-[0.58rem] uppercase tracking-wider"
-                        style={{ background: 'var(--color-accent)', color: '#fff' }}>
-                        Popular
-                      </span>
-                    )}
-                    {plan.soon && (
-                      <span className="rounded-full px-2.5 py-0.5 text-[0.58rem] uppercase tracking-wider"
-                        style={{ background: 'var(--color-paper-deep)', color: 'var(--color-muted)' }}>
-                        Coming soon
-                      </span>
-                    )}
-                  </div>
+                {plan.highlight && <div className="-mx-8 -mt-8 mb-7 h-1.5" style={{ background: 'var(--color-accent)' }} />}
 
-                  <div className="mt-5 flex items-baseline gap-1.5">
-                    <span className="font-display font-semibold leading-none tracking-tight text-ink"
-                      style={{ fontSize: 'clamp(2rem, 4vw, 2.6rem)' }}>
-                      {plan.price}
+                <div className="flex items-center justify-between">
+                  <span className={monoLabel}>{plan.name}</span>
+                  {plan.highlight && (
+                    <span className="px-2 py-0.5 font-mono text-[0.58rem] uppercase tracking-[0.14em]" style={{ background: 'var(--color-accent)', color: '#fff' }}>
+                      Popular
                     </span>
-                    {plan.desc && <span className="text-xs text-muted">{plan.desc}</span>}
-                  </div>
-
-                  <ul className="mt-7 space-y-3.5">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-center gap-2.5 text-sm text-muted">
-                        <span className="shrink-0 text-[0.7rem] text-ink">–</span>
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {plan.soon ? (
-                    <a href={plan.href} onClick={() => track('pro_link_clicked')}
-                      className="plan-cta-outline mt-8 flex items-center justify-center gap-2.5 rounded-full py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em]">
-                      {plan.cta}
-                    </a>
-                  ) : (
-                    <Link href={plan.href} onClick={() => track('pro_link_clicked')}
-                      className={`mt-8 flex items-center justify-center gap-2.5 rounded-full py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em] ${
-                        plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'
-                      }`}>
-                      {plan.cta}
-                    </Link>
+                  )}
+                  {plan.soon && (
+                    <span className="px-2 py-0.5 font-mono text-[0.58rem] uppercase tracking-[0.14em]" style={{ border: '1px solid var(--color-line)', color: 'var(--color-muted)' }}>
+                      Soon
+                    </span>
                   )}
                 </div>
+
+                <div className="mt-5 flex items-baseline gap-1.5">
+                  <span className="font-display font-extrabold leading-none tracking-tight text-ink" style={{ fontSize: 'clamp(2.2rem, 4vw, 2.8rem)' }}>
+                    {plan.price}
+                  </span>
+                  {plan.desc && <span className="font-mono text-xs text-muted">{plan.desc}</span>}
+                </div>
+
+                <ul className="mt-7 flex-1 space-y-3">
+                  {plan.features.map(f => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-muted">
+                      <span className="mt-1 shrink-0 font-mono text-[0.7rem]" style={{ color: 'var(--color-accent)' }}>—</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {plan.soon ? (
+                  <a href={plan.href} onClick={() => track('pro_link_clicked')}
+                    className="plan-cta-outline mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem]">
+                    {plan.cta}
+                  </a>
+                ) : (
+                  <Link href={plan.href} onClick={() => track('pro_link_clicked')}
+                    className={`mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
+                    {plan.cta}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
-
         </div>
       </section>
 
-      {/* ── FINAL CTA + NOTIFY — full-bleed accent-tint (no eyebrow) ─────── */}
+      {/* ── FINAL CTA — inverted black block, deliberate editorial close ─── */}
       <section
         id="notify"
-        className="px-6 py-24 text-center md:px-10 md:py-40"
-        style={{ background: 'var(--color-paper-deep)' }}
+        className="px-6 py-28 md:px-10 md:py-36"
+        style={{ background: 'var(--color-ink)', color: 'var(--color-paper)' }}
       >
-        <div className="sc-reveal mx-auto max-w-2xl">
+        <div className="sc-reveal mx-auto max-w-4xl">
+          <span className="font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }}>
+            ✶ Ship your signature
+          </span>
           <h2
-            className="font-display font-semibold leading-[1.05] tracking-[-0.04em] text-ink"
-            style={{ fontSize: 'clamp(2.2rem, 6vw, 4.5rem)' }}
+            className="mt-6 font-display font-extrabold uppercase tracking-[-0.03em]"
+            style={{ fontSize: 'clamp(2.4rem, 8vw, 6rem)', lineHeight: 0.9, color: 'var(--color-paper)' }}
           >
-            Your brand deserves<br />
-            <em style={{ color: 'var(--color-accent)', fontStyle: 'normal' }}>to be in every email.</em>
+            Your brand belongs<br />
+            in every<span style={{ color: 'var(--color-accent)' }}> email.</span>
           </h2>
-          <p className="mt-5 text-sm text-muted">9 seconds. No credit card. No IT ticket.</p>
-          <Link
-            href="/app"
-            onClick={() => track('pro_link_clicked')}
-            className="hero-button group mt-10 inline-flex items-center justify-center gap-2.5 rounded-full px-8 py-4 text-sm font-medium"
-          >
-            Generate yours free
-            <span className="hero-button-trail" aria-hidden>→</span>
-          </Link>
 
-          <div className="mx-auto mt-16 max-w-md border-t border-line pt-10">
-            <p className="text-sm text-muted">Want Pro or Team features? Get notified when they launch.</p>
+          <div className="mt-10 flex flex-col gap-6 border-t pt-8 md:flex-row md:items-center md:justify-between"
+            style={{ borderColor: 'rgba(243,242,236,0.2)' }}>
+            <p className="font-mono text-[0.72rem] uppercase tracking-[0.16em]" style={{ color: 'rgba(243,242,236,0.7)' }}>
+              Nine seconds · No credit card · No IT ticket
+            </p>
+            <Link
+              href="/app"
+              onClick={() => track('pro_link_clicked')}
+              className="inline-flex items-center justify-center gap-3 px-8 font-mono text-[0.78rem] uppercase tracking-[0.12em] transition-colors"
+              style={{ height: 64, background: 'var(--color-accent)', color: '#fff' }}
+            >
+              Generate yours free
+              <span className="hero-button-trail" aria-hidden>→</span>
+            </Link>
+          </div>
+
+          {/* WAITLIST */}
+          <div className="mt-16 border-t pt-10" style={{ borderColor: 'rgba(243,242,236,0.2)' }}>
+            <p className="font-mono text-[0.72rem] uppercase tracking-[0.16em]" style={{ color: 'rgba(243,242,236,0.7)' }}>
+              Want Pro or Team? Get notified at launch.
+            </p>
             {wlDone ? (
-              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-ink">
-                <span aria-hidden>✓</span> You&rsquo;re on the list.
+              <p className="mt-4 flex items-center gap-2 text-sm" style={{ color: 'var(--color-paper)' }}>
+                <span aria-hidden style={{ color: 'var(--color-accent)' }}>✓</span> You&rsquo;re on the list.
               </p>
             ) : (
-              <form onSubmit={handleWaitlist} noValidate className="mt-4 flex flex-wrap justify-center gap-3">
+              <form onSubmit={handleWaitlist} noValidate className="mt-4 flex flex-col sm:flex-row sm:max-w-xl">
                 <input
                   type="email"
                   required
@@ -591,33 +562,35 @@ export default function LandingPage() {
                   disabled={wlLoading}
                   suppressHydrationWarning
                   aria-label="Work email address"
-                  className="min-w-[200px] flex-1 rounded-full px-4 py-3 text-sm outline-none"
-                  style={{ background: 'var(--color-card)', border: '1px solid var(--color-line)', color: 'var(--color-ink)' }}
+                  className="h-12 flex-1 bg-transparent px-4 text-sm outline-none"
+                  style={{ border: '1.5px solid rgba(243,242,236,0.35)', color: 'var(--color-paper)' }}
                 />
                 <button
                   type="submit"
                   disabled={wlLoading}
-                  className="hero-button inline-flex items-center justify-center gap-2.5 rounded-full px-6 py-3 text-sm font-medium disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2.5 px-6 font-mono text-[0.72rem] uppercase tracking-[0.12em] disabled:opacity-50"
+                  style={{ height: 48, background: 'var(--color-paper)', color: 'var(--color-ink)' }}
                 >
                   {wlLoading ? 'Saving…' : 'Notify me'}
                   {!wlLoading && <span className="hero-button-trail" aria-hidden>→</span>}
                 </button>
               </form>
             )}
-            {wlError && <p className="mt-2 text-xs text-muted" role="alert">{wlError}</p>}
+            {wlError && <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'rgba(243,242,236,0.7)' }} role="alert">{wlError}</p>}
           </div>
         </div>
       </section>
 
       </main>
 
-      <footer className="border-t border-line px-6 py-8 md:px-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 text-center md:flex-row md:items-center md:justify-between md:text-left">
-          <Link href="/" className="font-display font-bold text-ink">Signet</Link>
-          <p className="text-[0.65rem] uppercase tracking-[0.18em] text-muted">
-            No template picker · No hex codes · No IT ticket
-          </p>
-          <p className="text-[0.65rem] uppercase tracking-[0.18em] text-muted">© 2026 Signet</p>
+      <footer className="px-6 py-8 md:px-10" style={{ borderTop: '1px solid var(--color-line)' }}>
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <BrandMark size={22} />
+            <span className="font-display font-extrabold text-ink">Signet</span>
+          </Link>
+          <p className={monoLabel}>No template picker · No hex codes · No IT ticket</p>
+          <p className={monoLabel}>© 2026 Signet</p>
         </div>
       </footer>
 
