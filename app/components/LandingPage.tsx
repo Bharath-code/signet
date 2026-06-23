@@ -58,7 +58,7 @@ const PLANS = [
     price: '$12',
     desc: '/ month',
     features: ['Unlimited brand kits', 'All layouts', 'No Signet footer', 'Font picker'],
-    cta: 'Generate yours',
+    cta: 'Join the waitlist',
     href: '#notify',
     highlight: true,
     soon: false,
@@ -112,19 +112,23 @@ export default function LandingPage() {
 
   const handleWaitlist = async (e: FormEvent) => {
     e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wlEmail.trim())) {
+      setWlError('Enter a valid email address.');
+      return;
+    }
     setWlLoading(true);
     setWlError('');
     try {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: wlEmail }),
+        body: JSON.stringify({ email: wlEmail.trim() }),
       });
       if (!res.ok) throw new Error('failed');
       setWlDone(true);
       track('waitlist_joined');
     } catch {
-      setWlError('Something went wrong — try again.');
+      setWlError("Couldn't save your email — try again.");
     } finally {
       setWlLoading(false);
     }
@@ -139,9 +143,13 @@ export default function LandingPage() {
   }, []);
 
   // Crisp editorial reveals — slide-up + fade, staggered grids.
+  // Registered only under no-preference; when reduced motion is requested the
+  // animations simply never run, so .sc-reveal/.sc-stagger stay at their natural
+  // opacity:1 (the hidden state lives only in gsap.from, not in CSS).
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
-    const ctx = gsap.context(() => {
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.utils.toArray<HTMLElement>('.sc-reveal').forEach(el => {
         gsap.from(el, {
           y: 28, opacity: 0, duration: 0.85, ease: 'power3.out',
@@ -156,8 +164,8 @@ export default function LandingPage() {
           scrollTrigger: { trigger: container, start: 'top 88%', once: true },
         });
       });
-    }, root);
-    return () => ctx.revert();
+    });
+    return () => mm.revert();
   }, []);
 
   const monoLabel = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted';
@@ -222,9 +230,9 @@ export default function LandingPage() {
             <BrandMark size={26} />
             <span className="font-display text-lg font-extrabold tracking-tight text-ink">Signet</span>
           </Link>
-          <div className="flex items-center gap-7">
-            <a href="#how"     className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>How</a>
-            <a href="#pricing" className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>Pricing</a>
+          <div className="flex items-center gap-4 sm:gap-7">
+            <a href="#how"     className={`${monoLabel} transition-colors hover:text-ink`}>How</a>
+            <a href="#pricing" className={`${monoLabel} transition-colors hover:text-ink`}>Pricing</a>
             <Link href="/app" className="hero-button inline-flex items-center gap-2.5 px-5" style={{ height: 40 }}>
               Generate <span className="hero-button-trail" aria-hidden>→</span>
             </Link>
@@ -245,7 +253,7 @@ export default function LandingPage() {
 
           <h1
             className="rise mt-9 font-display font-extrabold uppercase tracking-[-0.03em] text-ink"
-            style={{ animationDelay: '110ms', fontSize: 'clamp(2.8rem, 11vw, 9rem)', lineHeight: 0.88 }}
+            style={{ animationDelay: '110ms', fontSize: 'clamp(2.8rem, 9vw, 6rem)', lineHeight: 0.88 }}
           >
             Your mark<br />on every<br />email<span style={{ color: 'var(--color-accent)' }}>.</span>
           </h1>
@@ -507,12 +515,12 @@ export default function LandingPage() {
                 <div className="flex items-center justify-between">
                   <span className={monoLabel}>{plan.name}</span>
                   {plan.highlight && (
-                    <span className="px-2 py-0.5 font-mono text-[0.58rem] uppercase tracking-[0.14em]" style={{ background: 'var(--color-accent)', color: '#fff' }}>
+                    <span className="px-2 py-0.5 font-mono text-[0.62rem] uppercase tracking-[0.14em]" style={{ background: 'var(--color-accent)', color: '#fff' }}>
                       Popular
                     </span>
                   )}
                   {plan.soon && (
-                    <span className="px-2 py-0.5 font-mono text-[0.58rem] uppercase tracking-[0.14em]" style={{ border: '1px solid var(--color-line)', color: 'var(--color-muted)' }}>
+                    <span className="px-2 py-0.5 font-mono text-[0.62rem] uppercase tracking-[0.14em]" style={{ border: '1px solid var(--color-line)', color: 'var(--color-muted)' }}>
                       Soon
                     </span>
                   )}

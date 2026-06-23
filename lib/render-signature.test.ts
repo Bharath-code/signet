@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderSignature } from './render-signature';
+import { renderSignature, ensureReadable, contrastRatio } from './render-signature';
 import type { BrandKit, SignatureFields } from './types';
 
 const kit: BrandKit = {
@@ -36,6 +36,23 @@ describe('renderSignature', () => {
 
   it('minimal does NOT include the logo image', () => {
     expect(renderSignature(kit, fields, 'minimal')).not.toContain('https://x/logo.png');
+  });
+
+  it('darkens a too-light brand color to AA contrast on white', () => {
+    const fixed = ensureReadable('#ffee00');           // bright yellow — fails on white
+    expect(contrastRatio(fixed, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('leaves an already-dark color unchanged', () => {
+    expect(ensureReadable('#1a2b3c')).toBe('#1a2b3c');
+    expect(contrastRatio('#1a2b3c', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('uses the contrast-safe color for text, never the raw light color', () => {
+    const light = { ...kit, primaryColor: '#ffee00' };
+    const html = renderSignature(light, fields, 'logo-cta');
+    expect(html).toContain(ensureReadable('#ffee00')); // name/email/CTA use the darkened color
+    expect(html).not.toContain('color:#ffee00');        // raw light color never colors text
   });
 
   it('escapes a malicious color value (no attribute breakout)', () => {

@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-23T00:00:00Z",
+  "title": "Design System: Signet",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Vermilion Stamp", "canonical": "oklch(0.62 0.21 32)", "tonalRamp": ["#2e0a02", "#591404", "#841d07", "#bf2e0f", "#e23a1a", "#ef6648", "#f59a86", "#fbd3c8"] },
+      "accent-deep": { "role": "primary", "displayName": "Vermilion Deep", "canonical": "oklch(0.54 0.19 32)" },
+      "ink": { "role": "neutral", "displayName": "Warm Ink", "canonical": "oklch(0.18 0.006 70)", "tonalRamp": ["#131210", "#262420", "#3d3a33", "#5e5a52", "#827d72", "#a8a298", "#cfc9bd", "#ece9e1"] },
+      "muted": { "role": "neutral", "displayName": "Muted Ink", "canonical": "oklch(0.43 0.008 75)" },
+      "paper": { "role": "neutral", "displayName": "Bone Paper", "canonical": "oklch(0.95 0.008 85)", "tonalRamp": ["#22211c", "#3b392f", "#56534700", "#7a766a", "#a39e90", "#cac4b6", "#e9e8df", "#f3f2ec"] },
+      "paper-deep": { "role": "neutral", "displayName": "Paper Deep", "canonical": "oklch(0.92 0.009 85)" },
+      "card": { "role": "neutral", "displayName": "Card White", "canonical": "oklch(1 0 0)" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(0.87 0.008 85)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headlines only. Bricolage Grotesque 800, uppercase, tight-set, ceiling 5rem." },
+      "headline": { "displayName": "Headline", "purpose": "Section and CTA headings." },
+      "body": { "displayName": "Body", "purpose": "Reading copy, capped 65–75ch, biased to ink." },
+      "label": { "displayName": "Label / Metadata", "purpose": "JetBrains Mono uppercase, ≥0.12em tracking. Every label, caption, index, eyebrow." }
+    },
+    "shadows": [
+      { "name": "hard-offset", "value": "6px 6px 0 -1px #D8D6CC", "purpose": "The only shadow. Zero blur. Bezel/preview-frame hover — a print proof lifted off the stack." }
+    ],
+    "motion": [
+      { "name": "ease-fluid", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Default easing for every state transition and the rise reveal." },
+      { "name": "rise", "value": "opacity + translateY(18px→0) over 0.8s ease-fluid", "purpose": "Editorial slide-up reveal. No blur. Honors prefers-reduced-motion (instant, opacity 1)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (hero)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The hero submit. Ink rectangle, mono label, vermilion on hover with arrow nudge.",
+      "html": "<button class=\"ds-btn-primary\">Generate <span class=\"ds-btn-trail\">→</span></button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; gap:0.6rem; height:68px; padding:0 32px; background:#131210; color:#F3F2EC; border:1.5px solid #131210; border-radius:0; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.78rem; font-weight:500; letter-spacing:0.12em; text-transform:uppercase; cursor:pointer; transition:background .2s cubic-bezier(.32,.72,0,1),border-color .2s cubic-bezier(.32,.72,0,1),color .2s cubic-bezier(.32,.72,0,1),transform .12s cubic-bezier(.32,.72,0,1); } .ds-btn-primary:hover { background:#E23A1A; border-color:#E23A1A; color:#fff; } .ds-btn-primary:active { transform:translateY(1px); } .ds-btn-trail { display:inline-flex; transition:transform .2s cubic-bezier(.32,.72,0,1); } .ds-btn-primary:hover .ds-btn-trail { transform:translateX(3px); }"
+    },
+    {
+      "name": "Plan CTA (primary)",
+      "kind": "button",
+      "refersTo": "cta-primary",
+      "description": "Pricing primary action. Vermilion fill, deepens on hover.",
+      "html": "<button class=\"ds-cta-primary\">Start free</button>",
+      "css": ".ds-cta-primary { padding:12px 24px; background:#E23A1A; color:#fff; border:1.5px solid #E23A1A; border-radius:0; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:background .2s cubic-bezier(.32,.72,0,1),border-color .2s cubic-bezier(.32,.72,0,1); } .ds-cta-primary:hover { background:#BF2E0F; border-color:#BF2E0F; }"
+    },
+    {
+      "name": "Outline CTA",
+      "kind": "button",
+      "refersTo": "cta-outline",
+      "description": "Secondary action. Ink border, inverts to ink fill on hover.",
+      "html": "<button class=\"ds-cta-outline\">See plans</button>",
+      "css": ".ds-cta-outline { padding:12px 24px; background:#fff; color:#131210; border:1.5px solid #131210; border-radius:0; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.72rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:background .2s cubic-bezier(.32,.72,0,1),color .2s cubic-bezier(.32,.72,0,1); } .ds-cta-outline:hover { background:#131210; color:#F3F2EC; }"
+    },
+    {
+      "name": "Underline Input",
+      "kind": "input",
+      "refersTo": "input-underline",
+      "description": "Default field — underline only, vermilion focus. Mono uppercase label above.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Full name</span><input class=\"ds-field-input\" placeholder=\"\" /></label>",
+      "css": ".ds-field { display:block; } .ds-field-label { display:block; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.68rem; font-weight:500; letter-spacing:0.18em; text-transform:uppercase; color:#5E5A52; margin-bottom:0.5rem; } .ds-field-input { width:100%; background:transparent; border:none; border-bottom:1px solid #D8D6CC; border-radius:0; padding:8px 0; color:#131210; font-family:'Hanken Grotesk',system-ui,sans-serif; font-size:1rem; transition:border-color .2s cubic-bezier(.32,.72,0,1); } .ds-field-input:focus { outline:none; border-bottom-color:#E23A1A; } .ds-field-input:focus-visible { outline:2px solid #E23A1A; outline-offset:2px; }"
+    },
+    {
+      "name": "Bezel Card",
+      "kind": "card",
+      "refersTo": "card-bezel",
+      "description": "Preview frame. Flat hairline at rest; ink border + hard-offset shadow on hover.",
+      "html": "<div class=\"ds-bezel\"><div class=\"ds-bezel-inner\">Preview</div></div>",
+      "css": ".ds-bezel { background:#fff; border:1px solid #D8D6CC; border-radius:0; padding:1.5rem; transition:border-color .25s cubic-bezier(.32,.72,0,1),box-shadow .25s cubic-bezier(.32,.72,0,1); } .ds-bezel:hover { border-color:#131210; box-shadow:6px 6px 0 -1px #D8D6CC; } .ds-bezel-inner { font-family:'Hanken Grotesk',system-ui,sans-serif; color:#131210; }"
+    },
+    {
+      "name": "Eyebrow",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Brand metadata mark — mono caption with a vermilion tick. Deliberate voice, never per-section scaffolding.",
+      "html": "<span class=\"ds-eyebrow\">Email signature studio</span>",
+      "css": ".ds-eyebrow { display:inline-flex; align-items:center; gap:0.6rem; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:0.7rem; letter-spacing:0.16em; text-transform:uppercase; color:#5E5A52; } .ds-eyebrow::before { content:''; width:1.75rem; height:1.5px; background:#E23A1A; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Press & Ink",
+    "overview": "Signet is set like a letterpress broadsheet rendered for the browser — the International Typographic (Swiss) style, committed without apology. Warm bone paper, near-black warm ink, and a single saturated vermilion as the stamp: accent, emphasis, and full stop in one. Whitespace is structured by hairline rules and a strict grid, not left empty. Monospace carries every piece of metadata. The system is deliberately light — no dark mode, no auto-invert — because the bone-and-ink contrast is the identity. Restraint is the product argument: the tool promises 'looks like your design team made it,' so the surface must read as the work of someone with taste.",
+    "keyCharacteristics": [
+      "Warm bone paper (#F3F2EC), warm near-black ink (#131210), one vermilion stamp (#E23A1A)",
+      "Zero border-radius — every corner is sharp",
+      "Monospace (JetBrains Mono) for all metadata; grotesque display (Bricolage) for headlines",
+      "Hairline rules (#D8D6CC) and grid structure instead of boxes and shadows",
+      "Hard, blur-free offset shadow as the only elevation gesture"
+    ],
+    "rules": [
+      { "name": "The One Stamp Rule", "body": "Vermilion is the only saturated color and appears on ≤10% of any screen. Accent and punctuation, never a large fill (CTAs aside). A second accent is forbidden.", "section": "colors" },
+      { "name": "The Locked-Light Rule", "body": "The system is light, always. color-scheme: light is explicit; prefers-color-scheme is never honored. No dark mode, no auto-invert.", "section": "colors" },
+      { "name": "The Mono-Metadata Rule", "body": "Every label, caption, index, and eyebrow is JetBrains Mono, uppercase, wide-tracked (≥0.12em). Metadata never borrows the body or display face.", "section": "typography" },
+      { "name": "The Eyebrow-Discipline Rule", "body": "The eyebrow is a deliberate brand mark, not section scaffolding. Use it sparingly as voice — never stamp one over every section.", "section": "typography" },
+      { "name": "The Hard-Offset Rule", "body": "Shadows have zero blur. Depth is a printed offset, never a soft glow. Blurred drop-shadows and glassmorphism are forbidden.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep vermilion (#E23A1A) to ≤10% of any screen — accent and punctuation only.",
+      "Do set every corner sharp (radius 0). Sharpness is identity.",
+      "Do render all metadata in JetBrains Mono, uppercase, ≥0.12em tracking.",
+      "Do structure whitespace with hairline rules (#D8D6CC) and the grid.",
+      "Do convey depth with the blur-free Hard Offset shadow and tonal layering.",
+      "Do bias body text toward ink (#131210); verify ≥4.5:1 on bone (WCAG AA)."
+    ],
+    "donts": [
+      "Don't ship the generic SaaS template: no gradient heroes, no identical card grids, no rounded corners, no Inter-on-white.",
+      "Don't stamp the eyebrow or any tracked-uppercase kicker over every section.",
+      "Don't clutter: no dense feature walls. One clear idea per viewport.",
+      "Don't introduce a second saturated accent. Vermilion is the only stamp.",
+      "Don't add dark mode or honor prefers-color-scheme.",
+      "Don't use blurred drop-shadows or glassmorphism — shadows have zero blur.",
+      "Don't let display headings exceed 5rem or set tighter than -0.04em."
+    ]
+  }
+}

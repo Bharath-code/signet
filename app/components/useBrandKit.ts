@@ -61,8 +61,10 @@ export function useBrandKit(opts: HookOpts = {}) {
       }
       if (data.rateLimited)
         setNote("You've generated several signatures — come back in an hour, or join the waitlist for Pro.");
+      else if (data.degraded === 'extract')
+        setNote('Pulled your logo and name — colors are our best guess. Adjust them below.');
       else if (data.fallback)
-        setNote("Couldn't read that site — showing a neutral signature. Try another URL.");
+        setNote("Couldn't reach that site — showing a neutral signature. Try another URL.");
       else
         setNote('');
     } catch {

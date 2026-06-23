@@ -33,10 +33,37 @@ const btn =
 export default function SignatureDemo() {
   const brand = useBrandKit();
   const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendErr, setSendErr] = useState('');
 
   useEffect(() => {
     track('page_view', '/app');
   }, []);
+
+  const submitWaitlist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setSendErr('Enter a valid email address.');
+      return;
+    }
+    setSending(true);
+    setSendErr('');
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (!res.ok) throw new Error('failed');
+      setSent(true);
+      track('waitlist_joined');
+    } catch {
+      setSendErr("Couldn't save your email — try again.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <>
@@ -94,7 +121,7 @@ export default function SignatureDemo() {
           {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
         </button>
       </form>
-      {brand.note && <p className="mt-3 text-sm text-muted">{brand.note}</p>}
+      {brand.note && <p className="mt-3 text-sm text-muted" role="status">{brand.note}</p>}
 
       {/* divider */}
       <div
@@ -131,6 +158,7 @@ export default function SignatureDemo() {
               <button
                 key={f.value}
                 onClick={() => brand.setFont(f.value)}
+                aria-pressed={brand.font === f.value}
                 style={{ fontFamily: f.value }}
                 className={`border px-3 py-1.5 text-sm transition-colors ${
                   brand.font === f.value
@@ -143,26 +171,55 @@ export default function SignatureDemo() {
             ))}
           </div>
         </div>
+        {/* extracted brand colors — read-only today; swatches become a picker later */}
+        <div className="col-span-full">
+          <span className={label}>Brand colors</span>
+          <div className="mt-2 flex flex-wrap items-center gap-2.5">
+            {([['Primary', brand.kit.primaryColor], ['Secondary', brand.kit.secondaryColor]] as const).map(([role, hex]) => (
+              <div key={role} className="flex cursor-default items-center gap-2 border border-line px-3 py-1.5">
+                <span aria-hidden className="h-4 w-4 border border-line" style={{ background: hex }} />
+                <span className="font-mono text-xs text-ink">{hex.toUpperCase()}</span>
+                <span className="text-[0.62rem] uppercase tracking-[0.16em] text-muted">{role}</span>
+              </div>
+            ))}
+            <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">Extracted · read-only</span>
+          </div>
+        </div>
       </div>
 
-      {/* preview cards */}
-      <div
-        className="rise mt-10 grid grid-cols-1 gap-5 md:grid-cols-3"
-        style={{ animationDelay: '380ms' }}
-      >
-        {LAYOUTS.map(({ id, label: name, h }) => (
-          <SignaturePreview
-            key={id}
-            kit={brand.kit}
-            fields={brand.fields}
-            layout={id}
-            label={name}
-            height={h}
-            font={brand.font}
-            siteUrl={brand.siteUrl || undefined}
-            proHref="/#notify"
-          />
+      {/* preview cards — feature the with-logo layout at realistic email width,
+          two alternates below. (Real signatures are 400–600px; a 3-up grid
+          squeezed them.) Mobile already stacks full-width. */}
+      <div className="rise mt-10 space-y-5" style={{ animationDelay: '380ms' }}>
+        {LAYOUTS.filter((l) => l.id === 'logo').map(({ id, label: name, h }) => (
+          <div key={id} className="mx-auto w-full max-w-2xl">
+            <SignaturePreview
+              kit={brand.kit}
+              fields={brand.fields}
+              layout={id}
+              label={name}
+              height={h}
+              font={brand.font}
+              siteUrl={brand.siteUrl || undefined}
+              proHref="/#notify"
+            />
+          </div>
         ))}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          {LAYOUTS.filter((l) => l.id !== 'logo').map(({ id, label: name, h }) => (
+            <SignaturePreview
+              key={id}
+              kit={brand.kit}
+              fields={brand.fields}
+              layout={id}
+              label={name}
+              height={h}
+              font={brand.font}
+              siteUrl={brand.siteUrl || undefined}
+              proHref="/#notify"
+            />
+          ))}
+        </div>
       </div>
 
       {/* copy hint */}
@@ -185,26 +242,29 @@ export default function SignatureDemo() {
             </p>
           </div>
           {sent ? (
-            <p className="text-accent-deep">Thanks — we&rsquo;ll be in touch about team deploy.</p>
+            <p className="text-accent-deep" role="status">Thanks — we&rsquo;ll be in touch about team deploy.</p>
           ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setSent(true);
-              }}
-              className="flex w-full max-w-sm items-end gap-3"
-            >
-              <label className="flex-1">
-                <span className={label}>Work email</span>
-                <input
-                  type="email"
-                  required
-                  placeholder="you@work.com"
-                  suppressHydrationWarning
-                  className={`${field} mt-1`}
-                />
-              </label>
-              <button className={`${btn} bg-accent hover:bg-accent-deep`}>Notify me</button>
+            <form onSubmit={submitWaitlist} noValidate className="w-full max-w-sm">
+              <div className="flex items-end gap-3">
+                <label className="flex-1">
+                  <span className={label}>Work email</span>
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@work.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={sending}
+                    suppressHydrationWarning
+                    aria-label="Work email address"
+                    className={`${field} mt-1`}
+                  />
+                </label>
+                <button disabled={sending} className={`${btn} bg-accent hover:bg-accent-deep disabled:opacity-50`}>
+                  {sending ? 'Saving…' : 'Notify me'}
+                </button>
+              </div>
+              {sendErr && <p className="mt-2 text-sm text-accent-deep" role="alert">{sendErr}</p>}
             </form>
           )}
         </div>

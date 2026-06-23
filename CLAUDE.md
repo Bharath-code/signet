@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A validation-stage demo (not the full product): paste a website URL → scrape it → an LLM extracts a brand kit (logo, colors, font) → render three branded email-signature previews live. The goal is to prove the "magic moment" before building the real MVP. Scope is deliberately constrained — **no auth, database, Stripe, OAuth, or persistence.** The email-capture CTA intentionally does not store anything.
+A validation-stage demo (not the full product): paste a website URL → scrape it → an LLM extracts a brand kit (logo, colors, font) → render three branded email-signature previews live. The goal is to prove the "magic moment" before building the real MVP. Scope is deliberately constrained — **no auth, database, Stripe, OAuth, or persistence.** The email-capture CTAs (landing + `/app`) both POST to `POST /api/waitlist`, which sends a founder notification and optionally upserts to a Resend Audience — notify-only, no app-side DB.
 
 Design spec and implementation plan live in `docs/superpowers/`.
 
@@ -72,3 +72,10 @@ Note: the schema's `z.url()` on `logoUrl` is permissive (accepts `data:`/`javasc
 - **The focus-visible ring in `app/globals.css` is unlayered on purpose** — it must beat Tailwind's layered `outline-none` utility. Don't move it into `@layer base`.
 - **Inputs carry `suppressHydrationWarning`** to silence browser-extension attribute injection on form fields.
 - **Tests cover only `renderSignature` and the schema** (the branching logic). External APIs are intentionally not unit-tested — mocking them would assert nothing; verify those via `/api/health` and live requests.
+
+## Design Context
+
+Strategy and visual system live in two root files — read them before UI work:
+
+- **`PRODUCT.md`** — register (`brand`; landing leads), users, purpose, brand personality (Editorial / precise / confident), anti-references (generic SaaS template, clutter), and five design principles (show-don't-tell, instant-proof-no-gates, output-quality-is-the-promise, honest-degradation, editorial-restraint). Accessibility target: WCAG AA.
+- **`DESIGN.md`** (+ `.impeccable/design.json` sidecar) — the "Press & Ink" Swiss system: bone `#F3F2EC` / ink `#131210` / one vermilion stamp `#E23A1A`, Bricolage / Hanken / JetBrains Mono, zero-radius, blur-free hard-offset shadow. Named rules: One Stamp (vermilion ≤10%), Locked-Light (no dark mode), Mono-Metadata, Eyebrow-Discipline, Hard-Offset.

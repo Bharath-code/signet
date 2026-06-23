@@ -75,15 +75,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ brandKit: NEUTRAL_BRAND_KIT, contact: {}, fallback: true, rateLimited: true });
   }
 
+  // Scrape and extract are independent vendors with independent outages (bulkhead).
+  // A scrape failure has nothing to salvage; an extract failure still has the scrape.
+  let scraped;
   let finalUrl = url;
   try {
-    const scraped = await scrapeSite(url);
+    scraped = await scrapeSite(url);
     finalUrl = scraped.finalUrl;
+  } catch (err) {
+    console.error('scrape failed:', err);
+    return NextResponse.json({ brandKit: NEUTRAL_BRAND_KIT, contact: {}, finalUrl, fallback: true, degraded: 'scrape' });
+  }
+
+  try {
     const { brandKit, contact } = await extractBrandKit(scraped.html, scraped.screenshotUrl);
     cache.set(key, { brandKit, contact, finalUrl, ts: Date.now() });
     return NextResponse.json({ brandKit, contact, finalUrl, fallback: false });
   } catch (err) {
-    console.error('brand-kit extraction failed:', err);
-    return NextResponse.json({ brandKit: NEUTRAL_BRAND_KIT, contact: {}, finalUrl, fallback: true });
+    console.error('extraction failed — salvaging scrape metadata:', err);
+    // serve the real logo + name from the successful scrape; don't cache (retry extraction next time)
+    return NextResponse.json({ brandKit: scraped.fallbackKit, contact: {}, finalUrl, fallback: true, degraded: 'extract' });
   }
 }
