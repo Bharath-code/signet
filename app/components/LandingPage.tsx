@@ -90,6 +90,12 @@ export default function LandingPage() {
   const [wlLoading,    setWlLoading]    = useState(false);
   const [wlDone,       setWlDone]       = useState(false);
   const [wlError,      setWlError]      = useState('');
+  const [wlSegment,    setWlSegment]    = useState<'self' | 'team' | ''>('');
+
+  const pickSegment = (segment: 'self' | 'team') => {
+    setWlSegment(segment);
+    track('waitlist_segment', { segment });
+  };
 
   const brand = useBrandKit({
     initialKit: ACME_KIT,
@@ -154,6 +160,41 @@ export default function LandingPage() {
   }, []);
 
   const monoLabel = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted';
+
+  // Post-signup segmentation: who's this for? Drives the self-vs-team
+  // pricing decision. `dark` themes it for the bone-on-ink footer.
+  const renderSegmentAsk = (dark: boolean) => {
+    const label = dark
+      ? { color: 'rgba(243,242,236,0.7)' }
+      : undefined;
+    const btn = dark
+      ? { border: '1.5px solid rgba(243,242,236,0.35)', color: 'var(--color-paper)' }
+      : { border: '1.5px solid var(--color-ink)', color: 'var(--color-ink)' };
+    if (wlSegment) {
+      return (
+        <p className={dark ? 'mt-4 text-sm' : 'flex items-center gap-2.5 text-sm text-ink'} style={dark ? { color: 'var(--color-paper)' } : undefined}>
+          <span aria-hidden style={{ color: 'var(--color-accent)' }}>✓</span> You&rsquo;re on the list — we&rsquo;ll tailor it to {wlSegment === 'team' ? 'your team' : 'you'}.
+        </p>
+      );
+    }
+    return (
+      <div className={dark ? 'mt-4' : ''}>
+        <p className="font-mono text-[0.7rem] uppercase tracking-[0.16em] mb-3" style={label}>
+          You&rsquo;re in. One quick thing — who&rsquo;s this for?
+        </p>
+        <div className="flex gap-3">
+          <button type="button" onClick={() => pickSegment('self')}
+            className="h-11 px-5 text-sm transition-opacity hover:opacity-70" style={btn}>
+            Just me
+          </button>
+          <button type="button" onClick={() => pickSegment('team')}
+            className="h-11 px-5 text-sm transition-opacity hover:opacity-70" style={btn}>
+            My team
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div ref={root}>
@@ -287,9 +328,7 @@ export default function LandingPage() {
           {hasGenerated && !brand.loading && (
             <div className="mt-12 border-t pt-9" style={{ borderColor: 'var(--color-line)' }}>
               {wlDone ? (
-                <p className="flex items-center gap-2.5 text-sm text-ink">
-                  <span aria-hidden style={{ color: 'var(--color-accent)' }}>✓</span> You&rsquo;re on the list. We&rsquo;ll be in touch.
-                </p>
+                renderSegmentAsk(false)
               ) : (
                 <form onSubmit={handleWaitlist} noValidate>
                   <p className={`${monoLabel} mb-3`}>
@@ -551,9 +590,7 @@ export default function LandingPage() {
               Want Pro or Team? Get notified at launch.
             </p>
             {wlDone ? (
-              <p className="mt-4 flex items-center gap-2 text-sm" style={{ color: 'var(--color-paper)' }}>
-                <span aria-hidden style={{ color: 'var(--color-accent)' }}>✓</span> You&rsquo;re on the list.
-              </p>
+              renderSegmentAsk(true)
             ) : (
               <form onSubmit={handleWaitlist} noValidate className="mt-4 flex flex-col sm:flex-row sm:max-w-xl">
                 <input

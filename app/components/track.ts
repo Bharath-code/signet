@@ -25,10 +25,11 @@ export function initPostHog() {
   initialized = true;
 }
 
-export function track(name: string, path?: string) {
+export function track(name: string, props?: string | Record<string, unknown>) {
   if (typeof window === 'undefined') return;
   try {
-    posthog.capture(name, path ? { path } : undefined);
+    const payload = typeof props === 'string' ? { path: props } : props;
+    posthog.capture(name, payload);
   } catch {
     // analytics must never break the product
   }
