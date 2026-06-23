@@ -1,5 +1,6 @@
 'use client';
 import { renderSignature } from '@/lib/render-signature';
+import { track } from './track';
 import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
 
 const frameDoc = (html: string) =>
@@ -26,6 +27,7 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
         <span className="text-[0.68rem] uppercase tracking-[0.18em] text-muted">{label}</span>
         <a
           href={proHref}
+          onClick={() => track('pro_link_clicked')}
           className="text-[0.65rem] uppercase tracking-[0.16em] text-muted transition-colors hover:text-ink"
         >
           Copy with Pro →

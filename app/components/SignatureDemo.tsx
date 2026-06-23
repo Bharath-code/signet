@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useBrandKit, LAYOUTS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
+import { track } from './track';
 import type { SignatureFields } from '@/lib/types';
 
 const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
@@ -31,6 +32,10 @@ export default function SignatureDemo() {
   const brand = useBrandKit();
   const [sent, setSent] = useState(false);
 
+  useEffect(() => {
+    track('page_view', '/app');
+  }, []);
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-16 md:px-10 md:py-24">
       {/* hero */}
@@ -49,7 +54,7 @@ export default function SignatureDemo() {
 
       {/* url input */}
       <form
-        onSubmit={brand.generate}
+        onSubmit={(e) => { track('url_submitted'); void brand.generate(e); }}
         className="rise mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row sm:items-stretch"
         style={{ animationDelay: '140ms' }}
       >

@@ -6,6 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Link from 'next/link';
 import { useBrandKit, LAYOUTS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
+import { track } from './track';
 import type { BrandKit, SignatureFields } from '@/lib/types';
 
 /* ─── Demo data (initial state for hero previews) ──────────────────────── */
@@ -96,6 +97,7 @@ export default function LandingPage() {
   });
 
   const handleGenerate = async (e: FormEvent) => {
+    track('url_submitted');
     await brand.generate(e);
     setHasGenerated(true);
     requestAnimationFrame(() => {
@@ -115,12 +117,18 @@ export default function LandingPage() {
       });
       if (!res.ok) throw new Error('failed');
       setWlDone(true);
+      track('waitlist_joined');
     } catch {
       setWlError('Something went wrong — try again.');
     } finally {
       setWlLoading(false);
     }
   };
+
+  // page_view fires once on mount
+  useEffect(() => {
+    track('page_view');
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setNavSolid(window.scrollY > 40);
@@ -558,6 +566,7 @@ export default function LandingPage() {
                 {plan.soon ? (
                   <a
                     href={plan.href}
+                    onClick={() => track('pro_link_clicked')}
                     className="plan-cta-outline mt-10 block py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em]"
                   >
                     {plan.cta}
@@ -565,6 +574,7 @@ export default function LandingPage() {
                 ) : (
                   <Link
                     href={plan.href}
+                    onClick={() => track('pro_link_clicked')}
                     className={`mt-10 block py-3.5 text-center text-[0.72rem] font-medium uppercase tracking-[0.1em] ${
                       plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'
                     }`}
