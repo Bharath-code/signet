@@ -2,7 +2,8 @@
 import { useState, useCallback } from 'react';
 import type { FormEvent, ChangeEvent } from 'react';
 import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
-import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
+import { toEmailSafeFont, DEFAULT_EMAIL_FONT } from '@/lib/email-fonts';
+import type { BrandKit, SignatureFields, Layout, Visibility, ToggleableField } from '@/lib/types';
 
 export const LAYOUTS: { id: Layout; label: string; h: number }[] = [
   { id: 'minimal', label: 'Minimal', h: 140 },
@@ -10,14 +11,24 @@ export const LAYOUTS: { id: Layout; label: string; h: number }[] = [
   { id: 'logo-cta', label: 'Logo + CTA', h: 200 },
 ];
 
-export function toEmailSafeFont(extracted: string): string {
-  const f = extracted.toLowerCase();
-  if (/georgia|merriweather|playfair|lora|cormorant|fraunces/.test(f)) return 'Georgia, serif';
-  if (/times/.test(f)) return 'Times New Roman, serif';
-  if (/verdana/.test(f)) return 'Verdana, Geneva, sans-serif';
-  if (/trebuchet|nunito|raleway/.test(f)) return 'Trebuchet MS, sans-serif';
-  return 'Arial, Helvetica, sans-serif';
-}
+export const ALL_VISIBLE: Visibility = {
+  email: true, phone: true, website: true,
+  linkedin: true, github: true, x: true, discord: true,
+};
+
+// Role presets — the answer to "different roles show different things". Each lists
+// the fields ON; everything else is hidden. Applied over whatever was extracted.
+export const PRESETS: { name: string; show: ToggleableField[] }[] = [
+  { name: 'Sales', show: ['email', 'phone', 'website', 'linkedin'] },
+  { name: 'Engineer', show: ['email', 'website', 'github', 'linkedin'] },
+  { name: 'Founder', show: ['email', 'phone', 'website', 'linkedin', 'x'] },
+  { name: 'Creator', show: ['email', 'website', 'x', 'discord'] },
+];
+
+const presetVisibility = (show: ToggleableField[]): Visibility =>
+  Object.fromEntries(
+    (Object.keys(ALL_VISIBLE) as ToggleableField[]).map((k) => [k, show.includes(k)]),
+  ) as Visibility;
 
 type HookOpts = {
   initialKit?: BrandKit;
@@ -29,10 +40,23 @@ export function useBrandKit(opts: HookOpts = {}) {
   const [url, setUrl] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
   const [kit, setKit] = useState<BrandKit>(opts.initialKit ?? NEUTRAL_BRAND_KIT);
-  const [font, setFont] = useState(opts.initialFont ?? 'Georgia, serif');
+  const [font, setFont] = useState(opts.initialFont ?? DEFAULT_EMAIL_FONT);
   const [fields, setFields] = useState<SignatureFields>(opts.initialFields ?? DEMO_FIELDS);
+  const [visibility, setVisibility] = useState<Visibility>(ALL_VISIBLE);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
+
+  const toggleField = useCallback((k: ToggleableField) =>
+    setVisibility((v) => ({ ...v, [k]: !v[k] })), []);
+  const applyPreset = useCallback((show: ToggleableField[]) =>
+    setVisibility(presetVisibility(show)), []);
+
+  // Fields actually rendered: a hidden toggle blanks its value, so the pure
+  // renderer (which skips empty fields) needs no visibility logic of its own.
+  const displayFields: SignatureFields = { ...fields };
+  for (const k of Object.keys(ALL_VISIBLE) as ToggleableField[]) {
+    if (!visibility[k]) displayFields[k] = '';
+  }
 
   const generate = useCallback(async (e: FormEvent) => {
     e.preventDefault();
@@ -51,13 +75,17 @@ export function useBrandKit(opts: HookOpts = {}) {
       setKit(data.brandKit);
       setSiteUrl(data.finalUrl ?? target);
       setFont(toEmailSafeFont(data.brandKit.fontFamily));
-      if (data.contact && Object.keys(data.contact).length > 0) {
+      // Always replace fields on a real generate — never merge onto the demo
+      // defaults (Alex Rivera…), or stale values linger when a site yields none.
+      if (!data.fallback) {
+        const c = data.contact ?? {};
         setFields({
-          fullName: data.contact.fullName ?? '',
-          jobTitle: data.contact.jobTitle ?? '',
-          email: data.contact.email ?? '',
-          phone: data.contact.phone ?? '',
+          fullName: c.fullName ?? '', jobTitle: c.jobTitle ?? '',
+          email: c.email ?? '', phone: c.phone ?? '',
+          website: c.website ?? '', linkedin: c.linkedin ?? '',
+          github: c.github ?? '', x: c.x ?? '', discord: c.discord ?? '',
         });
+        setVisibility(ALL_VISIBLE); // fresh extraction → show everything we found
       }
       if (data.rateLimited)
         setNote("You've generated several signatures — come back in an hour, or join the waitlist for Pro.");
@@ -78,7 +106,8 @@ export function useBrandKit(opts: HookOpts = {}) {
     setFields((f) => ({ ...f, [k]: e.target.value })), []);
 
   return {
-    url, setUrl, siteUrl, kit, font, setFont, fields, setField,
+    url, setUrl, siteUrl, kit, font, setFont, fields, displayFields, setField,
+    visibility, toggleField, applyPreset,
     loading, note, generate,
   };
 }

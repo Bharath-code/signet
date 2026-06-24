@@ -24,4 +24,9 @@ export const DEMO_FIELDS: SignatureFields = {
   jobTitle: 'Head of Sales',
   email: 'alex@company.com',
   phone: '+1 (555) 012-3456',
+  website: 'company.com',
+  linkedin: 'https://linkedin.com/in/alexrivera',
+  github: '',
+  x: '',
+  discord: '',
 };

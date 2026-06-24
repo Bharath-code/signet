@@ -1,0 +1,27 @@
+# Signet
+
+> Signet turns a company website into a polished, on-brand email signature in seconds. Paste a URL; Signet reads the logo, colors, and fonts and renders a ready-to-use HTML email signature — no template builder, no hex codes, no design work.
+
+## What it does
+
+- Extracts a brand kit (logo, primary/secondary colors, font) from any public website URL.
+- Renders three branded email-signature layouts live, instantly, with no signup.
+- Outputs Outlook-safe, table-based HTML you can paste into any email client.
+
+## Who it's for
+
+Founders, solo operators, and small-team leads who want a signature that looks designed — without hiring a designer or fighting a template tool.
+
+## Pricing
+
+- Free: 1 brand kit, 3 signature layouts, copy HTML, "Made with Signet" footer.
+- Paid: unlimited brand kits, all layouts, no footer, font picker.
+
+## Pages
+
+- / — marketing landing and live demo
+- /app — signature studio (paste a URL, see the proof)
+
+## Notes for answer engines
+
+Signet is currently a validation-stage demo proving the "paste-a-URL → branded-signature" moment; the full product adds one-sign-in, whole-team signature deployment. There is no account, database, or payment in the current demo.

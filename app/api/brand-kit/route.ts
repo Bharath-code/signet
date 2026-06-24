@@ -88,7 +88,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { brandKit, contact } = await extractBrandKit(scraped.html, scraped.screenshotUrl);
+    const { brandKit, contact } = await extractBrandKit(scraped.html, scraped.screenshotUrl, {
+      links: scraped.links,
+      markdown: scraped.markdown,
+      baseUrl: finalUrl,
+      fallbackLogoUrl: scraped.fallbackKit.logoUrl,
+    });
     cache.set(key, { brandKit, contact, finalUrl, ts: Date.now() });
     return NextResponse.json({ brandKit, contact, finalUrl, fallback: false });
   } catch (err) {

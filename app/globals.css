@@ -180,3 +180,11 @@
 }
 .marquee-star { color: var(--color-accent); }
 @media (prefers-reduced-motion: reduce) { .marquee { animation: none; } }
+
+/* ── FAQ disclosure ─────────────────────────────────────────────────────────
+   Hide the native triangle; the mono "+" rotates 45° into an "×" when open. */
+.faq-item summary { list-style: none; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-marker { display: inline-block; transition: transform 0.2s ease; }
+.faq-item[open] .faq-marker { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .faq-marker { transition: none; } }

@@ -27,6 +27,7 @@ Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a track
 - `FIRECRAWL_API_KEY` — Firecrawl scrape API
 - `GOOGLE_GENERATIVE_AI_API_KEY` — Gemini (AI Studio key, format `AIza…`)
 - `GEMINI_MODEL` — optional model override (default `gemini-3.5-flash`)
+- `GEMINI_FALLBACK_MODEL` — optional; a second model `extractBrandKit` tries only if `GEMINI_MODEL` throws (e.g. "high demand" 503). Empty = no fallback
 - `RESEND_API_KEY` — Resend API key for waitlist emails (get one free at resend.com)
 - `RESEND_AUDIENCE_ID` — optional; if set, `POST /api/waitlist` also adds contacts to a Resend Audience for bulk emailing later
 

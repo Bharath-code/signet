@@ -13,6 +13,8 @@ type ScrapeMeta = {
 
 export type ScrapeResult = {
   html: string;
+  markdown: string;
+  links: string[];
   screenshotUrl: string;
   finalUrl: string;
   // pre-built from Firecrawl metadata alone (no LLM) — used if extraction fails
@@ -38,13 +40,41 @@ export function fallbackKitFromMeta(meta: ScrapeMeta, html: string): BrandKit {
   });
 }
 
+function scrapeOnce(url: string, maxAge: number) {
+  return client.scrape(url, {
+    // markdown = clean contact text for the LLM; html = logo URLs; links = deterministic
+    // social discovery; screenshot = colors/font/logo for the vision pass.
+    formats: ['markdown', 'html', 'links', 'screenshot'],
+    onlyMainContent: false,   // footers hold socials + contact — keep them
+    blockAds: true,
+    removeBase64Images: true, // keep payload lean
+    proxy: 'auto',            // auto-escalate to stealth on bot walls
+    maxAge,
+  });
+}
+
 export async function scrapeSite(url: string): Promise<ScrapeResult> {
   if (!process.env.FIRECRAWL_API_KEY) throw new Error('FIRECRAWL_API_KEY is not set');
-  const doc = await client.scrape(url, { formats: ['html', 'screenshot'], onlyMainContent: false });
+  let doc = await scrapeOnce(url, 60 * 60 * 1000); // serve Firecrawl's cache if <1h old: faster + cheaper
+  // Don't build a brand kit out of an error page. On an origin failure (e.g.
+  // Cloudflare 525, a 404, a 503 interstitial) Firecrawl still returns 200 with the
+  // error page's HTML — extracting it yields the error page's colors/title as the
+  // "brand". A transient failure can also get *cached* and re-served for up to maxAge,
+  // so on an error status retry once bypassing the cache; the site may have recovered.
+  let status = doc.metadata?.statusCode;
+  if (typeof status === 'number' && status >= 400) {
+    doc = await scrapeOnce(url, 0);
+    status = doc.metadata?.statusCode;
+  }
+  if (typeof status === 'number' && status >= 400) {
+    throw new Error(`origin returned HTTP ${status}`);
+  }
   const html = (doc.html ?? '').slice(0, 20000);
+  const markdown = (doc.markdown ?? '').slice(0, 20000);
+  const links = Array.isArray(doc.links) ? doc.links : [];
   const screenshotUrl = doc.screenshot ?? '';
   if (!screenshotUrl) throw new Error('Firecrawl returned no screenshot');
   // use the post-redirect URL so CTA buttons link to the real canonical URL
   const finalUrl = doc.metadata?.url ?? url;
-  return { html, screenshotUrl, finalUrl, fallbackKit: fallbackKitFromMeta(doc.metadata ?? {}, html) };
+  return { html, markdown, links, screenshotUrl, finalUrl, fallbackKit: fallbackKitFromMeta(doc.metadata ?? {}, html) };
 }

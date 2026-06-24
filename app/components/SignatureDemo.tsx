@@ -1,26 +1,40 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useBrandKit, LAYOUTS } from './useBrandKit';
+import { useBrandKit, LAYOUTS, PRESETS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
 import { BrandMark } from './Logo';
 import { track } from './track';
-import type { SignatureFields } from '@/lib/types';
+import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
+import { brandRoles } from '@/lib/render-signature';
+import type { SignatureFields, ToggleableField } from '@/lib/types';
 
-const FIELDS: { key: keyof SignatureFields; label: string; type?: string }[] = [
-  { key: 'fullName', label: 'Full name' },
-  { key: 'jobTitle', label: 'Job title' },
-  { key: 'email', label: 'Email', type: 'email' },
-  { key: 'phone', label: 'Phone' },
+type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
+const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
+  {
+    id: 'details', label: 'Details',
+    fields: [
+      { key: 'fullName', label: 'Full name' },
+      { key: 'jobTitle', label: 'Job title' },
+      { key: 'email', label: 'Email', type: 'email' },
+      { key: 'phone', label: 'Phone' },
+    ],
+  },
+  {
+    id: 'links', label: 'Links',
+    fields: [
+      { key: 'website', label: 'Website', placeholder: 'company.com' },
+      { key: 'linkedin', label: 'LinkedIn', placeholder: 'linkedin.com/in/…' },
+      { key: 'github', label: 'GitHub', placeholder: 'github.com/…' },
+      { key: 'x', label: 'X', placeholder: 'x.com/…' },
+      { key: 'discord', label: 'Discord', placeholder: 'discord.gg/…' },
+    ],
+  },
 ];
 
-const EMAIL_FONTS: { label: string; value: string }[] = [
-  { label: 'Georgia',    value: 'Georgia, serif' },
-  { label: 'Arial',      value: 'Arial, Helvetica, sans-serif' },
-  { label: 'Verdana',    value: 'Verdana, Geneva, sans-serif' },
-  { label: 'Trebuchet',  value: 'Trebuchet MS, sans-serif' },
-  { label: 'Times',      value: 'Times New Roman, serif' },
-];
+// name + title always render; everything else is a visibility toggle.
+const isToggleable = (k: keyof SignatureFields): k is ToggleableField =>
+  k !== 'fullName' && k !== 'jobTitle';
 
 const label = 'text-[0.68rem] uppercase tracking-[0.18em] text-muted';
 const field =
@@ -32,10 +46,17 @@ const btn =
 
 export default function SignatureDemo() {
   const brand = useBrandKit();
+  // Surface the auto-match only after a real extraction (siteUrl is set on generate).
+  const extracted = !!brand.siteUrl;
+  const matchedFont = toEmailSafeFont(brand.kit.fontFamily);
+  const brandFontName = brand.kit.fontFamily.split(',')[0].trim();
+  const [activeTab, setActiveTab] = useState('details');
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState('');
+
+  const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
 
   useEffect(() => {
     track('page_view', '/app');
@@ -133,49 +154,118 @@ export default function SignatureDemo() {
         <span className={`${label} hidden sm:inline`}>edit any field</span>
       </div>
 
-      {/* personal fields */}
-      <div
-        className="rise mt-8 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2"
-        style={{ animationDelay: '300ms' }}
-      >
-        {FIELDS.map((f) => (
-          <label key={f.key} className="block">
-            <span className={label}>{f.label}</span>
-            <input
-              type={f.type ?? 'text'}
-              value={brand.fields[f.key]}
-              onChange={brand.setField(f.key)}
-              suppressHydrationWarning
-              className={`${field} mt-1`}
-            />
-          </label>
+      {/* role presets — flip the visibility toggles for a profession in one click */}
+      <div className="rise mt-8 flex flex-wrap items-center gap-2" style={{ animationDelay: '280ms' }}>
+        <span className={`${label} mr-1`}>Role preset</span>
+        {PRESETS.map((p) => (
+          <button
+            key={p.name}
+            type="button"
+            onClick={() => { brand.applyPreset(p.show); track('preset_applied', p.name); }}
+            className="border border-line px-3 py-1 text-xs text-muted transition-colors hover:border-ink hover:text-ink"
+          >
+            {p.name}
+          </button>
         ))}
+      </div>
+
+      {/* tabs */}
+      <div className="rise mt-6 flex gap-1 border-b border-line" style={{ animationDelay: '300ms' }} role="tablist" aria-label="Signature fields">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`-mb-px border-b-2 px-4 py-2 font-mono text-[0.7rem] uppercase tracking-[0.14em] transition-colors ${
+              activeTab === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* active-tab fields, each toggleable field carries a Shown/Hidden switch */}
+      <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
+        {tab.fields.map((f) => {
+          const toggleable = isToggleable(f.key);
+          const visible = toggleable ? brand.visibility[f.key as ToggleableField] : true;
+          return (
+            <label key={f.key} className="block">
+              <span className="flex items-center justify-between">
+                <span className={label}>{f.label}</span>
+                {toggleable && (
+                  <button
+                    type="button"
+                    onClick={() => brand.toggleField(f.key as ToggleableField)}
+                    aria-pressed={visible}
+                    aria-label={`${visible ? 'Hide' : 'Show'} ${f.label} in signature`}
+                    className="flex items-center gap-1.5 font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
+                  >
+                    <span
+                      aria-hidden
+                      className="inline-block h-2.5 w-2.5 border border-ink"
+                      style={{ background: visible ? 'var(--color-ink)' : 'transparent' }}
+                    />
+                    {visible ? 'Shown' : 'Hidden'}
+                  </button>
+                )}
+              </span>
+              <input
+                type={f.type ?? 'text'}
+                value={brand.fields[f.key]}
+                onChange={brand.setField(f.key)}
+                placeholder={f.placeholder}
+                suppressHydrationWarning
+                className={`${field} mt-1 ${toggleable && !visible ? 'opacity-40' : ''}`}
+              />
+            </label>
+          );
+        })}
+      </div>
+
+      {/* style: font + colors (brand-level, not per-tab) */}
+      <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6">
         {/* font picker spans full width */}
         <div className="col-span-full">
           <span className={label}>Font</span>
           <div className="mt-2 flex flex-wrap gap-2">
-            {EMAIL_FONTS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => brand.setFont(f.value)}
-                aria-pressed={brand.font === f.value}
-                style={{ fontFamily: f.value }}
-                className={`border px-3 py-1.5 text-sm transition-colors ${
-                  brand.font === f.value
-                    ? 'border-ink bg-ink text-paper'
-                    : 'border-line text-muted hover:border-ink hover:text-ink'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+            {EMAIL_FONTS.map((f) => {
+              const matched = extracted && f.value === matchedFont;
+              return (
+                <button
+                  key={f.value}
+                  onClick={() => brand.setFont(f.value)}
+                  aria-pressed={brand.font === f.value}
+                  style={{ fontFamily: f.value }}
+                  className={`flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors ${
+                    brand.font === f.value
+                      ? 'border-ink bg-ink text-paper'
+                      : 'border-line text-muted hover:border-ink hover:text-ink'
+                  }`}
+                >
+                  {matched && (
+                    <span aria-hidden className="inline-block h-1.5 w-1.5" style={{ background: 'var(--color-accent)' }} />
+                  )}
+                  {f.label}
+                  {matched && <span className="sr-only"> (closest match to your brand font)</span>}
+                </button>
+              );
+            })}
           </div>
+          {extracted && (
+            <span className="mt-2 block font-mono text-[0.62rem] uppercase tracking-[0.16em] text-muted">
+              Pre-selected — closest email-safe match to {brandFontName}
+            </span>
+          )}
         </div>
         {/* extracted brand colors — read-only today; swatches become a picker later */}
         <div className="col-span-full">
           <span className={label}>Brand colors</span>
           <div className="mt-2 flex flex-wrap items-center gap-2.5">
-            {([['Primary', brand.kit.primaryColor], ['Secondary', brand.kit.secondaryColor]] as const).map(([role, hex]) => (
+            {(() => { const r = brandRoles(brand.kit); return [['Text', r.ink], ['Accent', r.accent]] as const; })().map(([role, hex]) => (
               <div key={role} className="flex cursor-default items-center gap-2 border border-line px-3 py-1.5">
                 <span aria-hidden className="h-4 w-4 border border-line" style={{ background: hex }} />
                 <span className="font-mono text-xs text-ink">{hex.toUpperCase()}</span>
@@ -195,7 +285,7 @@ export default function SignatureDemo() {
           <div key={id} className="mx-auto w-full max-w-2xl">
             <SignaturePreview
               kit={brand.kit}
-              fields={brand.fields}
+              fields={brand.displayFields}
               layout={id}
               label={name}
               height={h}
@@ -210,7 +300,7 @@ export default function SignatureDemo() {
             <SignaturePreview
               key={id}
               kit={brand.kit}
-              fields={brand.fields}
+              fields={brand.displayFields}
               layout={id}
               label={name}
               height={h}
@@ -224,7 +314,9 @@ export default function SignatureDemo() {
 
       {/* copy hint */}
       <p className="mt-4 text-[0.72rem] text-muted">
-        Upgrade to Pro to copy any layout into Gmail Settings → Signature → paste.
+        {process.env.NEXT_PUBLIC_SIGNET_COPY === '1'
+          ? 'Click Copy on any layout, then paste into Gmail Settings → Signature.'
+          : 'Upgrade to Pro to copy any layout into Gmail Settings → Signature → paste.'}
       </p>
 
       {/* email CTA */}

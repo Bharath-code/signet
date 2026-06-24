@@ -27,6 +27,11 @@ const ACME_PERSON: SignatureFields = {
   jobTitle: 'Head of Design',
   email: 'alex@acmecorp.com',
   phone: '+1 415 555 0101',
+  website: 'acmecorp.com',
+  linkedin: 'https://linkedin.com/in/alexchen',
+  github: '',
+  x: '',
+  discord: '',
 };
 
 const STEPS = [
@@ -72,6 +77,35 @@ const PLANS = [
     href: '#notify',
     highlight: false,
     soon: true,
+  },
+];
+
+// Single source of truth — drives both the rendered <details> list and the
+// FAQPage JSON-LD, so structured data can never drift from visible content.
+const FAQS = [
+  {
+    q: 'How does Signet build my signature?',
+    a: 'Paste your company URL. Signet reads your logo, colors, and fonts straight from your live site and renders a finished signature — no template picker, no hex codes, no manual entry.',
+  },
+  {
+    q: 'Do I need to sign up or enter a card?',
+    a: 'No. The previews render the moment you arrive — no account, no credit card. You only leave an email if you want to be notified when Pro or Team launches.',
+  },
+  {
+    q: 'Which email clients does it work with?',
+    a: 'The output is table-based HTML with inline styles, built to render correctly in Gmail, Outlook, and Apple Mail. Copy the HTML and paste it into your client’s signature settings.',
+  },
+  {
+    q: 'What if it can’t read my site perfectly?',
+    a: 'Signet keeps what it finds — your real logo and company name — and fills the rest with editable approximations, so you always get a working signature you can fine-tune rather than an error.',
+  },
+  {
+    q: 'Is it really free?',
+    a: 'Yes. The Free plan gives one brand kit, three layouts, and copyable HTML with a small “Made with Signet” footer. Pro removes the footer and adds unlimited kits and a font picker.',
+  },
+  {
+    q: 'Can I roll signatures out to my whole team?',
+    a: 'Team (coming soon) adds Google Workspace sync and one-click deployment across everyone at once. Join the waitlist to be notified at launch.',
   },
 ];
 
@@ -233,6 +267,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-4 sm:gap-7">
             <a href="#how"     className={`${monoLabel} transition-colors hover:text-ink`}>How</a>
             <a href="#pricing" className={`${monoLabel} transition-colors hover:text-ink`}>Pricing</a>
+            <a href="#faq"     className={`${monoLabel} transition-colors hover:text-ink`}>FAQ</a>
             <Link href="/app" className="hero-button inline-flex items-center gap-2.5 px-5" style={{ height: 40 }}>
               Generate <span className="hero-button-trail" aria-hidden>→</span>
             </Link>
@@ -321,7 +356,7 @@ export default function LandingPage() {
                 <SignaturePreview
                   key={id}
                   kit={brand.kit}
-                  fields={brand.fields}
+                  fields={brand.displayFields}
                   layout={id}
                   label={name}
                   height={h}
@@ -557,6 +592,49 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ── FAQ — native <details>, content stays in the DOM for crawlers ── */}
+      <section id="faq" className="px-6 py-24 md:px-10 md:py-32">
+        <div className="mx-auto max-w-4xl">
+          <div className="sc-reveal flex items-end justify-between border-b pb-6" style={{ borderColor: 'var(--color-ink)' }}>
+            <h2
+              className="font-display font-extrabold uppercase tracking-[-0.02em] text-ink"
+              style={{ fontSize: 'clamp(1.8rem, 5vw, 3.5rem)', lineHeight: 0.94 }}
+            >
+              Questions,<br />answered
+            </h2>
+            <span className={`${monoLabel} hidden md:inline`}>§ 04 — FAQ</span>
+          </div>
+
+          <div className="sc-stagger mt-4">
+            {FAQS.map((f, i) => (
+              <details key={f.q} className="faq-item border-b" style={{ borderColor: 'var(--color-line)' }}>
+                <summary className="flex cursor-pointer items-start gap-4 py-6">
+                  <span className="mt-1.5 shrink-0 font-mono text-[0.7rem] text-muted">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="flex-1 font-display text-lg font-bold tracking-tight text-ink md:text-xl">{f.q}</span>
+                  <span className="faq-marker mt-1 shrink-0 font-mono text-xl leading-none text-ink" aria-hidden>+</span>
+                </summary>
+                <p className="max-w-[62ch] pb-6 pl-10 text-sm leading-relaxed text-muted md:text-base">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: FAQS.map(f => ({
+                '@type': 'Question',
+                name: f.q,
+                acceptedAnswer: { '@type': 'Answer', text: f.a },
+              })),
+            }),
+          }}
+        />
       </section>
 
       {/* ── FINAL CTA — inverted black block, deliberate editorial close ─── */}
