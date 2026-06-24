@@ -71,6 +71,13 @@ describe('renderSignature', () => {
     expect(html).toContain('solid #d4ff33');     // lime shows raw — not darkened to olive
   });
 
+  it('uses explicit role colors when provided, overriding auto-derivation', () => {
+    // the kit would auto-derive ink #1a2b3c / accent #1a2b3c; explicit roles win
+    const html = renderSignature(kit, fields, 'logo', undefined, { ink: '#112233', accent: '#ff6600' });
+    expect(html).toContain('color:#112233');   // user-set text color drives text
+    expect(html).toContain('solid #ff6600');     // user-set accent drives the border
+  });
+
   it('escapes a malicious color value (no attribute breakout)', () => {
     const evil = { ...kit, primaryColor: '#1a2b3c" onmouseover="x' };
     const html = renderSignature(evil, fields, 'minimal');

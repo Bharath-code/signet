@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { renderSignature } from '@/lib/render-signature';
+import { renderSignature, type Roles } from '@/lib/render-signature';
 import { track } from './track';
 import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
 
@@ -25,10 +25,11 @@ type Props = {
   font: string;
   siteUrl?: string;
   proHref: string;
+  roles?: Roles;
 };
 
-export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref }: Props) {
-  const html = renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl);
+export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles }: Props) {
+  const html = renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl, roles);
   const [copied, setCopied] = useState(false);
 
   // Gmail's signature editor is contenteditable: it pastes the clipboard's

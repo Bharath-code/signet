@@ -6,7 +6,6 @@ import { SignaturePreview } from './SignaturePreview';
 import { BrandMark } from './Logo';
 import { track } from './track';
 import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
-import { brandRoles } from '@/lib/render-signature';
 import type { SignatureFields, ToggleableField } from '@/lib/types';
 
 type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
@@ -261,18 +260,45 @@ export default function SignatureDemo() {
             </span>
           )}
         </div>
-        {/* extracted brand colors — read-only today; swatches become a picker later */}
+        {/* brand colors — extracted defaults, editable. Each swatch opens the native
+            color picker (which includes hex entry); the hex label tracks it live. */}
         <div className="col-span-full">
           <span className={label}>Brand colors</span>
           <div className="mt-2 flex flex-wrap items-center gap-2.5">
-            {(() => { const r = brandRoles(brand.kit); return [['Text', r.ink], ['Accent', r.accent]] as const; })().map(([role, hex]) => (
-              <div key={role} className="flex cursor-default items-center gap-2 border border-line px-3 py-1.5">
-                <span aria-hidden className="h-4 w-4 border border-line" style={{ background: hex }} />
-                <span className="font-mono text-xs text-ink">{hex.toUpperCase()}</span>
-                <span className="text-[0.62rem] uppercase tracking-[0.16em] text-muted">{role}</span>
-              </div>
+            {([['Text', 'ink'], ['Accent', 'accent']] as const).map(([roleLabel, key]) => (
+              <label key={key} className="flex cursor-pointer items-center gap-2 border border-line px-3 py-1.5">
+                <span className="relative inline-flex h-4 w-4 border border-line" style={{ background: brand.roles[key] }}>
+                  <input
+                    type="color"
+                    value={brand.roles[key]}
+                    onChange={(e) => brand.setRole(key)(e.target.value)}
+                    aria-label={`${roleLabel} color`}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </span>
+                <span className="font-mono text-xs text-ink">{brand.roles[key].toUpperCase()}</span>
+                <span className="text-[0.62rem] uppercase tracking-[0.16em] text-muted">{roleLabel}</span>
+              </label>
             ))}
-            <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">Extracted · read-only</span>
+            <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">Extracted · editable</span>
+          </div>
+        </div>
+        {/* logo — extracted, editable. URL only: email clients strip data-URI images,
+            so a hosted URL is the correct input (and we have no upload storage). */}
+        <div className="col-span-full">
+          <span className={label}>Logo URL</span>
+          <div className="mt-2 flex items-center gap-3">
+            {brand.kit.logoUrl && (
+              <img src={brand.kit.logoUrl} alt="" className="h-8 max-w-[84px] shrink-0 border border-line object-contain" />
+            )}
+            <input
+              type="url"
+              value={brand.kit.logoUrl}
+              onChange={(e) => brand.setLogoUrl(e.target.value)}
+              placeholder="https://…/logo.png"
+              suppressHydrationWarning
+              className={field}
+            />
           </div>
         </div>
       </div>
@@ -291,6 +317,7 @@ export default function SignatureDemo() {
               height={h}
               font={brand.font}
               siteUrl={brand.siteUrl || undefined}
+              roles={brand.roles}
               proHref="/#notify"
             />
           </div>
@@ -306,6 +333,7 @@ export default function SignatureDemo() {
               height={h}
               font={brand.font}
               siteUrl={brand.siteUrl || undefined}
+              roles={brand.roles}
               proHref="/#notify"
             />
           ))}

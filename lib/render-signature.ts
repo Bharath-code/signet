@@ -75,9 +75,11 @@ export function brandRoles(kit: BrandKit): { ink: string; accent: string } {
   return { ink, accent };
 }
 
-function details(kit: BrandKit, f: SignatureFields): string {
+export type Roles = { ink: string; accent: string };
+
+function details(kit: BrandKit, f: SignatureFields, roles: Roles): string {
   const font = esc(kit.fontFamily);
-  const ink = esc(ensureReadable(brandRoles(kit).ink));
+  const ink = esc(ensureReadable(roles.ink));
 
   // Line 2 = role + org. On a personal site the AI extracts the person's own name
   // as companyName, so appending it would repeat the name — drop it and show the
@@ -120,21 +122,22 @@ function details(kit: BrandKit, f: SignatureFields): string {
     </div>`;
 }
 
-function logoCell(kit: BrandKit): string {
-  const accent = esc(brandRoles(kit).accent);
+function logoCell(kit: BrandKit, roles: Roles): string {
+  const accent = esc(roles.accent);
   return `<td style="padding-right:12px;vertical-align:top;border-right:3px solid ${accent}">
       <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="40" style="display:block;border:0;max-height:40px;max-width:84px;width:auto;height:auto">
     </td>`;
 }
 
-export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: Layout, websiteUrl?: string): string {
-  const { ink, accent: accentRaw } = brandRoles(kit);
-  const accent = esc(accentRaw);                // raw — the single structural stamp (border)
-  const inkReadable = esc(ensureReadable(ink)); // CTA button bg — contrast-safe for white text
+// roles default to brandRoles(kit) — the auto-derived Text/Accent — but the caller
+// can pass explicit colors once the user edits them, so editing isn't re-derived away.
+export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: Layout, websiteUrl?: string, roles: Roles = brandRoles(kit)): string {
+  const accent = esc(roles.accent);                   // raw — the single structural stamp (border)
+  const inkReadable = esc(ensureReadable(roles.ink)); // CTA button bg — contrast-safe for white text
 
   if (layout === 'minimal') {
     return `<table cellpadding="0" cellspacing="0" role="presentation"><tr>
-      <td style="border-left:3px solid ${accent};padding-left:16px">${details(kit, fields)}</td>
+      <td style="border-left:3px solid ${accent};padding-left:16px">${details(kit, fields, roles)}</td>
     </tr></table>`;
   }
 
@@ -152,7 +155,7 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
     : '';
 
   return `<table cellpadding="0" cellspacing="0" role="presentation">
-    <tr>${logoCell(kit)}<td style="vertical-align:top;padding-left:12px">${details(kit, fields)}</td></tr>
+    <tr>${logoCell(kit, roles)}<td style="vertical-align:top;padding-left:12px">${details(kit, fields, roles)}</td></tr>
     ${ctaRow}
   </table>`;
 }

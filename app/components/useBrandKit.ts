@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import type { FormEvent, ChangeEvent } from 'react';
 import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
 import { toEmailSafeFont, DEFAULT_EMAIL_FONT } from '@/lib/email-fonts';
+import { brandRoles, type Roles } from '@/lib/render-signature';
 import type { BrandKit, SignatureFields, Layout, Visibility, ToggleableField } from '@/lib/types';
 
 export const LAYOUTS: { id: Layout; label: string; h: number }[] = [
@@ -40,6 +41,9 @@ export function useBrandKit(opts: HookOpts = {}) {
   const [url, setUrl] = useState('');
   const [siteUrl, setSiteUrl] = useState('');
   const [kit, setKit] = useState<BrandKit>(opts.initialKit ?? NEUTRAL_BRAND_KIT);
+  // Text/Accent colors: auto-derived from the extracted kit, then user-editable.
+  // Held separately from the kit so an edit isn't re-derived away on the next render.
+  const [roles, setRoles] = useState<Roles>(() => brandRoles(opts.initialKit ?? NEUTRAL_BRAND_KIT));
   const [font, setFont] = useState(opts.initialFont ?? DEFAULT_EMAIL_FONT);
   const [fields, setFields] = useState<SignatureFields>(opts.initialFields ?? DEMO_FIELDS);
   const [visibility, setVisibility] = useState<Visibility>(ALL_VISIBLE);
@@ -73,6 +77,7 @@ export function useBrandKit(opts: HookOpts = {}) {
       });
       const data = await res.json();
       setKit(data.brandKit);
+      setRoles(brandRoles(data.brandKit)); // fresh extraction → re-derive Text/Accent defaults
       setSiteUrl(data.finalUrl ?? target);
       setFont(toEmailSafeFont(data.brandKit.fontFamily));
       // Always replace fields on a real generate — never merge onto the demo
@@ -105,8 +110,15 @@ export function useBrandKit(opts: HookOpts = {}) {
   const setField = useCallback((k: keyof SignatureFields) => (e: ChangeEvent<HTMLInputElement>) =>
     setFields((f) => ({ ...f, [k]: e.target.value })), []);
 
+  // <input type="color"> always emits a valid #rrggbb, so no validation needed here.
+  const setRole = useCallback((role: keyof Roles) => (hex: string) =>
+    setRoles((r) => ({ ...r, [role]: hex })), []);
+  const setLogoUrl = useCallback((logoUrl: string) =>
+    setKit((k) => ({ ...k, logoUrl })), []);
+
   return {
     url, setUrl, siteUrl, kit, font, setFont, fields, displayFields, setField,
+    roles, setRole, setLogoUrl,
     visibility, toggleField, applyPreset,
     loading, note, generate,
   };
