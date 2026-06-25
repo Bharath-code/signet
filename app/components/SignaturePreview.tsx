@@ -21,9 +21,10 @@ type Props = {
   proHref: string;
   roles?: Roles;
   locked?: boolean; // blurs iframe + shows upgrade overlay; used for 2nd/3rd layout for free users
+  hideCopy?: boolean; // suppress copy button entirely (landing page — copy lives in /app)
 };
 
-export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles, locked }: Props) {
+export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles, locked, hideCopy }: Props) {
   const html = renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl, roles);
   const [copied, setCopied] = useState(false);
 
@@ -60,7 +61,7 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
               Unlock with Pro
               <span className="hero-button-trail" aria-hidden>→</span>
             </a>
-          ) : (
+          ) : !hideCopy ? (
             <button
               onClick={copy}
               className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
@@ -68,7 +69,7 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
               {copied ? 'Copied ✓' : 'Copy'}
               {!copied && <span className="hero-button-trail" aria-hidden>→</span>}
             </button>
-          )}
+          ) : null}
         </figcaption>
         <div className="relative">
           <iframe

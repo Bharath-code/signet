@@ -7,3 +7,7 @@ node_modules/
 outreach/
 
 .DS_Store
+.codex/
+.cursor/
+.mcp.json
+opencode.json

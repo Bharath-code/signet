@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import LandingPage from './components/LandingPage';
 
 export const metadata: Metadata = {
-  title: 'Signet — Your mark on every email',
+  title: 'Signet — Email Signature Generator | Paste URL, Get Branded Signatures',
   description:
-    'Paste your company URL. Signet reads your brand — logo, colors, fonts — and generates polished email signatures for your whole team. Deploy to Google Workspace in one click.',
+    'Paste your company website. Signet reads your logo, colors, and fonts and builds a polished, email-safe signature — in seconds. Works with Gmail, Outlook, and Apple Mail. Free.',
 };
 
 export default function Page() {

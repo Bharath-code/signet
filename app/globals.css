@@ -31,6 +31,10 @@
 @layer base {
   * { box-sizing: border-box; }
 
+  button, [role="button"], summary, label[for], input[type="color"] {
+    cursor: pointer;
+  }
+
   html {
     color-scheme: light;                /* lock light — no prefers-color-scheme flip */
     -webkit-font-smoothing: antialiased;
@@ -99,6 +103,7 @@
   background: var(--color-ink);
   color: var(--color-paper);
   border: 1.5px solid var(--color-ink);
+  cursor: pointer;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 500;
@@ -144,6 +149,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  cursor: pointer;
   transition: background 0.2s var(--ease-fluid), color 0.2s var(--ease-fluid);
 }
 .plan-cta-outline:hover { background: var(--color-ink); color: var(--color-paper); }
@@ -154,6 +160,7 @@
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  cursor: pointer;
   transition: background 0.2s var(--ease-fluid), border-color 0.2s var(--ease-fluid);
 }
 .plan-cta-primary:hover { background: var(--color-accent-deep); border-color: var(--color-accent-deep); }

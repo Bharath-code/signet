@@ -23,7 +23,7 @@ const jetbrains = JetBrains_Mono({
   display: "swap",
 });
 
-const TITLE = "On-brand email signatures in ten seconds";
+const TITLE = "Email Signature Generator — Paste Your URL, Get Branded Signatures";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -34,8 +34,11 @@ export const metadata: Metadata = {
     "email signature generator",
     "branded email signature",
     "email signature from website",
+    "professional email signature",
     "team email signatures",
-    "brand kit extraction",
+    "Gmail signature generator",
+    "Outlook signature generator",
+    "email signature maker",
   ],
   alternates: { canonical: "/" },
   openGraph: {
@@ -82,10 +85,7 @@ export default function RootLayout({
         />
         <PostHogProvider>{children}</PostHogProvider>
         <Analytics />
-      {/* impeccable-live-start */}
-<script async src="http://localhost:8400/live.js"></script>
-{/* impeccable-live-end */}
-</body>
+      </body>
     </html>
   );
 }
