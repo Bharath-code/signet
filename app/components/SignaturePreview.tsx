@@ -4,12 +4,6 @@ import { renderSignature, type Roles } from '@/lib/render-signature';
 import { track } from './track';
 import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
 
-// Build-time admin flag: set NEXT_PUBLIC_SIGNET_COPY=1 in .env.local to swap the
-// "Copy with Pro" waitlist CTA for a real clipboard copy. Off (waitlist CTA) for
-// real visitors — the gate is deliberate demand-capture. NEXT_PUBLIC_* is inlined
-// at build, so a visitor can't flip it; don't set it in production env.
-const ADMIN_COPY = process.env.NEXT_PUBLIC_SIGNET_COPY === '1';
-
 const frameDoc = (html: string) =>
   `<!doctype html><meta charset="utf-8">` +
   `<style>html,body{margin:0;height:100%}` +
@@ -26,9 +20,10 @@ type Props = {
   siteUrl?: string;
   proHref: string;
   roles?: Roles;
+  locked?: boolean; // blurs iframe + shows upgrade overlay; used for 2nd/3rd layout for free users
 };
 
-export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles }: Props) {
+export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles, locked }: Props) {
   const html = renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl, roles);
   const [copied, setCopied] = useState(false);
 
@@ -53,11 +48,19 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
 
   return (
     <figure className="bezel">
-      {/* Inner core renders the actual email output on white (always white — it's the real email sig) */}
       <div className="bezel-inner">
         <figcaption className="flex items-center justify-between border-b border-line px-4 py-3">
           <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">{label}</span>
-          {ADMIN_COPY ? (
+          {locked ? (
+            <a
+              href={proHref}
+              onClick={() => track('pro_link_clicked', { layout })}
+              className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-accent transition-colors hover:text-ink"
+            >
+              Unlock with Pro
+              <span className="hero-button-trail" aria-hidden>→</span>
+            </a>
+          ) : (
             <button
               onClick={copy}
               className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
@@ -65,24 +68,32 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
               {copied ? 'Copied ✓' : 'Copy'}
               {!copied && <span className="hero-button-trail" aria-hidden>→</span>}
             </button>
-          ) : (
-            <a
-              href={proHref}
-              onClick={() => track('pro_link_clicked')}
-              className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
-            >
-              Copy with Pro
-              <span className="hero-button-trail" aria-hidden>→</span>
-            </a>
           )}
         </figcaption>
-        <iframe
-          title={label}
-          sandbox="allow-popups"
-          style={{ height }}
-          className="block w-full bg-white"
-          srcDoc={frameDoc(html)}
-        />
+        <div className="relative">
+          <iframe
+            title={label}
+            sandbox="allow-popups"
+            style={{ height }}
+            className={`block w-full bg-white${locked ? ' pointer-events-none blur-sm' : ''}`}
+            srcDoc={frameDoc(html)}
+          />
+          {locked && (
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3"
+              style={{ background: 'rgba(243,242,236,0.75)' }}
+            >
+              <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">Pro layout</span>
+              <a
+                href={proHref}
+                onClick={() => track('pro_layout_unlock_clicked', { layout })}
+                className="border border-ink px-4 py-2 font-mono text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:bg-ink hover:text-paper"
+              >
+                Join waitlist to unlock →
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </figure>
   );

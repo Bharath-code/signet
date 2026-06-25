@@ -4,6 +4,7 @@ import type { FormEvent, ChangeEvent } from 'react';
 import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
 import { toEmailSafeFont, DEFAULT_EMAIL_FONT } from '@/lib/email-fonts';
 import { brandRoles, type Roles } from '@/lib/render-signature';
+import { track } from './track';
 import type { BrandKit, SignatureFields, Layout, Visibility, ToggleableField } from '@/lib/types';
 
 export const LAYOUTS: { id: Layout; label: string; h: number }[] = [
@@ -35,14 +36,14 @@ type HookOpts = {
   initialKit?: BrandKit;
   initialFields?: SignatureFields;
   initialFont?: string;
+  initialUrl?: string;      // pre-fills the URL bar (from ?from= when kit is preloaded)
+  initialSiteUrl?: string;  // marks the kit as "extracted" so font/color labels show
 };
 
 export function useBrandKit(opts: HookOpts = {}) {
-  const [url, setUrl] = useState('');
-  const [siteUrl, setSiteUrl] = useState('');
+  const [url, setUrl] = useState(opts.initialUrl ?? '');
+  const [siteUrl, setSiteUrl] = useState(opts.initialSiteUrl ?? '');
   const [kit, setKit] = useState<BrandKit>(opts.initialKit ?? NEUTRAL_BRAND_KIT);
-  // Text/Accent colors: auto-derived from the extracted kit, then user-editable.
-  // Held separately from the kit so an edit isn't re-derived away on the next render.
   const [roles, setRoles] = useState<Roles>(() => brandRoles(opts.initialKit ?? NEUTRAL_BRAND_KIT));
   const [font, setFont] = useState(opts.initialFont ?? DEFAULT_EMAIL_FONT);
   const [fields, setFields] = useState<SignatureFields>(opts.initialFields ?? DEMO_FIELDS);
@@ -62,11 +63,7 @@ export function useBrandKit(opts: HookOpts = {}) {
     if (!visibility[k]) displayFields[k] = '';
   }
 
-  const generate = useCallback(async (e: FormEvent) => {
-    e.preventDefault();
-    const domain = url.trim();
-    if (!domain) return;
-    const target = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
+  const fetchBrandKit = useCallback(async (target: string) => {
     setLoading(true);
     setNote('');
     try {
@@ -77,11 +74,9 @@ export function useBrandKit(opts: HookOpts = {}) {
       });
       const data = await res.json();
       setKit(data.brandKit);
-      setRoles(brandRoles(data.brandKit)); // fresh extraction → re-derive Text/Accent defaults
+      setRoles(brandRoles(data.brandKit));
       setSiteUrl(data.finalUrl ?? target);
       setFont(toEmailSafeFont(data.brandKit.fontFamily));
-      // Always replace fields on a real generate — never merge onto the demo
-      // defaults (Alex Rivera…), or stale values linger when a site yields none.
       if (!data.fallback) {
         const c = data.contact ?? {};
         setFields({
@@ -90,8 +85,15 @@ export function useBrandKit(opts: HookOpts = {}) {
           website: c.website ?? '', linkedin: c.linkedin ?? '',
           github: c.github ?? '', x: c.x ?? '', discord: c.discord ?? '',
         });
-        setVisibility(ALL_VISIBLE); // fresh extraction → show everything we found
+        setVisibility(ALL_VISIBLE);
       }
+      // Extraction outcome — the core validation signal (brand-match quality).
+      // Fires for both manual generate() and outreach autoGenerate() paths.
+      track(data.fallback ? 'extraction_fallback' : 'extraction_success', {
+        degraded: data.degraded ?? null,
+        rateLimited: !!data.rateLimited,
+        hasLogo: !!data.brandKit?.logoUrl,
+      });
       if (data.rateLimited)
         setNote("You've generated several signatures — come back in an hour, or join the waitlist for Pro.");
       else if (data.degraded === 'extract')
@@ -101,11 +103,29 @@ export function useBrandKit(opts: HookOpts = {}) {
       else
         setNote('');
     } catch {
+      track('extraction_fallback', { degraded: 'network', rateLimited: false, hasLogo: false });
       setNote('Something went wrong reading that site. Try again.');
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, []);
+
+  const generate = useCallback(async (e: FormEvent) => {
+    e.preventDefault();
+    const domain = url.trim();
+    if (!domain) return;
+    const target = /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
+    await fetchBrandKit(target);
+  }, [url, fetchBrandKit]);
+
+  // Called on mount when ?from= is present — pre-fills the URL bar and auto-fetches.
+  // onComplete fires after the fetch resolves (success or fallback) — used for tracking.
+  const autoGenerate = useCallback(async (rawUrl: string, onComplete?: () => void) => {
+    const target = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+    setUrl(rawUrl.replace(/^https?:\/\//i, ''));
+    await fetchBrandKit(target);
+    onComplete?.();
+  }, [fetchBrandKit]);
 
   const setField = useCallback((k: keyof SignatureFields) => (e: ChangeEvent<HTMLInputElement>) =>
     setFields((f) => ({ ...f, [k]: e.target.value })), []);
@@ -120,6 +140,6 @@ export function useBrandKit(opts: HookOpts = {}) {
     url, setUrl, siteUrl, kit, font, setFont, fields, displayFields, setField,
     roles, setRole, setLogoUrl,
     visibility, toggleField, applyPreset,
-    loading, note, generate,
+    loading, note, generate, autoGenerate,
   };
 }
