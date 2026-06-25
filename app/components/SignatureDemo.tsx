@@ -1,12 +1,55 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useBrandKit, LAYOUTS, PRESETS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
+import { InstallInstructions } from './InstallInstructions';
 import { BrandMark } from './Logo';
 import { track } from './track';
 import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
+import { brandKitSchema } from '@/lib/brand-kit-schema';
+import { toEmailSafeFont as fontMatch } from '@/lib/email-fonts';
+import { z } from 'zod';
 import type { SignatureFields, ToggleableField } from '@/lib/types';
+import type { BrandKit } from '@/lib/types';
+
+// Only accept http(s) — blocks javascript:/data: in href sinks.
+const httpUrl = z.string().url().refine((u) => /^https?:\/\//i.test(u), 'must be http(s)');
+const shortStr = (max: number) => z.string().max(max).optional().default('');
+
+const contactSchema = z.object({
+  fullName:  shortStr(120),
+  jobTitle:  shortStr(120),
+  email:     z.string().email().max(254).optional().default(''),
+  phone:     shortStr(40),
+  website:   httpUrl.optional().default(''),
+  linkedin:  httpUrl.optional().default(''),
+  github:    httpUrl.optional().default(''),
+  x:         shortStr(80),   // x.com handles aren't always full URLs in older extractions
+  discord:   shortStr(120),
+});
+
+// Decode the ?kit= param written by the outreach script.
+// Both brandKit and contact are validated through schemas — malformed or
+// malicious payloads (javascript: URIs, oversized strings) are rejected here
+// before they reach any sink in renderSignature. renderSignature also runs
+// esc() + safeHref() as a second layer, but the boundary check is the right place.
+function decodeKitParam(raw: string): { brandKit: BrandKit; fields: SignatureFields } | null {
+  try {
+    const json = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+    const brandKit = brandKitSchema.parse(json.brandKit);
+    const c = contactSchema.parse(json.contact ?? {});
+    const fields: SignatureFields = {
+      fullName: c.fullName, jobTitle: c.jobTitle,
+      email: c.email, phone: c.phone, website: c.website,
+      linkedin: c.linkedin, github: c.github, x: c.x, discord: c.discord,
+    };
+    return { brandKit, fields };
+  } catch {
+    return null; // malformed → fall back to live fetch
+  }
+}
 
 type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
 const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
@@ -44,8 +87,23 @@ const btn =
   'text-paper transition-colors disabled:opacity-50';
 
 export default function SignatureDemo() {
-  const brand = useBrandKit();
-  // Surface the auto-match only after a real extraction (siteUrl is set on generate).
+  // Read params FIRST so we can pass preloaded kit to useBrandKit as initial state.
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
+  const kitParam = searchParams.get('kit');
+  const preloaded = kitParam ? decodeKitParam(kitParam) : null;
+
+  const brand = useBrandKit({
+    initialKit: preloaded?.brandKit,
+    initialFields: preloaded?.fields,
+    initialFont: preloaded ? fontMatch(preloaded.brandKit.fontFamily) : undefined,
+    // If kit is preloaded we already have the result — mark siteUrl so extracted labels show.
+    initialUrl: fromParam?.replace(/^https?:\/\//i, '') ?? '',
+    initialSiteUrl: preloaded && fromParam ? fromParam : '',
+  });
+
+  const isUnlocked = process.env.NEXT_PUBLIC_SIGNET_COPY === '1';
+  const isOutreach = !!fromParam;
   const extracted = !!brand.siteUrl;
   const matchedFont = toEmailSafeFont(brand.kit.fontFamily);
   const brandFontName = brand.kit.fontFamily.split(',')[0].trim();
@@ -56,6 +114,22 @@ export default function SignatureDemo() {
   const [sendErr, setSendErr] = useState('');
 
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
+
+  // If kit was NOT preloaded, auto-fetch it from the ?from= URL.
+  // useRef guards against React strict-mode double-fire.
+  const didAutoGenerate = useRef(false);
+  useEffect(() => {
+    if (fromParam && !preloaded && !didAutoGenerate.current) {
+      didAutoGenerate.current = true;
+      track('outreach_click', { url: fromParam });
+      void brand.autoGenerate(fromParam, () => track('outreach_generated', { url: fromParam }));
+    } else if (fromParam && preloaded) {
+      // Kit was preloaded — no API call needed, track immediately.
+      track('outreach_click', { url: fromParam, preloaded: true });
+      track('outreach_generated', { url: fromParam, preloaded: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     track('page_view', '/app');
@@ -304,8 +378,7 @@ export default function SignatureDemo() {
       </div>
 
       {/* preview cards — feature the with-logo layout at realistic email width,
-          two alternates below. (Real signatures are 400–600px; a 3-up grid
-          squeezed them.) Mobile already stacks full-width. */}
+          two alternates below locked for free/outreach users. */}
       <div className="rise mt-10 space-y-5" style={{ animationDelay: '380ms' }}>
         {LAYOUTS.filter((l) => l.id === 'logo').map(({ id, label: name, h }) => (
           <div key={id} className="mx-auto w-full max-w-2xl">
@@ -335,17 +408,22 @@ export default function SignatureDemo() {
               siteUrl={brand.siteUrl || undefined}
               roles={brand.roles}
               proHref="/#notify"
+              locked={!isUnlocked}
             />
           ))}
         </div>
+        {(isOutreach || !isUnlocked) && (
+          <p className="text-center font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">
+            1 of 3 layouts · <a href="/#notify" className="text-ink underline-offset-2 hover:underline">Join waitlist</a> to unlock all
+          </p>
+        )}
       </div>
 
-      {/* copy hint */}
+      {/* copy hint + install guide — featured layout is free to copy */}
       <p className="mt-4 text-[0.72rem] text-muted">
-        {process.env.NEXT_PUBLIC_SIGNET_COPY === '1'
-          ? 'Click Copy on any layout, then paste into Gmail Settings → Signature.'
-          : 'Upgrade to Pro to copy any layout into Gmail Settings → Signature → paste.'}
+        Click <span className="text-ink">Copy</span> on the layout above, then drop it into your mail client:
       </p>
+      <InstallInstructions />
 
       {/* email CTA */}
       <section
