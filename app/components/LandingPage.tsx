@@ -143,8 +143,11 @@ const MARQUEE_ITEMS = Array.from({ length: 5 }, () => TICKER).flat();
 
 export default function LandingPage() {
   const root = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
   const [navSolid,     setNavSolid]     = useState(false);
+  const [submitted,    setSubmitted]    = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [extractionKey, setExtractionKey] = useState(0);
   const [wlEmail,      setWlEmail]      = useState('');
   const [wlLoading,    setWlLoading]    = useState(false);
   const [wlDone,       setWlDone]       = useState(false);
@@ -165,8 +168,10 @@ export default function LandingPage() {
 
   const handleGenerate = async (e: FormEvent) => {
     track('url_submitted');
+    setSubmitted(true);
     await brand.generate(e);
     setHasGenerated(true);
+    setExtractionKey(k => k + 1);
   };
 
   const handleWaitlist = async (e: FormEvent) => {
@@ -205,6 +210,10 @@ export default function LandingPage() {
   // Registered only under no-preference; when reduced motion is requested the
   // animations simply never run, so .sc-reveal/.sc-stagger stay at their natural
   // opacity:1 (the hidden state lives only in gsap.from, not in CSS).
+  // Hero grain parallax: GSAP animates the --grain-y CSS custom property on the
+  // hero element from 0% → -25% as the user scrolls through it. The ::after
+  // pseudo-element applies --grain-y to transform: translateY(), producing a
+  // hardware-accelerated translate3d() that's smooth on iOS.
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     const mm = gsap.matchMedia();
@@ -223,6 +232,20 @@ export default function LandingPage() {
           scrollTrigger: { trigger: container, start: 'top 88%', once: true },
         });
       });
+
+      // Hero grain parallax — GSAP animates the CSS custom property
+      if (heroRef.current) {
+        gsap.to(heroRef.current, {
+          '--grain-y': '-25%',
+          ease: 'none',
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 0.3,
+          },
+        });
+      }
     });
     return () => mm.revert();
   }, []);
@@ -303,7 +326,7 @@ export default function LandingPage() {
       <main id="main-content">
 
       {/* ── HERO — oversized caps, structural rules, demo grid ───────────── */}
-      <section className="px-6 pt-14 pb-16 md:px-10 md:pt-20 md:pb-24">
+      <section ref={heroRef} className="hero-grain px-6 pt-14 pb-16 md:px-10 md:pt-20 md:pb-24">
         <div className="mx-auto max-w-6xl">
 
           <div className="rise flex items-center justify-between" style={{ animationDelay: '40ms' }}>
@@ -360,7 +383,7 @@ export default function LandingPage() {
             </button>
           </form>
 
-          {brand.loading && (
+          {brand.loading && submitted && (
             <p className={`${monoLabel} mt-5 flex items-center gap-2`}>
               <span className="inline-block h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--color-accent)' }} />
               Reading your site…
@@ -376,24 +399,46 @@ export default function LandingPage() {
               <span className={monoLabel}>
                 {hasGenerated ? 'Your signature — three layouts' : 'Preview — three layouts'}
               </span>
-              {!hasGenerated && <span className={monoLabel}>Example ↓ paste your URL</span>}
+              {!hasGenerated && !submitted && <span className={monoLabel}>Example ↓ paste your URL</span>}
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {LAYOUTS.map(({ id, label: name, h }) => (
-                <SignaturePreview
-                  key={id}
-                  kit={brand.kit}
-                  fields={brand.displayFields}
-                  layout={id}
-                  label={name}
-                  height={h}
-                  font={brand.font}
-                  siteUrl={brand.siteUrl || undefined}
-                  proHref="#notify"
-                  hideCopy
-                />
-              ))}
-            </div>
+
+            {/* Skeleton cards during extraction */}
+            {brand.loading && submitted ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="skeleton-card">
+                    <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                      <div className="skeleton-line skeleton-line--short" />
+                    </div>
+                    <div className="flex flex-col gap-2.5 p-4">
+                      <div className="skeleton-line skeleton-line--short" />
+                      <div className="skeleton-line skeleton-line--med" />
+                      <div className="skeleton-line skeleton-line--long" />
+                      <div className="skeleton-line skeleton-line--med" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Real preview cards — remount on extraction for staggered reveal */
+              <div key={extractionKey} className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {LAYOUTS.map(({ id, label: name, h }, i) => (
+                  <div key={id} className="rise" style={{ animationDelay: `${i * 100}ms` }}>
+                    <SignaturePreview
+                      kit={brand.kit}
+                      fields={brand.displayFields}
+                      layout={id}
+                      label={name}
+                      height={h}
+                      font={brand.font}
+                      siteUrl={brand.siteUrl || undefined}
+                      proHref="#notify"
+                      hideCopy
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* POST-GENERATION CTA — primary action: open in app (kit pre-loaded) */}
             {hasGenerated && !brand.loading && (

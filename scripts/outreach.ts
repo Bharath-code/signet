@@ -92,7 +92,7 @@ async function build(url: string, p: Pipeline): Promise<Row | null> {
     const { scrapeSite, extractBrandKit, renderSignature } = p;
     const s = await scrapeSite(url);
     const { brandKit, contact } = await extractBrandKit(s.html, s.screenshotUrl, {
-      links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, fallbackLogoUrl: s.fallbackKit.logoUrl,
+      links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets,
     });
     const fields: SignatureFields = {
       fullName: contact.fullName ?? brandKit.companyName,

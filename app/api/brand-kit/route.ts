@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { scrapeSite } from '@/lib/scrape-site';
 import { extractBrandKit } from '@/lib/extract-brand-kit';
 import { NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
-import type { BrandKit, SignatureFields } from '@/lib/types';
+import type { BrandKit, SignatureFields, BrandKitConfidence } from '@/lib/types';
 
-type CacheEntry = { brandKit: BrandKit; contact: Partial<SignatureFields>; finalUrl: string; ts: number };
+type CacheEntry = { brandKit: BrandKit; contact: Partial<SignatureFields>; confidence: BrandKitConfidence; finalUrl: string; ts: number };
 // module-level Map survives across requests in the same Node.js process
 const cache = new Map<string, CacheEntry>();
 const TTL = 60 * 60 * 1000; // 1 hour
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
   const key = normalizeUrl(url);
   const cached = cache.get(key);
   if (cached && Date.now() - cached.ts < TTL) {
-    return NextResponse.json({ brandKit: cached.brandKit, contact: cached.contact, finalUrl: cached.finalUrl, fallback: false, cached: true });
+    return NextResponse.json({ brandKit: cached.brandKit, contact: cached.contact, confidence: cached.confidence, finalUrl: cached.finalUrl, fallback: false, cached: true });
   }
 
   // Rate-limit check: protects Firecrawl/Gemini budget from bots.
@@ -88,14 +88,18 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { brandKit, contact } = await extractBrandKit(scraped.html, scraped.screenshotUrl, {
+    const { brandKit, contact, source, confidence } = await extractBrandKit(scraped.html, scraped.screenshotUrl, {
       links: scraped.links,
       markdown: scraped.markdown,
       baseUrl: finalUrl,
-      fallbackLogoUrl: scraped.fallbackKit.logoUrl,
+      branding: scraped.branding,
+      fallbackKit: scraped.fallbackKit,
+      htmlSnippets: scraped.htmlSnippets,
+      lang: scraped.lang,
+      pageTitle: scraped.pageTitle,
     });
-    cache.set(key, { brandKit, contact, finalUrl, ts: Date.now() });
-    return NextResponse.json({ brandKit, contact, finalUrl, fallback: false });
+    cache.set(key, { brandKit, contact, confidence, finalUrl, ts: Date.now() });
+    return NextResponse.json({ brandKit, contact, confidence, finalUrl, fallback: false, source });
   } catch (err) {
     console.error('extraction failed — salvaging scrape metadata:', err);
     // serve the real logo + name from the successful scrape; don't cache (retry extraction next time)

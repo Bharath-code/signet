@@ -11,3 +11,7 @@ outreach/
 .cursor/
 .mcp.json
 opencode.json
+
+# brand-extraction eval reports
+.eval/
+.firecrawl/

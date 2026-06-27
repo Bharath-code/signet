@@ -41,13 +41,19 @@ The whole app is one server pipeline plus one client page. Data flows:
 
 ```
 SignatureDemo (client) ──POST {url}──▶ /api/brand-kit
-                                          ├─ scrapeSite()      lib/scrape-site.ts    (Firecrawl → {html, screenshotUrl})
-                                          └─ extractBrandKit()  lib/extract-brand-kit.ts (AI SDK generateObject + Gemini → BrandKit)
-                                       ◀── {brandKit, fallback} (ALWAYS HTTP 200)
+                                          ├─ scrapeSite()      lib/scrape-site.ts    (Firecrawl → {html, screenshot, branding})
+                                          └─ extractBrandKit()  lib/extract-brand-kit.ts (Firecrawl branding > CSS > Gemini vision → BrandKit)
+                                       ◀── {brandKit, source, fallback} (ALWAYS HTTP 200)
 SignatureDemo renders renderSignature(kit, fields, layout) into <iframe srcDoc>
 ```
 
 Key invariants — read these before changing the relevant file:
+
+- **Brand kit is deterministic-first; Gemini is a gap-filler.** `extractBrandKit` builds the visual kit from Firecrawl's native `branding` format (`lib/brand-from-firecrawl.ts`) → CSS tokens → scrape meta. If logo + 2 colors + font + company name are all present it returns `source: 'firecrawl'` and **skips the Gemini vision call entirely**. Vision runs only to fill gaps (and to extract contact name/role/email/phone), returning `source: 'vision'`. Firecrawl/CSS values always override the model's. No durable cache yet (Firecrawl `maxAge` + the route's in-process Map only) — add KV when traffic justifies.
+
+- **Untrustworthy accents are routed to vision, not trusted.** A generic web link-blue (`isLinkBlue` in `lib/extract-colors.ts`) or a missing accent (monochrome brand) makes `det.primaryColor` undefined, which fails the completeness check and sends the *color* to the vision pass — Firecrawl frequently reports a page's link color as a brand color, and vision judges brand-vs-link far better. Logo precedence is square-mark-first: `apple-touch-icon` (`iconFromHtml`) > favicon > og:image (a wide social card, last resort), and `pickEmailLogo` (`lib/logo-url.ts`) keeps a raster ahead of any SVG (Gmail won't render SVG).
+
+- **The vision call is bounded and degrades, never hangs.** `generateObject` runs under `AbortSignal.timeout(VISION_TIMEOUT_MS)` (35s/attempt). On quota/overload/timeout `extractBrandKit` does **not** throw — `geminiResult` stays `undefined` and the merge falls back to the deterministic kit + Firecrawl `/extract` (logo, cleaned name, font, a recovered color), so a total Gemini outage still renders a real signature for every site. When both LLM paths fail the result is tagged `source: 'degraded'`. Measure vision quality with `npx tsx scripts/eval-extraction.ts` → `.eval/report.html` (note: vision-heavy runs exhaust the Gemini free-tier quota quickly).
 
 - **`/api/brand-kit` never returns non-200 and never throws to the client.** Any failure (bad URL, scrape error, model/quota error) returns the `NEUTRAL_BRAND_KIT` fallback with `fallback: true`. The UI must always be able to render *a* signature. `scrapeSite` and `extractBrandKit` throw freely; the route catches.
 

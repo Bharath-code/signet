@@ -1,3 +1,13 @@
+export type FieldConfidence = 'exact' | 'high' | 'medium' | 'low';
+
+export type BrandKitConfidence = {
+  companyName: FieldConfidence;
+  logoUrl: FieldConfidence;
+  primaryColor: FieldConfidence;
+  secondaryColor: FieldConfidence;
+  fontFamily: FieldConfidence;
+};
+
 export type BrandKit = {
   companyName: string;
   logoUrl: string;

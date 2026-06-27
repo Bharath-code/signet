@@ -23,6 +23,23 @@ function themeColor(html: string): string | null {
   return hex ? normHex(hex) : null;
 }
 
+// The generic web hyperlink blue (azure cluster, hue ~195–245°) is the #1 source
+// of bogus "brand accents" — Firecrawl often reports a page's link color as a brand
+// color. This flags that cluster so the orchestrator can route to vision instead.
+// Tuned to PRESERVE real brand blues/indigos: Stripe indigo #533afd (hue ~248° +
+// red-leaning) and Tailwind cyan #06b6d4 (hue ~189°) fall outside the window;
+// Framer's #0099ff is caught (a known false positive — vision recovers it).
+export function isLinkBlue(raw: string): boolean {
+  const hex = normHex(raw);
+  if (!hex) return false;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  if (b !== Math.max(r, g, b)) return false; // blue must dominate
+  if (b - r < 90) return false;              // and dominate strongly
+  if (g < r - 10) return false;              // exclude purple/indigo (red-leaning)
+  const hue = 60 * (4 + (r - g) / (b - Math.min(r, g, b)));
+  return hue >= 195 && hue <= 245;
+}
+
 export function brandColorsFromCss(html: string): { primary?: string; secondary?: string } {
   const res: { primary?: string; secondary?: string } = {};
   const re = /--([a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\b/gi;

@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { brandColorsFromCss } from './extract-colors';
+import { brandColorsFromCss, isLinkBlue } from './extract-colors';
+
+describe('isLinkBlue', () => {
+  it('flags generic web link blues', () => {
+    for (const c of ['#0000ee', '#1a73e8', '#4285f4', '#0075de', '#005cc5', '#00a3ff', '#0072f5', '#0066ff'])
+      expect(isLinkBlue(c), c).toBe(true);
+  });
+  it('preserves real brand colors that are not link-blue', () => {
+    for (const c of ['#533afd' /* Stripe indigo */, '#06b6d4' /* Tailwind cyan */, '#553f83' /* Railway purple */,
+                     '#ff4c00' /* Firecrawl orange */, '#72e3ad' /* Supabase green */, '#131210' /* ink */])
+      expect(isLinkBlue(c), c).toBe(false);
+  });
+});
 
 describe('brandColorsFromCss', () => {
   it('reads semantic CSS tokens', () => {

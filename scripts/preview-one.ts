@@ -18,7 +18,7 @@ async function main() {
   console.log(`Scraping ${url}…`);
   const s = await scrape.scrapeSite(url);
   const { brandKit, contact } = await extract.extractBrandKit(s.html, s.screenshotUrl, {
-    links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, fallbackLogoUrl: s.fallbackKit.logoUrl,
+    links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets, pageTitle: s.pageTitle,
   });
 
   console.log('brand kit:', JSON.stringify(brandKit, null, 2));

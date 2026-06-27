@@ -5,7 +5,7 @@ import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
 import { toEmailSafeFont, DEFAULT_EMAIL_FONT } from '@/lib/email-fonts';
 import { brandRoles, type Roles } from '@/lib/render-signature';
 import { track } from './track';
-import type { BrandKit, SignatureFields, Layout, Visibility, ToggleableField } from '@/lib/types';
+import type { BrandKit, SignatureFields, Layout, Visibility, ToggleableField, BrandKitConfidence } from '@/lib/types';
 
 export const LAYOUTS: { id: Layout; label: string; h: number }[] = [
   { id: 'minimal', label: 'Minimal', h: 140 },
@@ -50,6 +50,11 @@ export function useBrandKit(opts: HookOpts = {}) {
   const [visibility, setVisibility] = useState<Visibility>(ALL_VISIBLE);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState('');
+  // 'firecrawl' = deterministic kit (high confidence); 'extract'/'vision' = LLM
+  // best-guess; 'degraded' = both LLM paths failed; null = no fetch yet. Drives the
+  // soft confidence caption + the skip-vision metric.
+  const [source, setSource] = useState<'firecrawl' | 'extract' | 'vision' | 'degraded' | null>(null);
+  const [confidence, setConfidence] = useState<BrandKitConfidence | null>(null);
 
   const toggleField = useCallback((k: ToggleableField) =>
     setVisibility((v) => ({ ...v, [k]: !v[k] })), []);
@@ -77,6 +82,8 @@ export function useBrandKit(opts: HookOpts = {}) {
       setRoles(brandRoles(data.brandKit));
       setSiteUrl(data.finalUrl ?? target);
       setFont(toEmailSafeFont(data.brandKit.fontFamily));
+      setSource(data.source ?? null);
+      setConfidence(data.confidence ?? null);
       if (!data.fallback) {
         const c = data.contact ?? {};
         setFields({
@@ -93,6 +100,8 @@ export function useBrandKit(opts: HookOpts = {}) {
         degraded: data.degraded ?? null,
         rateLimited: !!data.rateLimited,
         hasLogo: !!data.brandKit?.logoUrl,
+        // 'firecrawl' = skipped the vision model — the Phase 1 "≥70% skip vision" metric.
+        source: data.source ?? null,
       });
       if (data.rateLimited)
         setNote("You've generated several signatures — come back in an hour, or join the waitlist for Pro.");
@@ -138,7 +147,7 @@ export function useBrandKit(opts: HookOpts = {}) {
 
   return {
     url, setUrl, siteUrl, kit, font, setFont, fields, displayFields, setField,
-    roles, setRole, setLogoUrl,
+    roles, setRole, setLogoUrl, source, confidence,
     visibility, toggleField, applyPreset,
     loading, note, generate, autoGenerate,
   };

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { renderSignature, type Roles } from '@/lib/render-signature';
 import { track } from './track';
 import type { BrandKit, SignatureFields, Layout } from '@/lib/types';
@@ -27,6 +27,17 @@ type Props = {
 export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles, locked, hideCopy }: Props) {
   const html = renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl, roles);
   const [copied, setCopied] = useState(false);
+  // Key that changes on every html refresh so the iframe triggers a fade-in
+  const [frameKey, setFrameKey] = useState(0);
+  // Throttle the fade key: only update after a brief delay so rapid edits don't
+  // cause a strobe effect. The key bumps → old iframe is unmounted → new one
+  // mounts with the sig-fade-in animation.
+  const frameRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    clearTimeout(frameRef.current);
+    frameRef.current = setTimeout(() => setFrameKey((k) => k + 1), 80);
+    return () => clearTimeout(frameRef.current);
+  }, [html]);
 
   // Gmail's signature editor is contenteditable: it pastes the clipboard's
   // text/html flavor. Writing source as plain text would just show code.
@@ -64,7 +75,9 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
           ) : !hideCopy ? (
             <button
               onClick={copy}
-              className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
+              className={`flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] transition-colors ${
+                copied ? 'text-accent copy-pop' : 'text-muted hover:text-ink'
+              }`}
             >
               {copied ? 'Copied ✓' : 'Copy'}
               {!copied && <span className="hero-button-trail" aria-hidden>→</span>}
@@ -73,15 +86,16 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
         </figcaption>
         <div className="relative">
           <iframe
+            key={frameKey}
             title={label}
             sandbox="allow-popups"
             style={{ height }}
-            className={`block w-full bg-white${locked ? ' pointer-events-none blur-sm' : ''}`}
+            className={`sig-frame block w-full bg-white${locked ? ' pointer-events-none blur-sm' : ''}`}
             srcDoc={frameDoc(html)}
           />
           {locked && (
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-3"
+              className="locked-overlay absolute inset-0 flex flex-col items-center justify-center gap-3"
               style={{ background: 'rgba(243,242,236,0.75)' }}
             >
               <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">Pro layout</span>

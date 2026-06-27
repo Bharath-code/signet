@@ -11,7 +11,7 @@ import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
 import { brandKitSchema } from '@/lib/brand-kit-schema';
 import { toEmailSafeFont as fontMatch } from '@/lib/email-fonts';
 import { z } from 'zod';
-import type { SignatureFields, ToggleableField } from '@/lib/types';
+import type { SignatureFields, ToggleableField, FieldConfidence } from '@/lib/types';
 import type { BrandKit } from '@/lib/types';
 
 // Only accept http(s) — blocks javascript:/data: in href sinks.
@@ -74,6 +74,16 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
   },
 ];
 
+const confidenceLabel = (c?: FieldConfidence): string | null => {
+  if (!c) return null;
+  switch (c) {
+    case 'exact': return 'From site';
+    case 'high': return 'From site';
+    case 'medium': return 'Best guess';
+    case 'low': return 'Default';
+  }
+};
+
 // name + title always render; everything else is a visibility toggle.
 const isToggleable = (k: keyof SignatureFields): k is ToggleableField =>
   k !== 'fullName' && k !== 'jobTitle';
@@ -105,6 +115,14 @@ export default function SignatureDemo() {
   const isUnlocked = process.env.NEXT_PUBLIC_SIGNET_COPY === '1';
   const isOutreach = !!fromParam;
   const extracted = !!brand.siteUrl;
+  // Soft confidence: only Firecrawl's deterministic branding is trustworthy as-read.
+  // Anything LLM-derived ('extract'/'vision') or degraded is a best guess the user
+  // should sanity-check. Honest-degradation principle.
+  const colorConfidence = !extracted
+    ? 'Extracted · editable'
+    : brand.source === 'firecrawl'
+      ? 'Read from your site · editable'
+      : 'Best guess · adjust below';
   const matchedFont = toEmailSafeFont(brand.kit.fontFamily);
   const brandFontName = brand.kit.fontFamily.split(',')[0].trim();
   const [activeTab, setActiveTab] = useState('details');
@@ -211,7 +229,7 @@ export default function SignatureDemo() {
           />
         </div>
         <button disabled={brand.loading} className="hero-button inline-flex items-center justify-center gap-2.5 px-8 disabled:opacity-50">
-          {brand.loading ? 'Reading…' : 'Generate'}
+          {brand.loading ? <span className="loading-pulse">Reading site</span> : 'Generate'}
           {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
         </button>
       </form>
@@ -261,7 +279,7 @@ export default function SignatureDemo() {
       </div>
 
       {/* active-tab fields, each toggleable field carries a Shown/Hidden switch */}
-      <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
+      <div key={activeTab} className="tab-content mt-6 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
         {tab.fields.map((f) => {
           const toggleable = isToggleable(f.key);
           const visible = toggleable ? brand.visibility[f.key as ToggleableField] : true;
@@ -313,7 +331,7 @@ export default function SignatureDemo() {
                   onClick={() => brand.setFont(f.value)}
                   aria-pressed={brand.font === f.value}
                   style={{ fontFamily: f.value }}
-                  className={`flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors ${
+                  className={`font-btn flex items-center gap-1.5 border px-3 py-1.5 text-sm transition-colors ${
                     brand.font === f.value
                       ? 'border-ink bg-ink text-paper'
                       : 'border-line text-muted hover:border-ink hover:text-ink'
@@ -331,6 +349,7 @@ export default function SignatureDemo() {
           {extracted && (
             <span className="mt-2 block font-mono text-[0.62rem] uppercase tracking-[0.16em] text-muted">
               Pre-selected — closest email-safe match to {brandFontName}
+              {brand.confidence && <span> · {confidenceLabel(brand.confidence.fontFamily)}</span>}
             </span>
           )}
         </div>
@@ -339,9 +358,9 @@ export default function SignatureDemo() {
         <div className="col-span-full">
           <span className={label}>Brand colors</span>
           <div className="mt-2 flex flex-wrap items-center gap-2.5">
-            {([['Text', 'ink'], ['Accent', 'accent']] as const).map(([roleLabel, key]) => (
-              <label key={key} className="flex cursor-pointer items-center gap-2 border border-line px-3 py-1.5">
-                <span className="relative inline-flex h-4 w-4 border border-line" style={{ background: brand.roles[key] }}>
+            {([['Text', 'ink', 'primaryColor' as const], ['Accent', 'accent', 'secondaryColor' as const]] as const).map(([roleLabel, key, confKey]) => (
+              <label key={key} className="flex cursor-pointer items-center gap-2 border border-line px-3 py-1.5 transition-colors">
+                <span className="relative inline-flex h-4 w-4 border border-line" style={{ background: brand.roles[key], transition: 'background 0.2s var(--ease-fluid, ease)' }}>
                   <input
                     type="color"
                     value={brand.roles[key]}
@@ -350,11 +369,15 @@ export default function SignatureDemo() {
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
                 </span>
-                <span className="font-mono text-xs text-ink">{brand.roles[key].toUpperCase()}</span>
+                <span key={brand.roles[key]} className="font-mono text-xs text-ink">{brand.roles[key].toUpperCase()}</span>
                 <span className="text-[0.62rem] uppercase tracking-[0.16em] text-muted">{roleLabel}</span>
               </label>
             ))}
-            <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">Extracted · editable</span>
+            <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">
+              {brand.confidence
+                ? `${confidenceLabel(brand.confidence.primaryColor)} / ${confidenceLabel(brand.confidence.secondaryColor)}`
+                : colorConfidence}
+            </span>
           </div>
         </div>
         {/* logo — extracted, editable. URL only: email clients strip data-URI images,
@@ -374,48 +397,90 @@ export default function SignatureDemo() {
               className={field}
             />
           </div>
+          {brand.confidence && extracted && (
+            <span className="mt-1 block font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">
+              {confidenceLabel(brand.confidence.logoUrl)}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* preview cards — feature the with-logo layout at realistic email width,
-          two alternates below locked for free/outreach users. */}
+      {/* preview cards — show skeleton during initial extraction, real cards once loaded */}
       <div className="rise mt-10 space-y-5" style={{ animationDelay: '380ms' }}>
-        {LAYOUTS.filter((l) => l.id === 'logo').map(({ id, label: name, h }) => (
-          <div key={id} className="mx-auto w-full max-w-2xl">
-            <SignaturePreview
-              kit={brand.kit}
-              fields={brand.displayFields}
-              layout={id}
-              label={name}
-              height={h}
-              font={brand.font}
-              siteUrl={brand.siteUrl || undefined}
-              roles={brand.roles}
-              proHref="/#notify"
-            />
-          </div>
-        ))}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {LAYOUTS.filter((l) => l.id !== 'logo').map(({ id, label: name, h }) => (
-            <SignaturePreview
-              key={id}
-              kit={brand.kit}
-              fields={brand.displayFields}
-              layout={id}
-              label={name}
-              height={h}
-              font={brand.font}
-              siteUrl={brand.siteUrl || undefined}
-              roles={brand.roles}
-              proHref="/#notify"
-              locked={!isUnlocked}
-            />
-          ))}
-        </div>
-        {(isOutreach || !isUnlocked) && (
-          <p className="text-center font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">
-            1 of 3 layouts · <a href="/#notify" className="text-ink underline-offset-2 hover:underline">Join waitlist</a> to unlock all
-          </p>
+        {brand.loading && !brand.siteUrl ? (
+          <>
+            {/* Primary skeleton — wide layout */}
+            <div className="skeleton-card mx-auto w-full max-w-2xl">
+              <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                <div className="skeleton-line skeleton-line--med" />
+                <div className="skeleton-line skeleton-line--short" style={{ width: '54px' }} />
+              </div>
+              <div className="flex items-center gap-4 p-4">
+                <div className="h-10 w-10 shrink-0" style={{ background: 'var(--color-line)', animation: 'skeleton-shimmer 1.6s var(--ease-fluid) infinite' }} />
+                <div className="flex flex-1 flex-col gap-2.5">
+                  <div className="skeleton-line skeleton-line--short" />
+                  <div className="skeleton-line skeleton-line--med" />
+                  <div className="skeleton-line skeleton-line--long" />
+                </div>
+              </div>
+            </div>
+            {/* Secondary skeletons — smaller side-by-side */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="skeleton-card">
+                  <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                    <div className="skeleton-line skeleton-line--short" />
+                    <div className="skeleton-line" style={{ width: '44px' }} />
+                  </div>
+                  <div className="flex flex-col gap-2.5 p-4">
+                    <div className="skeleton-line skeleton-line--short" />
+                    <div className="skeleton-line skeleton-line--med" />
+                    <div className="skeleton-line skeleton-line--long" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {LAYOUTS.filter((l) => l.id === 'logo').map(({ id, label: name, h }) => (
+              <div key={id} className="mx-auto w-full max-w-2xl">
+                <SignaturePreview
+                  kit={brand.kit}
+                  fields={brand.displayFields}
+                  layout={id}
+                  label={name}
+                  height={h}
+                  font={brand.font}
+                  siteUrl={brand.siteUrl || undefined}
+                  roles={brand.roles}
+                  proHref="/#notify"
+                />
+              </div>
+            ))}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {LAYOUTS.filter((l) => l.id !== 'logo').map(({ id, label: name, h }) => (
+                <SignaturePreview
+                  key={id}
+                  kit={brand.kit}
+                  fields={brand.displayFields}
+                  layout={id}
+                  label={name}
+                  height={h}
+                  font={brand.font}
+                  siteUrl={brand.siteUrl || undefined}
+                  roles={brand.roles}
+                  proHref="/#notify"
+                  locked={!isUnlocked}
+                />
+              ))}
+            </div>
+            {(isOutreach || !isUnlocked) && (
+              <p className="text-center font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">
+                1 of 3 layouts · <a href="/#notify" className="text-ink underline-offset-2 hover:underline">Join waitlist</a> to unlock all
+              </p>
+            )}
+          </>
         )}
       </div>
 
