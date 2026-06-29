@@ -65,16 +65,15 @@ function signetLink(url: string, brandKit: object, contact: object): string {
 function draftEmail(company: string, name: string | undefined, url: string, brandKit: object, contact: object): string {
   const hi = name ? name.split(' ')[0] : 'there';
   const link = signetLink(url, brandKit, contact);
-  return `Subject: your branded email signature (${company})
+  return `Subject: made you a signature for ${company}
 
 Hi ${hi},
 
-Quick one — I built a tool that reads any site and generates a branded email
-signature in ~10 seconds, so I ran ${domain(url)} through it.
+Signature tools usually hand you a blank template to fill in. I built one that
+reads your site instead — so I ran ${domain(url)} through it. Here's yours: ${link}
 
-Here's yours: ${link}
-
-Logo, colors, and font are all pulled from your site. No signup, free to try.
+Logo, colors, and font, all pulled straight from your site. Looks like your
+design team made it, took ten seconds, no signup.
 
 — Bharath`;
 }
