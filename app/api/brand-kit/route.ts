@@ -97,6 +97,7 @@ export async function POST(req: Request) {
       htmlSnippets: scraped.htmlSnippets,
       lang: scraped.lang,
       pageTitle: scraped.pageTitle,
+      fcJson: scraped.fcJson,
     });
     cache.set(key, { brandKit, contact, confidence, finalUrl, ts: Date.now() });
     return NextResponse.json({ brandKit, contact, confidence, finalUrl, fallback: false, source });

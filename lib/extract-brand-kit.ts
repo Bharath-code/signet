@@ -5,22 +5,15 @@ import type { BrandingProfile } from '@mendable/firecrawl-js';
 import { brandKitSchema, NEUTRAL_BRAND_KIT } from './brand-kit-schema';
 import { safeHref } from './render-signature';
 import { brandColorsFromCss, isLinkBlue } from './extract-colors';
-import { brandKitFromFirecrawl, normHex, type FirecrawlBrand } from './brand-from-firecrawl';
+import { brandKitFromFirecrawl, type FirecrawlBrand } from './brand-from-firecrawl';
 import { isLikelyImageUrl, pickEmailLogo } from './logo-url';
-import { firecrawlClient, brandNameFromTitle } from './scrape-site';
+import { firecrawlClient, brandNameFromTitle, type FcExtractData } from './scrape-site';
 import type { BrandKit, SignatureFields, BrandKitConfidence, FieldConfidence } from './types';
 import type { SearchResultWeb } from '@mendable/firecrawl-js';
 
 export { isLikelyImageUrl };
 
-// Exported for test cleanup — clears the in-process /extract cache so each test
-// gets a fresh state without needing to re-import the module.
-export function clearExtractCache() {
-  extractCache.clear();
-}
-
 const VISION_TIMEOUT_MS = 35_000;
-const FC_EXTRACT_TIMEOUT_MS = 20_000;
 
 export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.5-flash';
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? '';
@@ -43,84 +36,6 @@ const combinedSchema = z.object({
   x: z.string().optional(),
   discord: z.string().optional(),
 });
-
-// Looser schema for Firecrawl /extract — all optional since it may not find
-// every field. Results are validated against the strict brandKitSchema below.
-const fcExtractSchema = z.object({
-  companyName: z.string().optional(),
-  logoUrl: z.string().optional(),
-  primaryColor: z.string().optional(),
-  secondaryColor: z.string().optional(),
-  fontFamily: z.string().optional(),
-  contactName: z.string().optional(),
-  contactRole: z.string().optional(),
-  contactEmail: z.string().optional(),
-  contactPhone: z.string().optional(),
-  website: z.string().optional(),
-  linkedin: z.string().optional(),
-  github: z.string().optional(),
-  x: z.string().optional(),
-  discord: z.string().optional(),
-});
-type FcExtractData = z.infer<typeof fcExtractSchema>;
-
-// In-process cache for Firecrawl /extract calls — same URL returns instantly
-// within the same process. TTL matches the scrape cache.
-const extractCache = new Map<string, { data: FcExtractData | null; ts: number }>();
-const EXTRACT_CACHE_TTL = 60 * 60 * 1000;
-const EXTRACT_CACHE_MAX = 500;
-
-// Firecrawl /extract runs its own LLM server-side against the full page content,
-// not a screenshot. Better than Gemini for text fields (companyName, logoUrl,
-// socials); worse for visual fields (colors, font). Runs in parallel with Gemini
-// so it never adds latency — whichever returns first is used.
-async function extractViaFirecrawlExtract(url: string): Promise<FcExtractData | null> {
-  if (!/^https?:\/\//i.test(url)) return null;
-
-  const cacheKey = url.toLowerCase();
-  const cached = extractCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < EXTRACT_CACHE_TTL) return cached.data;
-
-  try {
-    const res = await firecrawlClient.extract({
-      urls: [url],
-      prompt: [
-        'Extract brand identity from this website. Only return values that are actually visible on the page — do not guess or fabricate.',
-        'companyName: the business or site name',
-        'logoUrl: absolute URL of the logo image (from <img> tags, never the page URL)',
-        'primaryColor: dominant brand accent color in #hex (NOT link-blue)',
-        'secondaryColor: supporting dark/neutral color in #hex',
-        'fontFamily: CSS font-family used for headings or body text',
-        'contactName, contactRole, contactEmail, contactPhone: contact details found on the page',
-        'website: the URL of this site',
-        'linkedin, github, x, discord: absolute URLs to social profiles',
-      ].join('\n'),
-      schema: fcExtractSchema as unknown as Record<string, unknown>,
-      timeout: Math.ceil(FC_EXTRACT_TIMEOUT_MS / 1000),
-    });
-    if (res.success && res.data && typeof res.data === 'object') {
-      const parsed = fcExtractSchema.parse(res.data);
-      // /extract colors are untyped strings ("blue", "rgb(…)"); a non-hex value
-      // reaching brandKitSchema.parse in the merge throws and degrades the whole
-      // result. Normalize here; invalid → undefined (field simply not contributed).
-      parsed.primaryColor = normHex(parsed.primaryColor);
-      parsed.secondaryColor = normHex(parsed.secondaryColor);
-      if (extractCache.size >= EXTRACT_CACHE_MAX) extractCache.clear();
-      extractCache.set(cacheKey, { data: parsed, ts: Date.now() });
-      return parsed;
-    }
-    // Cache null results too — the URL gave nothing, no point retrying soon
-    extractCache.set(cacheKey, { data: null, ts: Date.now() });
-    return null;
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      console.warn(`Firecrawl /extract schema mismatch (${e.issues.length} issues)`);
-    } else {
-      console.warn(`Firecrawl /extract failed: ${(e as Error).message.slice(0, 80)}`);
-    }
-  }
-  return null;
-}
 
 // Only accept a social URL if it's http(s) AND its host matches the platform —
 // guards the new <a href> sink against hallucinated or hostile URLs.
@@ -206,6 +121,7 @@ export type ExtractOpts = {
   validatedName?: string;
   lang?: string; // P3: <html lang="xx"> for CJK font mapping
   pageTitle?: string; // The page <title> from Firecrawl metadata (for contact name/title fallback)
+  fcJson?: FcExtractData; // JSON-mode output from the primary scrape (replaces the old /extract call)
 };
 
 // P2: Use Firecrawl search to validate the company name extracted from a URL.
@@ -231,7 +147,7 @@ export type ExtractResult = {
   brandKit: BrandKit;
   contact: Partial<SignatureFields>;
   // 'firecrawl' = deterministic kit, no LLM;
-  // 'extract' = Firecrawl /extract LLM (full page content, best for text);
+  // 'extract' = Firecrawl JSON mode (rides on the primary scrape; full page content, best for text);
   // 'vision'  = Gemini vision model (screenshot, best for visual fields);
   // 'degraded'= both LLM paths failed — NEUTRAL/scrape-meta fallback served.
   source: 'firecrawl' | 'extract' | 'vision' | 'degraded';
@@ -296,7 +212,7 @@ function deterministicContact(opts: ExtractOpts): Partial<SignatureFields> {
 // Build per-field confidence from the sources that contributed to each value.
 // 'exact' = Firecrawl server-side brand extractor (deterministic, purpose-built)
 // 'high'  = page metadata / CSS vars / search validation / CJK-lang mapping /
-//           Firecrawl /extract (structured extraction from full page content)
+//           scrape JSON mode (structured extraction from full page content)
 // 'medium'= Gemini vision model (best-guess from screenshot+HTML)
 // 'low'   = NEUTRAL_BRAND_KIT fallback (nothing confident available)
 function buildConfidence(
@@ -382,10 +298,9 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   // vision pass — and signals a well-branded site whose title-derived name is reliable.
   const detComplete = !!(det.companyName && det.logoUrl && det.primaryColor && det.secondaryColor && det.fontFamily);
 
-  // Start Firecrawl /extract + name search early — we need contact info (name, title,
-  // email, phone) even when the brand kit is deterministically complete. Without this,
-  // a site where Firecrawl finds logo+colors+font returns zero contact data.
-  const fcExtractPromise = extractViaFirecrawlExtract(opts.baseUrl ?? '');
+  // JSON mode rode on the primary scrape — no separate call needed for contact info
+  // (name, title, email, phone) even when the brand kit is deterministically complete.
+  const fcExtract = opts.fcJson ?? null;
   // Only spend a Firecrawl search to second-guess the name when we're NOT already
   // confident: skip it on the deterministic-complete fast path and when a validatedName
   // was supplied. Keeps the happy path free of an extra paid call + its latency.
@@ -397,8 +312,7 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   // (Inline condition repeats detComplete so TS narrows det.* to non-undefined.)
   if (det.companyName && det.logoUrl && det.primaryColor && det.secondaryColor && det.fontFamily) {
     const [primaryColor, secondaryColor] = orderColors(det.primaryColor, det.secondaryColor);
-    // Await the already-running /extract call for contact info
-    const [fcExtract, searchName] = await Promise.all([fcExtractPromise, nameSearchPromise]);
+    const searchName = await nameSearchPromise;
     // searchName from brandNameFromTitle may also pick a job-title segment — apply
     // the same correction here so the search can't overwrite the corrected name.
     const finalCompanyName = searchName ?? det.companyName;
@@ -501,10 +415,7 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   }
   const geminiSucceeded = geminiResult !== undefined;
 
-  // Check Firecrawl /extract result (should be done by now — 20s vs Gemini's 35s)
-  const fcExtract = await fcExtractPromise;
-
-  // Check Firecrawl search validation (should also be done by now)
+  // Check Firecrawl search validation (should be done by now)
   const searchName = await nameSearchPromise;
 
   // ─── Merge ────────────────────────────────────────────────────────────────
