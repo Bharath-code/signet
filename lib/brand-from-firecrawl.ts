@@ -15,7 +15,8 @@ export type FirecrawlBrand = {
 };
 
 // Accept #hex (3/4/6/8) and rgb()/rgba(); everything else → undefined.
-function normHex(raw?: string): string | undefined {
+// Exported: extract-brand-kit uses it to sanitize /extract's untyped color strings.
+export function normHex(raw?: string): string | undefined {
   if (!raw) return undefined;
   const s = raw.trim();
   const rgb = s.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);

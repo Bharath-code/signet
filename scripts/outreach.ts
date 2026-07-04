@@ -10,7 +10,9 @@
 //          + outreach/*.png when --screenshot is passed (paste straight into email client)
 
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
-import type { SignatureFields } from '../lib/types';
+import type { BrandKit, SignatureFields } from '../lib/types';
+import { ctaTextForRole } from '../lib/brand-kit-schema';
+import { encodeKitParam } from '../lib/kit-codec';
 
 // Load env BEFORE importing the pipeline: scrape-site.ts builds its Firecrawl
 // client from process.env at module-load, and static imports are hoisted above
@@ -24,14 +26,14 @@ const FILE = arg('--file');
 const SCREENSHOT = flag('--screenshot');
 // Set SIGNET_URL in .env.local (e.g. https://signet.app) for production links.
 // Falls back to localhost for local testing.
-const SIGNET_URL = process.env.SIGNET_URL ?? 'http://localhost:3000';
+const SIGNET_URL = (process.env.SIGNET_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 
 // Repo-hosting domains: their brand = the platform's, not the project's.
-const REPO_HOSTS = /^(github|gitlab|codeberg|gitea|bitbucket|npmjs|pypi|crates)\./;
+const REPO_HOSTS = /^(github|gitlab|codeberg|gitea|bitbucket|npmjs|pypi|crates|nuget|rubygems|packagist|pub\.dev|hex\.pm)\./;
 
 // Show HN = founders who just shipped a product. Free, no auth, fresh daily.
 async function showHnUrls(limit: number): Promise<string[]> {
-  const res = await fetch(`https://hn.algolia.com/api/v1/search_by_date?tags=show_hn&hitsPerPage=${limit * 2}`);
+  const res = await fetch(`https://hn.algolia.com/api/v1/search_by_date?tags=show_hn&hitsPerPage=${limit * 6}`);
   const { hits } = (await res.json()) as { hits: { url?: string }[] };
   const seen = new Set<string>();
   const urls: string[] = [];
@@ -57,12 +59,11 @@ const domain = (url: string) => { try { return new URL(url).hostname.replace(/^w
 
 // Encode the pre-generated kit into the URL so the page loads instantly —
 // no re-scrape, no API call, signature renders on first paint.
-function signetLink(url: string, brandKit: object, contact: object): string {
-  const kit = Buffer.from(JSON.stringify({ brandKit, contact })).toString('base64');
-  return `${SIGNET_URL}/app?from=${encodeURIComponent(url)}&kit=${kit}`;
+function signetLink(url: string, brandKit: BrandKit, contact: Partial<SignatureFields>): string {
+  return `${SIGNET_URL}/app?from=${encodeURIComponent(url)}&kit=${encodeKitParam({ brandKit, contact })}`;
 }
 
-function draftEmail(company: string, name: string | undefined, url: string, brandKit: object, contact: object): string {
+function draftEmail(company: string, name: string | undefined, url: string, brandKit: BrandKit, contact: Partial<SignatureFields>): string {
   const hi = name ? name.split(' ')[0] : 'there';
   const link = signetLink(url, brandKit, contact);
   return `Subject: made you a signature for ${company}
@@ -96,6 +97,7 @@ async function build(url: string, p: Pipeline): Promise<Row | null> {
     const fields: SignatureFields = {
       fullName: contact.fullName ?? brandKit.companyName,
       jobTitle: contact.jobTitle ?? '',
+      ctaText: ctaTextForRole(contact.jobTitle ?? ''),
       email: contact.email ?? '', phone: contact.phone ?? '',
       website: contact.website ?? s.finalUrl,
       linkedin: contact.linkedin ?? '', github: contact.github ?? '',

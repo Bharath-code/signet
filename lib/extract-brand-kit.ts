@@ -5,7 +5,7 @@ import type { BrandingProfile } from '@mendable/firecrawl-js';
 import { brandKitSchema, NEUTRAL_BRAND_KIT } from './brand-kit-schema';
 import { safeHref } from './render-signature';
 import { brandColorsFromCss, isLinkBlue } from './extract-colors';
-import { brandKitFromFirecrawl, type FirecrawlBrand } from './brand-from-firecrawl';
+import { brandKitFromFirecrawl, normHex, type FirecrawlBrand } from './brand-from-firecrawl';
 import { isLikelyImageUrl, pickEmailLogo } from './logo-url';
 import { firecrawlClient, brandNameFromTitle } from './scrape-site';
 import type { BrandKit, SignatureFields, BrandKitConfidence, FieldConfidence } from './types';
@@ -100,6 +100,11 @@ async function extractViaFirecrawlExtract(url: string): Promise<FcExtractData | 
     });
     if (res.success && res.data && typeof res.data === 'object') {
       const parsed = fcExtractSchema.parse(res.data);
+      // /extract colors are untyped strings ("blue", "rgb(…)"); a non-hex value
+      // reaching brandKitSchema.parse in the merge throws and degrades the whole
+      // result. Normalize here; invalid → undefined (field simply not contributed).
+      parsed.primaryColor = normHex(parsed.primaryColor);
+      parsed.secondaryColor = normHex(parsed.secondaryColor);
       if (extractCache.size >= EXTRACT_CACHE_MAX) extractCache.clear();
       extractCache.set(cacheKey, { data: parsed, ts: Date.now() });
       return parsed;
@@ -253,9 +258,12 @@ function preferCompanyNameFromTitle(fallback: string, pageTitle: string): string
 function extractContactFromContent(htmlSnippets: string, markdown: string, pageTitle?: string): { fullName?: string; jobTitle?: string; email?: string } {
   const contact: { fullName?: string; jobTitle?: string; email?: string } = {};
 
-  // Find email in the page content
-  const emailMatch = (htmlSnippets + '\n' + markdown).match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
-  if (emailMatch) contact.email = emailMatch[0];
+  // Find email in the page content. Role-prefix inboxes (support@, privacy@…)
+  // are the site's, not the user's — never surface one as their own address.
+  const ROLE_INBOX = /^(support|privacy|info|contact|sales|help|admin|no-?reply|legal|press|security|careers|jobs|abuse|billing|marketing|feedback|webmaster|postmaster|team|office)@/i;
+  const emails = (htmlSnippets + '\n' + markdown).match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [];
+  const personal = emails.find((e) => !ROLE_INBOX.test(e));
+  if (personal) contact.email = personal;
 
   // Use page title (from Firecrawl metadata) to extract name and role
   const title = pageTitle;

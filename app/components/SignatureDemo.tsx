@@ -8,47 +8,18 @@ import { InstallInstructions } from './InstallInstructions';
 import { BrandMark } from './Logo';
 import { track } from './track';
 import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
-import { brandKitSchema } from '@/lib/brand-kit-schema';
 import { toEmailSafeFont as fontMatch } from '@/lib/email-fonts';
-import { z } from 'zod';
+import { encodeKitParam, decodeKitParam } from '@/lib/kit-codec';
+import type { Roles } from '@/lib/render-signature';
 import type { SignatureFields, ToggleableField, FieldConfidence } from '@/lib/types';
 import type { BrandKit } from '@/lib/types';
 
-// Only accept http(s) — blocks javascript:/data: in href sinks.
-const httpUrl = z.string().url().refine((u) => /^https?:\/\//i.test(u), 'must be http(s)');
-const shortStr = (max: number) => z.string().max(max).optional().default('');
-
-const contactSchema = z.object({
-  fullName:  shortStr(120),
-  jobTitle:  shortStr(120),
-  email:     z.string().email().max(254).optional().default(''),
-  phone:     shortStr(40),
-  website:   httpUrl.optional().default(''),
-  linkedin:  httpUrl.optional().default(''),
-  github:    httpUrl.optional().default(''),
-  x:         shortStr(80),   // x.com handles aren't always full URLs in older extractions
-  discord:   shortStr(120),
-});
-
-// Decode the ?kit= param written by the outreach script.
-// Both brandKit and contact are validated through schemas — malformed or
-// malicious payloads (javascript: URIs, oversized strings) are rejected here
-// before they reach any sink in renderSignature. renderSignature also runs
-// esc() + safeHref() as a second layer, but the boundary check is the right place.
-function decodeKitParam(raw: string): { brandKit: BrandKit; fields: SignatureFields } | null {
-  try {
-    const json = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-    const brandKit = brandKitSchema.parse(json.brandKit);
-    const c = contactSchema.parse(json.contact ?? {});
-    const fields: SignatureFields = {
-      fullName: c.fullName, jobTitle: c.jobTitle,
-      email: c.email, phone: c.phone, website: c.website,
-      linkedin: c.linkedin, github: c.github, x: c.x, discord: c.discord,
-    };
-    return { brandKit, fields };
-  } catch {
-    return null; // malformed → fall back to live fetch
-  }
+// Encode brand kit into a shareable URL — personal fields left blank so each
+// teammate fills in their own name/title/email. roles + font carry the user's
+// edits (they live outside BrandKit). Same ?kit= param the outreach script
+// writes; kit-codec validates on the way back in.
+function makeShareUrl(kit: BrandKit, roles: Roles, font: string): string {
+  return `${window.location.origin}/app?kit=${encodeKitParam({ brandKit: kit, roles, font })}`;
 }
 
 type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
@@ -58,6 +29,7 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
     fields: [
       { key: 'fullName', label: 'Full name' },
       { key: 'jobTitle', label: 'Job title' },
+      { key: 'ctaText', label: 'Button text', placeholder: 'Visit website →' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'phone', label: 'Phone' },
     ],
@@ -85,16 +57,20 @@ const confidenceLabel = (c?: FieldConfidence): string | null => {
 };
 
 // name + title always render; everything else is a visibility toggle.
+// ctaText is also excluded — it's always editable, not a show/hide toggle.
 const isToggleable = (k: keyof SignatureFields): k is ToggleableField =>
-  k !== 'fullName' && k !== 'jobTitle';
+  k !== 'fullName' && k !== 'jobTitle' && k !== 'ctaText';
 
-const label = 'text-[0.68rem] uppercase tracking-[0.18em] text-muted';
+const label = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted';
 const field =
   'w-full bg-transparent border-b border-line py-2 text-ink ' +
   'placeholder:text-muted focus:border-accent transition-colors';
+// No baked-in text color: callers that share this background (accent) also share
+// text-paper explicitly, so a conditional text-color override never has to fight
+// a class already in `btn` for specificity (Tailwind doesn't respect string order).
 const btn =
   'inline-flex items-center justify-center gap-2 px-6 py-3 font-mono text-[0.72rem] uppercase tracking-[0.12em] ' +
-  'text-paper transition-colors disabled:opacity-50';
+  'transition-colors disabled:opacity-50';
 
 export default function SignatureDemo() {
   // Read params FIRST so we can pass preloaded kit to useBrandKit as initial state.
@@ -106,7 +82,8 @@ export default function SignatureDemo() {
   const brand = useBrandKit({
     initialKit: preloaded?.brandKit,
     initialFields: preloaded?.fields,
-    initialFont: preloaded ? fontMatch(preloaded.brandKit.fontFamily) : undefined,
+    initialFont: preloaded?.font ?? (preloaded ? fontMatch(preloaded.brandKit.fontFamily) : undefined),
+    initialRoles: preloaded?.roles,
     // If kit is preloaded we already have the result — mark siteUrl so extracted labels show.
     initialUrl: fromParam?.replace(/^https?:\/\//i, '') ?? '',
     initialSiteUrl: preloaded && fromParam ? fromParam : '',
@@ -119,7 +96,7 @@ export default function SignatureDemo() {
   // Anything LLM-derived ('extract'/'vision') or degraded is a best guess the user
   // should sanity-check. Honest-degradation principle.
   const colorConfidence = !extracted
-    ? 'Extracted · editable'
+    ? 'Demo colors · paste your URL above'
     : brand.source === 'firecrawl'
       ? 'Read from your site · editable'
       : 'Best guess · adjust below';
@@ -130,6 +107,13 @@ export default function SignatureDemo() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState('');
+  // Export gate: email unlocks all three layouts for this visitor. Separate
+  // state from the team-waitlist form so the two CTAs don't cross-talk.
+  const [unlocked, setUnlocked] = useState(isUnlocked);
+  const [exportEmail, setExportEmail] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockErr, setUnlockErr] = useState('');
+  const [teamLinkCopied, setTeamLinkCopied] = useState(false);
 
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
 
@@ -151,7 +135,32 @@ export default function SignatureDemo() {
 
   useEffect(() => {
     track('page_view', '/app');
+    if (!unlocked) track('export_gate_viewed');
   }, []);
+
+  const unlockExport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(exportEmail.trim())) {
+      setUnlockErr('Enter a valid email address.');
+      return;
+    }
+    setUnlocking(true);
+    setUnlockErr('');
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: exportEmail.trim(), source: 'export' }),
+      });
+      if (!res.ok) throw new Error('failed');
+      setUnlocked(true);
+      track('export_email_submitted', { source: 'export' });
+    } catch {
+      setUnlockErr("Couldn't unlock — try again.");
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   const submitWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,6 +229,11 @@ export default function SignatureDemo() {
         <div className="hero-input-row flex flex-1 items-center gap-3 px-5">
           <span className="select-none font-mono text-sm text-muted">https://</span>
           <input
+            type="text"
+            inputMode="url"
+            autoComplete="url"
+            name="company-url"
+            spellCheck={false}
             value={brand.url}
             onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
             placeholder="yourcompany.com"
@@ -235,14 +249,18 @@ export default function SignatureDemo() {
       </form>
       {brand.note && <p className="mt-3 text-sm text-muted" role="status">{brand.note}</p>}
 
+      {/* studio: editor (left) + live preview (right, sticky on desktop) so every
+          edit is visible without scrolling — the magic moment stays on screen. */}
+      <div className="mt-16 grid grid-cols-1 gap-x-10 gap-y-10 md:grid-cols-2 md:items-start">
+      <div>
+
       {/* divider */}
       <div
-        className="rise mt-16 flex items-center gap-4"
+        className="rise flex items-center gap-4"
         style={{ animationDelay: '240ms' }}
       >
-        <span className={label}>Live preview</span>
+        <span className={label}>Edit your signature</span>
         <span className="h-px flex-1 bg-line" />
-        <span className={`${label} hidden sm:inline`}>edit any field</span>
       </div>
 
       {/* role presets — flip the visibility toggles for a profession in one click */}
@@ -261,13 +279,29 @@ export default function SignatureDemo() {
       </div>
 
       {/* tabs */}
-      <div className="rise mt-6 flex gap-1 border-b border-line" style={{ animationDelay: '300ms' }} role="tablist" aria-label="Signature fields">
+      <div
+        className="rise mt-6 flex gap-1 border-b border-line"
+        style={{ animationDelay: '300ms' }}
+        role="tablist"
+        aria-label="Signature fields"
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          e.preventDefault();
+          const i = TABS.findIndex((t) => t.id === activeTab);
+          const next = TABS[(i + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length];
+          setActiveTab(next.id);
+          document.getElementById(`tab-${next.id}`)?.focus();
+        }}
+      >
         {TABS.map((t) => (
           <button
             key={t.id}
+            id={`tab-${t.id}`}
             type="button"
             role="tab"
             aria-selected={activeTab === t.id}
+            aria-controls="tabpanel-fields"
+            tabIndex={activeTab === t.id ? 0 : -1}
             onClick={() => setActiveTab(t.id)}
             className={`-mb-px border-b-2 px-4 py-2 font-mono text-[0.7rem] uppercase tracking-[0.14em] transition-colors ${
               activeTab === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
@@ -279,7 +313,14 @@ export default function SignatureDemo() {
       </div>
 
       {/* active-tab fields, each toggleable field carries a Shown/Hidden switch */}
-      <div key={activeTab} className="tab-content mt-6 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2">
+      <div
+        key={activeTab}
+        id="tabpanel-fields"
+        role="tabpanel"
+        aria-labelledby={`tab-${activeTab}`}
+        tabIndex={0}
+        className="tab-content mt-6 grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2"
+      >
         {tab.fields.map((f) => {
           const toggleable = isToggleable(f.key);
           const visible = toggleable ? brand.visibility[f.key as ToggleableField] : true;
@@ -293,7 +334,7 @@ export default function SignatureDemo() {
                     onClick={() => brand.toggleField(f.key as ToggleableField)}
                     aria-pressed={visible}
                     aria-label={`${visible ? 'Hide' : 'Show'} ${f.label} in signature`}
-                    className="flex items-center gap-1.5 font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
+                    className="flex items-center gap-1.5 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-muted transition-colors hover:text-ink"
                   >
                     <span
                       aria-hidden
@@ -347,7 +388,7 @@ export default function SignatureDemo() {
             })}
           </div>
           {extracted && (
-            <span className="mt-2 block font-mono text-[0.62rem] uppercase tracking-[0.16em] text-muted">
+            <span className="mt-2 block font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">
               Pre-selected — closest email-safe match to {brandFontName}
               {brand.confidence && <span> · {confidenceLabel(brand.confidence.fontFamily)}</span>}
             </span>
@@ -370,10 +411,10 @@ export default function SignatureDemo() {
                   />
                 </span>
                 <span key={brand.roles[key]} className="font-mono text-xs text-ink">{brand.roles[key].toUpperCase()}</span>
-                <span className="text-[0.62rem] uppercase tracking-[0.16em] text-muted">{roleLabel}</span>
+                <span className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">{roleLabel}</span>
               </label>
             ))}
-            <span className="font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">
+            <span className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-muted">
               {brand.confidence
                 ? `${confidenceLabel(brand.confidence.primaryColor)} / ${confidenceLabel(brand.confidence.secondaryColor)}`
                 : colorConfidence}
@@ -386,7 +427,7 @@ export default function SignatureDemo() {
           <span className={label}>Logo URL</span>
           <div className="mt-2 flex items-center gap-3">
             {brand.kit.logoUrl && (
-              <img src={brand.kit.logoUrl} alt="" className="h-8 max-w-[84px] shrink-0 border border-line object-contain" />
+              <img src={brand.kit.logoUrl} alt="" width={84} height={32} className="h-8 max-w-[84px] shrink-0 border border-line object-contain" />
             )}
             <input
               type="url"
@@ -394,19 +435,25 @@ export default function SignatureDemo() {
               onChange={(e) => brand.setLogoUrl(e.target.value)}
               placeholder="https://…/logo.png"
               suppressHydrationWarning
+              autoComplete="off"
+              spellCheck={false}
               className={field}
             />
           </div>
           {brand.confidence && extracted && (
-            <span className="mt-1 block font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">
+            <span className="mt-1 block font-mono text-[0.7rem] uppercase tracking-[0.14em] text-muted">
               {confidenceLabel(brand.confidence.logoUrl)}
             </span>
           )}
         </div>
       </div>
 
+      </div>
+      {/* preview column — sticky on desktop so it stays visible while editing */}
+      <div className="md:sticky md:top-20">
+
       {/* preview cards — show skeleton during initial extraction, real cards once loaded */}
-      <div className="rise mt-10 space-y-5" style={{ animationDelay: '380ms' }}>
+      <div className="rise space-y-5" style={{ animationDelay: '380ms' }}>
         {brand.loading && !brand.siteUrl ? (
           <>
             {/* Primary skeleton — wide layout */}
@@ -470,19 +517,71 @@ export default function SignatureDemo() {
                   font={brand.font}
                   siteUrl={brand.siteUrl || undefined}
                   roles={brand.roles}
-                  proHref="/#notify"
-                  locked={!isUnlocked}
+                  proHref="#unlock"
+                  locked={!unlocked}
                 />
               ))}
             </div>
-            {(isOutreach || !isUnlocked) && (
-              <p className="text-center font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">
-                1 of 3 layouts · <a href="/#notify" className="text-ink underline-offset-2 hover:underline">Join waitlist</a> to unlock all
+            {(isOutreach || !unlocked) && (
+              <p className="text-center font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">
+                1 of 3 layouts · <a href="#unlock" className="text-ink underline-offset-2 hover:underline">Unlock all three →</a>
               </p>
             )}
           </>
         )}
       </div>
+
+      </div>
+      </div>
+
+      {/* export gate — email unlocks all three layouts (preview stays free). */}
+      {!unlocked && (
+        <section id="unlock" className="rise mt-10 border-t border-line pt-10" style={{ animationDelay: '440ms' }}>
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-md">
+              <span className="eyebrow">Unlock all three</span>
+              <h2 className="mt-4 font-display text-2xl text-ink md:text-3xl">
+                Get all three layouts — copy-ready.
+              </h2>
+              <p className="mt-2 text-muted">
+                You&rsquo;ve seen one. Drop your email to unlock the other two, with
+                paste-into-Gmail, Outlook &amp; Apple&nbsp;Mail code for each.
+              </p>
+            </div>
+            <form onSubmit={unlockExport} noValidate className="w-full max-w-sm">
+              <div className="flex items-end gap-3">
+                <label className="flex-1">
+                  <span className={label}>Email</span>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    name="email"
+                    spellCheck={false}
+                    required
+                    placeholder="you@work.com"
+                    value={exportEmail}
+                    onChange={(e) => setExportEmail(e.target.value)}
+                    disabled={unlocking}
+                    suppressHydrationWarning
+                    aria-label="Email address to unlock all layouts"
+                    className={`${field} mt-1`}
+                  />
+                </label>
+                <button disabled={unlocking} className={`${btn} bg-accent text-paper hover:bg-accent-deep`}>
+                  {unlocking ? 'Unlocking…' : 'Unlock layouts'}
+                </button>
+              </div>
+              {unlockErr && <p className="mt-2 text-sm text-accent-deep" role="alert">{unlockErr}</p>}
+            </form>
+          </div>
+        </section>
+      )}
+      {unlocked && !isUnlocked && (
+        <p className="rise mt-10 border-t border-line pt-10 text-accent-deep" role="status" style={{ animationDelay: '440ms' }}>
+          ✓ Unlocked — all three are yours. Hit <span className="text-ink">Copy</span> on any layout above.
+        </p>
+      )}
 
       {/* copy hint + install guide — featured layout is free to copy */}
       <p className="mt-4 text-[0.72rem] text-muted">
@@ -490,50 +589,74 @@ export default function SignatureDemo() {
       </p>
       <InstallInstructions />
 
-      {/* email CTA */}
-      <section
-        className="rise mt-20 border-t border-line pt-10"
-        style={{ animationDelay: '460ms' }}
-      >
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-md">
-            <h2 className="font-display text-2xl text-ink md:text-3xl">
-              Want this live for your whole team?
-            </h2>
-            <p className="mt-2 text-muted">
-              One sign-in. Every teammate&rsquo;s signature deployed in about two minutes.
-            </p>
-          </div>
-          {sent ? (
-            <p className="text-accent-deep" role="status">Thanks — we&rsquo;ll be in touch about team deploy.</p>
-          ) : (
-            <form onSubmit={submitWaitlist} noValidate className="w-full max-w-sm">
-              <div className="flex items-end gap-3">
-                <label className="flex-1">
-                  <span className={label}>Work email</span>
-                  <input
-                    type="email"
-                    required
-                    placeholder="you@work.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={sending}
-                    suppressHydrationWarning
-                    aria-label="Work email address"
-                    className={`${field} mt-1`}
-                  />
-                </label>
-                <button disabled={sending} className={`${btn} bg-accent hover:bg-accent-deep disabled:opacity-50`}>
-                  {sending ? 'Saving…' : 'Notify me'}
+      {/* team rollout — one section, two asks (instant link copy + future auto-deploy
+          email capture), instead of two competing boxed CTAs. Only shown after a real
+          extraction: inviting a team rollout of the demo kit would be dishonest. */}
+      {extracted && (
+        <section className="rise mt-16 border-t border-line pt-10" style={{ animationDelay: '460ms' }}>
+          <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-md">
+              <span className="eyebrow">Roll it out to your team</span>
+              <h2 className="mt-4 font-display text-2xl text-ink md:text-3xl">
+                Everyone, on brand, from one URL.
+              </h2>
+              <p className="mt-2 text-muted">
+                Send teammates the link below — your brand is already loaded, they just
+                add their own name and copy. Want it fully automated (one sign-in, every
+                signature deployed for you)? Leave your email below.
+              </p>
+            </div>
+            <div className="flex w-full max-w-sm flex-col gap-6">
+              <div>
+                <span className={label}>Share with your team</span>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(makeShareUrl(brand.kit, brand.roles, brand.font));
+                    setTeamLinkCopied(true);
+                    track('team_link_copied');
+                    setTimeout(() => setTeamLinkCopied(false), 2000);
+                  }}
+                  className={`${btn} mt-2 w-full ${teamLinkCopied ? 'bg-accent text-paper' : 'border border-line text-ink hover:border-accent hover:text-accent'}`}
+                >
+                  {teamLinkCopied ? '✓ Copied' : 'Copy team link'}
                 </button>
               </div>
-              {sendErr && <p className="mt-2 text-sm text-accent-deep" role="alert">{sendErr}</p>}
-            </form>
-          )}
-        </div>
-      </section>
+              {sent ? (
+                <p className="text-accent-deep" role="status">Thanks — we&rsquo;ll be in touch about team deploy.</p>
+              ) : (
+                <form onSubmit={submitWaitlist} noValidate>
+                  <label>
+                    <span className={label}>Work email — notify me at launch</span>
+                    <div className="mt-2 flex items-end gap-3">
+                      <input
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        name="email"
+                        spellCheck={false}
+                        required
+                        placeholder="you@work.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={sending}
+                        suppressHydrationWarning
+                        aria-label="Work email address"
+                        className={`${field} flex-1`}
+                      />
+                      <button disabled={sending} className={`${btn} bg-accent text-paper hover:bg-accent-deep`}>
+                        {sending ? 'Saving…' : 'Notify me'}
+                      </button>
+                    </div>
+                  </label>
+                  {sendErr && <p className="mt-2 text-sm text-accent-deep" role="alert">{sendErr}</p>}
+                </form>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
-      <footer className="mt-16 text-[0.68rem] uppercase tracking-[0.18em] text-muted">
+      <footer className="mt-16 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">
         No template picker · No IT ticket · No filling forms
       </footer>
     </main>

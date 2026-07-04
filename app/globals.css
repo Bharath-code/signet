@@ -60,6 +60,11 @@
   outline-offset: 2px;
 }
 
+/* Clears the sticky nav (h-16 = 64px) so #how/#pricing/#faq/#notify land in view. */
+#how, #pricing, #faq, #notify, #unlock {
+  scroll-margin-top: 88px;
+}
+
 /* ── Reveal — crisp editorial slide-up (no blur) ────────────────────────── */
 @keyframes rise {
   from { opacity: 0; transform: translateY(18px); }
@@ -180,6 +185,15 @@
 .locked-overlay {
   opacity: 0;
   animation: overlay-in 0.35s var(--ease-fluid) 0.15s forwards;
+  /* Opaque diagonal hairline hatch — a printer's "proof void" mark, not glass.
+     No blur, no transparency: the Hard-Offset rule forbids soft/glassy elevation. */
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-paper-deep),
+    var(--color-paper-deep) 7px,
+    var(--color-line) 7px,
+    var(--color-line) 8px
+  );
 }
 @media (prefers-reduced-motion: reduce) {
   .locked-overlay { animation: none; opacity: 1; }

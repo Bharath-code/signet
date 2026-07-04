@@ -8,40 +8,8 @@ import { useBrandKit, LAYOUTS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
 import { BrandMark } from './Logo';
 import { track, setPersonProperty } from './track';
-import type { BrandKit, SignatureFields } from '@/lib/types';
-
-// Encode extracted kit + fields into a base64 URL param for the /app handoff.
-// Compatible with the decodeKitParam() Buffer.from decode in SignatureDemo.
-function encodeKit(kit: BrandKit, fields: SignatureFields): string {
-  const json = JSON.stringify({ brandKit: kit, contact: fields });
-  const bytes = new TextEncoder().encode(json);
-  const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
-  return btoa(binary);
-}
-
-/* ─── Demo data (initial state for hero previews) ──────────────────────── */
-
-const ACME_KIT: BrandKit = {
-  companyName: 'Acme Corp',
-  logoUrl: `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="34"><rect width="96" height="34" rx="3" fill="#1d4ed8"/><text x="48" y="22" font-family="system-ui,sans-serif" font-size="13" fill="white" text-anchor="middle" font-weight="bold">ACME</text></svg>`
-  )}`,
-  primaryColor: '#1d4ed8',
-  secondaryColor: '#475569',
-  fontFamily: 'system-ui, sans-serif',
-};
-
-const ACME_PERSON: SignatureFields = {
-  fullName: 'Alex Chen',
-  jobTitle: 'Head of Design',
-  email: 'alex@acmecorp.com',
-  phone: '+1 415 555 0101',
-  website: 'acmecorp.com',
-  linkedin: 'https://linkedin.com/in/alexchen',
-  github: '',
-  x: '',
-  discord: '',
-};
+import { encodeKitParam } from '@/lib/kit-codec';
+import { DEMO_BRAND_KIT, DEMO_FIELDS } from '@/lib/brand-kit-schema';
 
 const STEPS = [
   { n: '01', title: 'Paste your URL',  body: 'Drop in your company website. No setup, no credentials, no login.' },
@@ -58,9 +26,9 @@ const PLANS = [
     desc: 'forever',
     features: [
       'Signature built from your live site',
-      '1 layout to copy — Logo style',
+      '1 layout to copy instantly — Logo style',
+      'All 3 layouts with a free email',
       'Full field & color customization',
-      'Small "Made with Signet" credit',
     ],
     cta: 'Generate yours',
     href: '/app',
@@ -72,10 +40,9 @@ const PLANS = [
     price: '$12',
     desc: '/ month',
     features: [
-      'All 3 layouts — Logo, Text, Minimal',
       'Save unlimited brand kits',
       'CEO, Sales, Support — separate roles from one URL',
-      'No "Made with Signet" footer',
+      'Short share links for your team',
       'Priority extraction',
     ],
     cta: 'Reserve my spot',
@@ -110,7 +77,7 @@ const FAQS = [
   },
   {
     q: "Do I need to sign up or enter a card?",
-    a: "No. The previews render the moment you arrive — no account, no credit card. You only leave an email if you want to be notified when Pro or Team launches.",
+    a: "No. The previews render the moment you arrive — no account, no credit card. Copying the logo layout is instant; dropping your email unlocks the other two layouts and gets you Pro/Team launch updates.",
   },
   {
     q: "Which email clients does it work with?",
@@ -126,7 +93,7 @@ const FAQS = [
   },
   {
     q: "Is it really free?",
-    a: "Yes. The Free plan lets you generate, customize, and copy one layout (the logo layout) with a small \"Made with Signet\" footer — no account, no credit card. Pro removes the footer, unlocks all three layouts, and lets you save unlimited brand kits.",
+    a: "Yes. Generate, customize, and copy the logo layout with no account, card, or watermark; a free email unlocks all three layouts. Pro adds saved brand kits and per-role signatures from one URL.",
   },
   {
     q: "Can I roll signatures out to my whole team?",
@@ -161,9 +128,9 @@ export default function LandingPage() {
   };
 
   const brand = useBrandKit({
-    initialKit: ACME_KIT,
-    initialFields: ACME_PERSON,
-    initialFont: 'system-ui, sans-serif',
+    initialKit: DEMO_BRAND_KIT,
+    initialFields: DEMO_FIELDS,
+    initialFont: DEMO_BRAND_KIT.fontFamily,
   });
 
   const handleGenerate = async (e: FormEvent) => {
@@ -313,9 +280,9 @@ export default function LandingPage() {
             <span className="font-display text-lg font-extrabold tracking-tight text-ink">Signet</span>
           </Link>
           <div className="flex items-center gap-4 sm:gap-7">
-            <a href="#how"     className={`${monoLabel} transition-colors hover:text-ink`}>How</a>
-            <a href="#pricing" className={`${monoLabel} transition-colors hover:text-ink`}>Pricing</a>
-            <a href="#faq"     className={`${monoLabel} transition-colors hover:text-ink`}>FAQ</a>
+            <a href="#how"     className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>How</a>
+            <a href="#pricing" className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>Pricing</a>
+            <a href="#faq"     className={`${monoLabel} hidden transition-colors hover:text-ink sm:inline`}>FAQ</a>
             <Link href="/app" className="hero-button inline-flex items-center gap-2.5 px-5" style={{ height: 40 }}>
               Generate <span className="hero-button-trail" aria-hidden>→</span>
             </Link>
@@ -364,6 +331,10 @@ export default function LandingPage() {
               <span className="select-none font-mono text-sm text-muted">https://</span>
               <input
                 type="text"
+                inputMode="url"
+                autoComplete="url"
+                name="company-url"
+                spellCheck={false}
                 value={brand.url}
                 onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
                 placeholder="yourcompany.com"
@@ -445,7 +416,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col items-center gap-4 border-t pt-8" style={{ borderColor: 'var(--color-ink)' }}>
                 <p className={monoLabel}>Your signature is ready. Copy it free in the app.</p>
                 <a
-                  href={`/app?kit=${encodeKit(brand.kit, brand.fields)}`}
+                  href={`/app?kit=${encodeKitParam({ brandKit: brand.kit, contact: brand.fields, roles: brand.roles, font: brand.font })}`}
                   onClick={() => track('landing_open_in_app')}
                   className="hero-button inline-flex items-center gap-2.5 px-10"
                   style={{ height: 56 }}
@@ -454,7 +425,7 @@ export default function LandingPage() {
                   <span className="hero-button-trail" aria-hidden>→</span>
                 </a>
                 <p className="font-mono text-[0.64rem] uppercase tracking-[0.14em] text-muted">
-                  1 layout free · No signup · 2 more with Pro
+                  1 layout free · No signup · All 3 with your email
                 </p>
 
                 {/* SECONDARY: waitlist */}
@@ -469,6 +440,10 @@ export default function LandingPage() {
                       <div className="flex flex-col gap-0 sm:flex-row">
                         <input
                           type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          name="email"
+                          spellCheck={false}
                           required
                           placeholder="you@company.com"
                           value={wlEmail}
@@ -786,6 +761,10 @@ export default function LandingPage() {
               <form onSubmit={handleWaitlist} noValidate className="mt-4 flex flex-col sm:flex-row sm:max-w-xl">
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  name="email"
+                  spellCheck={false}
                   required
                   placeholder="you@company.com"
                   value={wlEmail}
@@ -807,7 +786,7 @@ export default function LandingPage() {
                 </button>
               </form>
             )}
-            {wlError && <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'rgba(243,242,236,0.7)' }} role="alert">{wlError}</p>}
+            {wlError && <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }} role="alert">✕ {wlError}</p>}
           </div>
         </div>
       </section>

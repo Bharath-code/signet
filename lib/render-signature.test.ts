@@ -7,7 +7,7 @@ const kit: BrandKit = {
   primaryColor: '#1a2b3c', secondaryColor: '#aabbcc', fontFamily: 'Inter',
 };
 const fields: SignatureFields = {
-  fullName: 'Alex Rivera', jobTitle: 'Head of Sales',
+  fullName: 'Alex Rivera', jobTitle: 'Head of Sales', ctaText: 'Schedule a call →',
   email: 'alex@company.com', phone: '+1 (555) 012-3456',
   website: '', linkedin: '', github: '', x: '', discord: '',
 };
@@ -31,8 +31,8 @@ describe('renderSignature', () => {
     expect(renderSignature(kit, fields, 'logo-cta')).toContain('https://x/logo.png');
   });
 
-  it('logo-cta includes the CTA button copy', () => {
-    expect(renderSignature(kit, fields, 'logo-cta')).toContain('Visit website');
+  it('logo-cta includes the CTA button copy from fields.ctaText', () => {
+    expect(renderSignature(kit, fields, 'logo-cta')).toContain('Schedule a call');
   });
 
   it('minimal does NOT include the logo image', () => {
@@ -95,10 +95,27 @@ describe('renderSignature', () => {
     expect(html).toContain('>LinkedIn<');            // social renders as platform name
   });
 
+  it('routes a bare X handle to x.com instead of mangling it into a broken URL', () => {
+    const handle: SignatureFields = { ...fields, x: '@acme' };
+    expect(renderSignature(kit, handle, 'minimal')).toContain('href="https://x.com/acme"');
+    const noAt: SignatureFields = { ...fields, x: 'acme' };
+    expect(renderSignature(kit, noAt, 'minimal')).toContain('href="https://x.com/acme"');
+    const full: SignatureFields = { ...fields, x: 'https://x.com/acme' };
+    expect(renderSignature(kit, full, 'minimal')).toContain('href="https://x.com/acme"');
+  });
+
   it('drops a javascript: link instead of rendering it (href is an executable sink)', () => {
     const evil: SignatureFields = { ...fields, website: 'javascript:alert(1)' };
     const html = renderSignature(kit, evil, 'minimal');
     expect(html).not.toContain('javascript:');       // unsafe scheme never reaches href
+  });
+
+  it('scheme-validates the CTA websiteUrl (arrives from a raw ?from= param)', () => {
+    const html = renderSignature(kit, fields, 'logo-cta', 'javascript:alert(1)');
+    expect(html).not.toContain('javascript:');
+    expect(html).toContain('href="#"');              // unsafe CTA falls back to inert href
+    const ok = renderSignature(kit, fields, 'logo-cta', 'https://acme.com');
+    expect(ok).toContain('href="https://acme.com/"');
   });
 });
 

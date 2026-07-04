@@ -66,10 +66,20 @@ function chromaHex(hex: string): number {
 // label — so the model's (sometimes uncertain) ordering can't flip the look. The
 // darker color is the readable ink (text, button bg); the more saturated is the
 // single structural stamp (borders). For a black+lime brand: black text, lime border.
+// When both colors are identical (monochrome brand or extraction found only one color),
+// derive a dark ink from the brand color so text and accent stay visually distinct.
 export function brandRoles(kit: BrandKit): { ink: string; accent: string } {
   const a = kit.primaryColor, b = kit.secondaryColor;
   const ra = parseHex(a), rb = parseHex(b);
   if (!ra || !rb) return { ink: a, accent: a }; // malformed → esc() still guards sinks
+  if (a === b) {
+    // Single-color brand: use the brand color as accent (border); derive dark ink for text.
+    const lum = relativeLuminance(ra);
+    const ink = lum > 0.15
+      ? toHex(ra.map((v) => Math.round(v * 0.25)) as RGB)  // darken vivid color for text
+      : a;                                                   // already dark, use as ink
+    return { ink, accent: a };
+  }
   const ink = relativeLuminance(ra) <= relativeLuminance(rb) ? a : b;
   const accent = chromaHex(a) >= chromaHex(b) ? a : b;
   return { ink, accent };
@@ -96,11 +106,16 @@ function details(kit: BrandKit, f: SignatureFields, roles: Roles): string {
     ? `<span style="color:#555">${esc(f.phone)}</span>`
     : '';
 
+  // Bare X handles ("@acme", "acme") aren't URLs — safeHref would mangle them
+  // into https://@acme. No dot/slash → treat as a handle on x.com.
+  const xRaw = f.x.trim();
+  const x = xRaw && !/[./]/.test(xRaw) ? `https://x.com/${xRaw.replace(/^@/, '')}` : f.x;
+
   // Each link is scheme-validated at its sink; website shows its domain, socials
   // their platform name. An invalid/unsafe URL is silently dropped, never rendered.
   const linkDefs: [string, string][] = [
     ['Website', f.website], ['LinkedIn', f.linkedin],
-    ['GitHub', f.github], ['X', f.x], ['Discord', f.discord],
+    ['GitHub', f.github], ['X', x], ['Discord', f.discord],
   ];
   const links = linkDefs
     .map(([label, raw]): string => {
@@ -141,7 +156,10 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
     </tr></table>`;
   }
 
-  const ctaHref = websiteUrl ? esc(websiteUrl) : '#';
+  // href sink — scheme-validate like every other link (websiteUrl can arrive
+  // from a raw ?from= query param, not just the server's finalUrl).
+  const safeCta = websiteUrl ? safeHref(websiteUrl) : null;
+  const ctaHref = safeCta ? esc(safeCta) : '#';
   const ctaRow = layout === 'logo-cta'
     ? `<tr>
          <td></td>
@@ -149,7 +167,7 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
            <a href="${ctaHref}" target="_blank" rel="noopener noreferrer"
               style="display:inline-block;background:${inkReadable};color:#fff;
               font-family:${esc(kit.fontFamily)};font-size:13px;text-decoration:none;
-              padding:8px 18px;border-radius:4px">Visit website →</a>
+              padding:8px 18px;border-radius:4px">${esc(fields.ctaText || 'Visit website →')}</a>
          </td>
        </tr>`
     : '';

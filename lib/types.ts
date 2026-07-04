@@ -19,6 +19,7 @@ export type BrandKit = {
 export type SignatureFields = {
   fullName: string;
   jobTitle: string;
+  ctaText: string;  // button label for logo-cta layout; role-defaulted, user-overridable
   email: string;
   phone: string;
   website: string;
@@ -29,7 +30,8 @@ export type SignatureFields = {
 };
 
 // Fields the user can show/hide. Name + title always render (identity); the rest toggle.
-export type ToggleableField = Exclude<keyof SignatureFields, 'fullName' | 'jobTitle'>;
+// ctaText is excluded — it's not a visibility toggle, it's always editable.
+export type ToggleableField = Exclude<keyof SignatureFields, 'fullName' | 'jobTitle' | 'ctaText'>;
 export type Visibility = Record<ToggleableField, boolean>;
 
 export type Layout = 'minimal' | 'logo' | 'logo-cta';
