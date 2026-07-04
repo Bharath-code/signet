@@ -85,6 +85,7 @@ async function main() {
       const s = await scrape.scrapeSite(url);
       const { brandKit, contact, source } = await extract.extractBrandKit(s.html, s.screenshotUrl, {
         links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets,
+        fcJson: s.fcJson,
       });
       const host = (() => { try { return new URL(s.finalUrl).hostname.replace(/^www\./, ''); } catch { return url; } })();
       const fields: SignatureFields = {

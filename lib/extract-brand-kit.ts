@@ -340,11 +340,12 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
     return { brandKit, contact, source: 'firecrawl', confidence };
   }
 
-  // ─── Parallel extraction: Gemini vision + Firecrawl /extract ────────────
-  // Gemini sees the screenshot (best for colors/font). Firecrawl /extract reads
-  // the full page content server-side (best for text fields — companyName, logoUrl,
-  // socials). Both run concurrently; whichever finishes first is available.
-  // The merge below prefers /extract for text fields, Gemini for visual fields.
+  // ─── Extraction: Gemini vision + Firecrawl JSON-mode data ────────────────
+  // Gemini sees the screenshot (best for colors/font) and runs here, bounded
+  // and may fail. `fcExtract` is not a concurrent call — it's the JSON-mode
+  // result already produced server-side during the original scrape, passed in
+  // via opts.fcJson. The merge below prefers that scrape data for text fields
+  // (companyName, logoUrl, socials), Gemini for visual fields.
   const markdown = opts.markdown ? opts.markdown.slice(0, 10000) : '';
   const snippets = opts.htmlSnippets ?? '';
   const baseUrl = opts.baseUrl ? `Site URL: ${opts.baseUrl}` : '';
