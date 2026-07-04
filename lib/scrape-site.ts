@@ -182,8 +182,7 @@ export function fallbackKitFromMeta(meta: ScrapeMeta, html: string, baseUrl?: st
 const SCRAPE_FORMATS: FormatString[] = ['branding', 'markdown', 'html', 'links', 'screenshot'];
 const EXTRA_FORMATS: FormatString[] = ['branding', 'html', 'links'];
 
-const PROXY_TIERS = ['auto', 'stealth', 'enhanced'] as const;
-type ProxyTier = typeof PROXY_TIERS[number];
+type ProxyTier = 'auto' | 'enhanced';
 
 function scrapeOnce(url: string, maxAge: number, mobile = false, proxy: ProxyTier = 'auto') {
   return client.scrape(url, {
@@ -249,16 +248,11 @@ export async function scrapeSite(url: string): Promise<ScrapeResult> {
     throw new Error(`origin returned HTTP ${status}`);
   }
 
-  // Step 2: if the screenshot failed, retry with stealth → enhanced proxy
-  // tiers before giving up (some sites block auto-tier scrapers)
+  // Step 2: if the screenshot failed, retry with enhanced proxy
+  // before giving up (some sites block auto-tier scrapers)
   if (!doc.screenshot) {
-    for (const tier of ['stealth', 'enhanced'] as const) {
-      const retry = await scrapeOnce(url, 0, false, tier).catch(() => null);
-      if (retry?.screenshot) {
-        doc = retry;
-        break;
-      }
-    }
+    const retry = await scrapeOnce(url, 0, false, 'enhanced').catch(() => null);
+    if (retry?.screenshot) doc = retry;
   }
 
   // Step 3: if Firecrawl's branding is thin, try mobile viewport and/or
