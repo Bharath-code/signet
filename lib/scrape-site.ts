@@ -1,7 +1,9 @@
 import Firecrawl from '@mendable/firecrawl-js';
-import type { BrandingProfile, Document, FormatString } from '@mendable/firecrawl-js';
+import type { BrandingProfile, Document, FormatOption, FormatString } from '@mendable/firecrawl-js';
+import { z } from 'zod';
 import { brandKitSchema, NEUTRAL_BRAND_KIT } from './brand-kit-schema';
 import { pickEmailLogo } from './logo-url';
+import { normHex } from './brand-from-firecrawl';
 import type { BrandKit } from './types';
 
 const client = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
@@ -28,6 +30,59 @@ function setCachedScrape(url: string, result: ScrapeResult): void {
 // Path suffixes on a site that tend to hold brand assets, team photos, or contact info
 const BRAND_PATHS = ['/about', '/contact', '/brand', '/press', '/team', '/logo', '/company'];
 
+// JSON mode rides on the primary scrape (replaces the deprecated /extract call):
+// Firecrawl runs an LLM over the full page content server-side and returns the
+// result on Document.json in the same response. All fields optional — results
+// are validated against the strict brandKitSchema downstream.
+export const fcExtractSchema = z.object({
+  companyName: z.string().optional(),
+  logoUrl: z.string().optional(),
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  fontFamily: z.string().optional(),
+  contactName: z.string().optional(),
+  contactRole: z.string().optional(),
+  contactEmail: z.string().optional(),
+  contactPhone: z.string().optional(),
+  website: z.string().optional(),
+  linkedin: z.string().optional(),
+  github: z.string().optional(),
+  x: z.string().optional(),
+  discord: z.string().optional(),
+});
+export type FcExtractData = z.infer<typeof fcExtractSchema>;
+
+const BRAND_JSON_PROMPT = [
+  'Extract brand identity from this website. Only return values that are actually visible on the page — do not guess or fabricate.',
+  'companyName: the business or site name',
+  'logoUrl: absolute URL of the logo image (from <img> tags, never the page URL)',
+  'primaryColor: dominant brand accent color in #hex (NOT link-blue)',
+  'secondaryColor: supporting dark/neutral color in #hex',
+  'fontFamily: CSS font-family used for headings or body text',
+  'contactName, contactRole, contactEmail, contactPhone: contact details found on the page',
+  'website: the URL of this site',
+  'linkedin, github, x, discord: absolute URLs to social profiles',
+].join('\n');
+
+const JSON_FORMAT: FormatOption = {
+  type: 'json',
+  prompt: BRAND_JSON_PROMPT,
+  // zod v4 native JSON Schema conversion — avoids relying on the SDK's own
+  // zod-3-era converter.
+  schema: z.toJSONSchema(fcExtractSchema) as Record<string, unknown>,
+};
+
+// json-mode colors are untyped strings ("blue", "rgb(…)"); a non-hex value
+// reaching brandKitSchema.parse downstream throws and degrades the whole
+// result. Normalize here; invalid → undefined (field simply not contributed).
+export function parseFcJson(raw: unknown): FcExtractData | undefined {
+  const parsed = fcExtractSchema.safeParse(raw);
+  if (!parsed.success) return undefined;
+  parsed.data.primaryColor = normHex(parsed.data.primaryColor);
+  parsed.data.secondaryColor = normHex(parsed.data.secondaryColor);
+  return parsed.data;
+}
+
 type ScrapeMeta = {
   ogSiteName?: string;
   title?: string;
@@ -48,6 +103,7 @@ export type ScrapeResult = {
   fallbackKit: BrandKit;
   lang?: string; // P3: <html lang="xx"> for CJK font mapping
   pageTitle?: string; // The page <title> from Firecrawl metadata (used for contact info fallback)
+  fcJson?: FcExtractData; // JSON-mode LLM output from the primary scrape (contact + brand text fields)
 };
 
 // apple-touch-icon is a clean square PNG brand mark on most sites — the best small
@@ -131,7 +187,9 @@ type ProxyTier = typeof PROXY_TIERS[number];
 
 function scrapeOnce(url: string, maxAge: number, mobile = false, proxy: ProxyTier = 'auto') {
   return client.scrape(url, {
-    formats: mobile ? (['markdown', 'html', 'links', 'screenshot'] as FormatString[]) : SCRAPE_FORMATS,
+    formats: mobile
+      ? (['markdown', 'html', 'links', 'screenshot'] as FormatOption[])
+      : ([...SCRAPE_FORMATS, JSON_FORMAT] as FormatOption[]),
     onlyMainContent: false,
     blockAds: true,
     removeBase64Images: true,
@@ -274,6 +332,7 @@ export async function scrapeSite(url: string): Promise<ScrapeResult> {
     fallbackKit: fallbackKitFromMeta(doc.metadata ?? {}, html, finalUrl),
     lang,
     pageTitle: doc.metadata?.title,
+    fcJson: parseFcJson(doc.json),
   };
   setCachedScrape(url, result);
   return result;
