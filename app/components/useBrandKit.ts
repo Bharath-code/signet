@@ -1,7 +1,7 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { FormEvent, ChangeEvent } from 'react';
-import { DEMO_FIELDS, NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
+import { DEMO_FIELDS, DEMO_BRAND_KIT, ctaTextForRole } from '@/lib/brand-kit-schema';
 import { toEmailSafeFont, DEFAULT_EMAIL_FONT } from '@/lib/email-fonts';
 import { brandRoles, type Roles } from '@/lib/render-signature';
 import { track } from './track';
@@ -36,6 +36,7 @@ type HookOpts = {
   initialKit?: BrandKit;
   initialFields?: SignatureFields;
   initialFont?: string;
+  initialRoles?: Roles;     // user-edited colors carried in a shared ?kit= link
   initialUrl?: string;      // pre-fills the URL bar (from ?from= when kit is preloaded)
   initialSiteUrl?: string;  // marks the kit as "extracted" so font/color labels show
 };
@@ -43,9 +44,12 @@ type HookOpts = {
 export function useBrandKit(opts: HookOpts = {}) {
   const [url, setUrl] = useState(opts.initialUrl ?? '');
   const [siteUrl, setSiteUrl] = useState(opts.initialSiteUrl ?? '');
-  const [kit, setKit] = useState<BrandKit>(opts.initialKit ?? NEUTRAL_BRAND_KIT);
-  const [roles, setRoles] = useState<Roles>(() => brandRoles(opts.initialKit ?? NEUTRAL_BRAND_KIT));
-  const [font, setFont] = useState(opts.initialFont ?? DEFAULT_EMAIL_FONT);
+  const [kit, setKit] = useState<BrandKit>(opts.initialKit ?? DEMO_BRAND_KIT);
+  const [roles, setRoles] = useState<Roles>(() => opts.initialRoles ?? brandRoles(opts.initialKit ?? DEMO_BRAND_KIT));
+  // Whether the user already has a real (extracted or preloaded) kit on screen —
+  // a failed/rate-limited generation must not wipe it back to neutral.
+  const hadKit = useRef(!!opts.initialKit);
+  const [font, setFont] = useState(opts.initialFont ?? (opts.initialKit ? DEFAULT_EMAIL_FONT : DEMO_BRAND_KIT.fontFamily));
   const [fields, setFields] = useState<SignatureFields>(opts.initialFields ?? DEMO_FIELDS);
   const [visibility, setVisibility] = useState<Visibility>(ALL_VISIBLE);
   const [loading, setLoading] = useState(false);
@@ -78,16 +82,26 @@ export function useBrandKit(opts: HookOpts = {}) {
         body: JSON.stringify({ url: target }),
       });
       const data = await res.json();
-      setKit(data.brandKit);
-      setRoles(brandRoles(data.brandKit));
-      setSiteUrl(data.finalUrl ?? target);
-      setFont(toEmailSafeFont(data.brandKit.fontFamily));
-      setSource(data.source ?? null);
-      setConfidence(data.confidence ?? null);
+      // A degraded-extract response still carries real scraped data (logo, name);
+      // rate-limit and scrape failures carry the neutral kit — don't let those
+      // overwrite a kit the user already has (and don't mark them "extracted").
+      const gotRealKit = !data.fallback || data.degraded === 'extract';
+      if (gotRealKit || !hadKit.current) {
+        setKit(data.brandKit);
+        setRoles(brandRoles(data.brandKit));
+        setFont(toEmailSafeFont(data.brandKit.fontFamily));
+      }
+      if (gotRealKit) {
+        hadKit.current = true;
+        setSiteUrl(data.finalUrl ?? target);
+        setSource(data.source ?? null);
+        setConfidence(data.confidence ?? null);
+      }
       if (!data.fallback) {
         const c = data.contact ?? {};
         setFields({
           fullName: c.fullName ?? '', jobTitle: c.jobTitle ?? '',
+          ctaText: ctaTextForRole(c.jobTitle ?? ''),
           email: c.email ?? '', phone: c.phone ?? '',
           website: c.website ?? '', linkedin: c.linkedin ?? '',
           github: c.github ?? '', x: c.x ?? '', discord: c.discord ?? '',

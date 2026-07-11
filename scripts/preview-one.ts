@@ -3,6 +3,7 @@
 
 import { mkdirSync } from 'node:fs';
 import type { SignatureFields } from '../lib/types';
+import { ctaTextForRole } from '../lib/brand-kit-schema';
 
 try { process.loadEnvFile('.env.local'); } catch {}
 
@@ -27,6 +28,7 @@ async function main() {
   const fields: SignatureFields = {
     fullName: contact.fullName  ?? brandKit.companyName,
     jobTitle: contact.jobTitle  ?? '',
+    ctaText:  ctaTextForRole(contact.jobTitle ?? ''),
     email:    contact.email     ?? '',
     phone:    contact.phone     ?? '',
     website:  contact.website   ?? s.finalUrl,

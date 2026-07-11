@@ -10,12 +10,12 @@ const cache = new Map<string, CacheEntry>();
 const TTL = 60 * 60 * 1000; // 1 hour
 
 // ─── Rate limiter ────────────────────────────────────────────────────────
-// 3 generations/hour, 10/day per IP. Cached responses don't count.
-// Only real scrape attempts (the expensive Firecrawl+Gemini path) are metered.
+// 10 generations/hour, 25/day per IP (launch-week bump; was 3/10).
+// Cached responses don't count. Only real scrape attempts are metered.
 type RateEntry = { hourly: number; daily: number; hourReset: number; dayReset: number };
 const rateMap = new Map<string, RateEntry>();
-const HOUR_LIMIT = 3;
-const DAY_LIMIT = 10;
+const HOUR_LIMIT = 10;
+const DAY_LIMIT = 25;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
@@ -97,6 +97,7 @@ export async function POST(req: Request) {
       htmlSnippets: scraped.htmlSnippets,
       lang: scraped.lang,
       pageTitle: scraped.pageTitle,
+      fcJson: scraped.fcJson,
     });
     cache.set(key, { brandKit, contact, confidence, finalUrl, ts: Date.now() });
     return NextResponse.json({ brandKit, contact, confidence, finalUrl, fallback: false, source });

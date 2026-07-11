@@ -15,7 +15,8 @@ export type FirecrawlBrand = {
 };
 
 // Accept #hex (3/4/6/8) and rgb()/rgba(); everything else → undefined.
-function normHex(raw?: string): string | undefined {
+// Exported: extract-brand-kit uses it to sanitize /extract's untyped color strings.
+export function normHex(raw?: string): string | undefined {
   if (!raw) return undefined;
   const s = raw.trim();
   const rgb = s.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
@@ -42,10 +43,13 @@ function chroma(hex: string): number {
 
 // Accent = the most saturated *real* brand color. Never colors.link (that's the
 // hyperlink color, the #1 source of bogus link-blue accents in the eval) and never
-// a near-grey. A monochrome site (no vivid color) returns no accent rather than
-// promoting a neutral — the orchestrator then lets the vision pass try.
-function pickAccent(c: NonNullable<BrandingProfile['colors']>): string | undefined {
-  const cands = [c.primary, c.accent, c.secondary]
+// a near-grey. The primary CTA button background is the strongest signal a site
+// gives about its accent — it's included ahead of the palette. A monochrome site
+// (no vivid color) returns no accent rather than promoting a neutral — the
+// orchestrator then lets the vision pass try.
+function pickAccent(b: BrandingProfile): string | undefined {
+  const c = b.colors ?? {};
+  const cands = [b.components?.buttonPrimary?.background, c.primary, c.accent, c.secondary]
     .map((x) => normHex(x))
     .filter((x): x is string => !!x && chroma(x) >= VIVID);
   return cands.length ? cands.reduce((a, b) => (chroma(b) > chroma(a) ? b : a)) : undefined;
@@ -70,7 +74,7 @@ export function brandKitFromFirecrawl(b: BrandingProfile | undefined): Firecrawl
   return {
     // primary = the vivid brand accent; secondary = a dark text/ink color. Final
     // primary/secondary ordering is normalized by orderColors downstream.
-    primaryColor: pickAccent(c),
+    primaryColor: pickAccent(b),
     secondaryColor: normHex(c.textPrimary) ?? normHex(c.secondary) ?? normHex(c.textSecondary),
     // Candidates in priority order: the actual logo, then the square favicon.
     // og:image is excluded — it's a wide social card, handled as a last resort in

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signet — Product Review & GTM Plan (2026-07-01)</title>
+<style>
+  :root {
+    --ink: #131210; --muted: #5E5A52; --paper: #F3F2EC; --paper-deep: #E9E8DF;
+    --card: #FFFFFF; --line: #D8D6CC; --accent: #E23A1A; --accent-deep: #BF2E0F;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 16px/1.6 'Hanken Grotesk', system-ui, sans-serif;
+  }
+  header {
+    padding: 48px 24px 32px; max-width: 920px; margin: 0 auto;
+  }
+  h1 {
+    font: 800 clamp(1.8rem,4vw,2.6rem)/1.05 'Bricolage Grotesque', system-ui, sans-serif;
+    letter-spacing: -0.02em; margin: 0 0 8px;
+  }
+  .meta {
+    font: 500 0.7rem/1.2 'JetBrains Mono', ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted);
+  }
+  .tabs {
+    max-width: 920px; margin: 0 auto; padding: 0 24px;
+    display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    font: 500 0.72rem/1.2 'JetBrains Mono', ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 12px 16px; cursor: pointer; border: 1px solid transparent; border-bottom: none;
+    background: none; color: var(--muted);
+  }
+  .tab.active { color: var(--ink); background: var(--card); border-color: var(--line); }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 24px 80px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); padding: 20px 24px;
+    margin-bottom: 14px;
+  }
+  .card > summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center;
+    gap: 10px; font: 700 1.05rem/1.2 'Bricolage Grotesque', system-ui, sans-serif;
+  }
+  .card > summary::-webkit-details-marker { display: none; }
+  .card > summary::before {
+    content: '+'; color: var(--accent); font: 700 1rem monospace; width: 1em;
+  }
+  .card[open] > summary::before { content: '−'; }
+  .card .body { padding-top: 12px; }
+  .sev {
+    display: inline-block; font: 500 0.62rem 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 8px;
+    border: 1px solid var(--line); margin-left: auto; color: var(--muted);
+  }
+  .sev.high { color: var(--accent-deep); border-color: var(--accent); }
+  .sev.good { color: #2E7D32; border-color: #2E7D32; }
+  ul { padding-left: 1.2em; margin: 8px 0; }
+  li { margin-bottom: 6px; }
+  code {
+    font: 0.85em 'JetBrains Mono', monospace; background: var(--paper-deep);
+    padding: 1px 5px;
+  }
+  .eyebrow {
+    font: 500 0.66rem 'JetBrains Mono', monospace; text-transform: uppercase;
+    letter-spacing: 0.16em; color: var(--muted);
+  }
+  .eyebrow::before { content: '● '; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 0.66rem 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  .checklist label {
+    display: flex; gap: 10px; align-items: flex-start; padding: 8px 0;
+    border-bottom: 1px solid var(--line); cursor: pointer;
+  }
+  .checklist label:last-child { border-bottom: none; }
+  .checklist input { margin-top: 4px; accent-color: var(--accent); }
+  .checklist input:checked + span { text-decoration: line-through; color: var(--muted); }
+  .progress-wrap { height: 6px; background: var(--paper-deep); margin-bottom: 20px; }
+  .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width .2s; }
+  footer { text-align: center; padding: 24px; color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="eyebrow">Signet — internal review</span>
+  <h1>Product Review & GTM Plan</h1>
+  <p class="meta">2026-07-01 · staff-eng + AI-PM review, monetization plan, lead-gen pipeline</p>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-panel="review">Product Review</button>
+  <button class="tab" data-panel="gtm">GTM & Monetization</button>
+  <button class="tab" data-panel="mindsets">CEO / CMO / GTM-Eng</button>
+  <button class="tab" data-panel="pipeline">Lead Pipeline</button>
+  <button class="tab" data-panel="actions">Next Actions</button>
+</nav>
+
+<main>
+
+  <!-- ============ PANEL: PRODUCT REVIEW ============ -->
+  <section class="panel active" id="review">
+
+    <details class="card" open>
+      <summary>What's genuinely strong <span class="sev good">agreed</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>Deterministic-first extraction</strong> (Firecrawl branding → CSS tokens → Gemini vision as gap-filler, not vision-first). Most teams solve extraction accuracy by prompt-tweaking; this reduces what's asked of the model instead — the correct AI-product instinct.</li>
+          <li><strong>The 200-always invariant</strong> in <code>/api/brand-kit</code> — a real circuit breaker, not a TODO. Combined with strict hex validation at the schema boundary (<code>brand-kit-schema.ts</code>), covers the two things that matter most for shipping AI output to users: validate output, never let a model failure become a user-facing failure.</li>
+          <li><strong><code>MASTER-PLAN.md</code></strong> — a phase-gated roadmap with explicit kill criteria and a "what NOT to build" list. Rare at this stage; most founders never write the kill criteria down.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="card" open>
+      <summary>You're already breaking your own gates <span class="sev high">flag</span></summary>
+      <div class="body">
+        <p><code>MASTER-PLAN.md</code>: Phase 1 requires a Phase 0 signal; Phase 2 ("fake team," no OAuth) requires Phase 0 team-interest ≥ Promising. The Phase 0 gate itself is "100 personalized outreach links, scored on reply rate / brand-match / copy intent." Your own stored decision calls building ahead of that signal "the documented failure mode."</p>
+        <p>The uncommitted working tree does it anyway:</p>
+        <ul>
+          <li>The <strong>export-gate</strong> feature is marked "SHIPPED" in its own spec, but that spec's own trigger says: build only after outreach shows lead volume is the bottleneck. Only 10 leads existed at review time — not the 100-link batch the gate calls for.</li>
+          <li>The <strong>"Copy team link"</strong> surface is literally Phase 2 scope, gated on Phase 0 team-interest. No evidence Phase 0 had run.</li>
+        </ul>
+        <p>Not fatal — both are client-side-only, zero-DB, cheap to revert. But either update <code>MASTER-PLAN.md</code> to say the gate was consciously skipped, or treat the <code>team_link_copied</code> event you already instrumented as the actual gate test and read it before going further.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Rate limiter won't survive the Show HN spike <span class="sev high">fix before launch</span></summary>
+      <div class="body">
+        <p>The limiter in <code>app/api/brand-kit/route.ts</code> is an in-process <code>Map</code>, just bumped to 10/hr, 25/day "launch-week." On Vercel's serverless model that state doesn't survive across instances or cold starts — under real concurrent traffic it provides close to zero protection against Firecrawl/Gemini cost blowout, on the exact surface a launch post points traffic at.</p>
+        <p><strong>Fix:</strong> Upstash-backed counter, or a blunt global daily budget read from KV, before the Show HN post goes out.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>Secondary gaps</summary>
+      <div class="body">
+        <ul>
+          <li><strong>No production observability on extraction quality.</strong> <code>scripts/eval-extraction.ts</code> is local-only; nothing in CI gates a pipeline change against a regression set, despite model IDs already churning once (2.0-flash shutdown).</li>
+          <li><strong>Three overlapping copy-gates</strong> now coexist: Pro flag, outreach personalization, export-email unlock. Untested combinatorial state (e.g. outreach link + export unlock together) going into launch week.</li>
+          <li><strong>Degraded-mode UX gap.</strong> <code>source: 'degraded'</code> still renders a plausible signature with no signal to the user that it's lower-confidence — worth extending the existing <code>FieldConfidence</code> label treatment to this state, especially under Show HN traffic where quota exhaustion is likely.</li>
+        </ul>
+      </div>
+    </details>
+
+  </section>
+
+  <!-- ============ PANEL: GTM ============ -->
+  <section class="panel" id="gtm">
+
+    <details class="card" open>
+      <summary>Monetizing the team-link flow</summary>
+      <div class="body">
+        <p>The team-link (<code>makeShareUrl</code>) is a zero-backend virality loop, not a monetization mechanism itself — it's a <strong>qualification signal</strong>. <code>track('team_link_copied')</code> is already instrumented; read it before building further.</p>
+        <ul>
+          <li>No auth/DB/persistence exists → rules out a self-serve tiered pricing page today.</li>
+          <li><strong>What's buildable now:</strong> Phase 3's <strong>$99 one-time concierge offer</strong> — "we generate your team's signatures and help you install them," via a Stripe Payment Link / Gumroad, fulfilled by hand. Sales-before-scale, not sales-before-proof.</li>
+          <li><strong>Value metric once billing exists:</strong> flat per-team ($19–49/mo, ~10–25 seats) — not per-seat, which isn't enforceable without auth anyway.</li>
+        </ul>
+        <p><strong>Gate:</strong> 10 paid $99 setups or $1,000 in setup revenue before building any recurring plan. Below that → pivot to agency/client-pack wedge.</p>
+      </div>
+    </details>
+
+    <details class="card" open>
+      <summary>Channel: cold-email founders vs. HN/Twitter</summary>
+      <div class="body">
+        <p>Not substitutes — mismatched to different buyers. Your own <code>product-executive-review.md</code>: <em>"Weak buyer: individuals paying monthly forever... Strong buyer: small teams."</em> HN/Twitter's audience is mostly the weak-buyer segment.</p>
+        <table>
+          <tr><th>Channel</th><th>Role</th><th>Why</th></tr>
+          <tr><td><strong>Cold email (YC/founders)</strong></td><td>Primary</td><td>Already built (<code>scripts/outreach.ts</code>) with per-lead personalization. Targets the actual buyer (5–50 person co., brand-conscious). <em>Is</em> the literal Phase 0 gate mechanism.</td></tr>
+          <tr><td><strong>Show HN / Twitter</strong></td><td>Secondary</td><td>Good for extraction-breadth stress test, SEO, awareness. Weak team-buyer signal — tag separately in PostHog (<code>waitlist_segment</code>), don't let it dilute the team thesis.</td></tr>
+        </table>
+        <p><strong>Positioning check:</strong> MASTER-PLAN locks positioning as "brand consistency infrastructure," explicitly not "AI email signature generator" (sounds like a toy). Verify the Show HN post copy doesn't drift into the toy framing that the founder cold-email copy correctly avoids.</p>
+      </div>
+    </details>
+
+  </section>
+
+  <!-- ============ PANEL: MINDSETS ============ -->
+  <section class="panel" id="mindsets">
+    <details class="card" open>
+      <summary>CEO</summary>
+      <div class="body">
+        <p>Cares about one number — will a team lead pay — and won't spend eng time on anything downstream of that answer. Kill/pivot criteria exist <em>before</em> the experiment runs (already written: "$1,000 or pivot"). Treats a good HN launch as a vanity spike, not evidence.</p>
+      </div>
+    </details>
+    <details class="card" open>
+      <summary>CMO</summary>
+      <div class="body">
+        <p>Owns message-channel fit, not volume. Founder cold email = pain-framed ("your 12-person team looks inconsistent in every outbound email"). HN post = craft/technical narrative. Would block sending the same pitch to both audiences — different buyers need different stories for the same product.</p>
+      </div>
+    </details>
+    <details class="card" open>
+      <summary>GTM engineer</summary>
+      <div class="body">
+        <p>Turns manual GTM motions into pipelines instead of headcount. <code>scripts/outreach.ts</code> already personalizes a rendered preview per lead — the gap was stopping at 10 hand-picked leads. Closed by <code>scripts/find-leads.ts</code>: Firecrawl search against the ICP, filtered, deduped, feeding straight into the existing pipeline. Turns the Phase 0 gate from a manual list into a repeatable script.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PANEL: PIPELINE ============ -->
+  <section class="panel" id="pipeline">
+    <details class="card" open>
+      <summary>Status as of 2026-07-01</summary>
+      <div class="body">
+        <table>
+          <tr><th>Step</th><th>Status</th></tr>
+          <tr><td><code>scripts/find-leads.ts</code> built</td><td>✓ Done — 5 passing tests on the pure filter/dedupe logic, no network in tests.</td></tr>
+          <tr><td>Lead sourcing run</td><td>✓ Done — 57 leads found across 7 ICP queries, deduped against the existing 10 in <code>docs/cold-email-leads.md</code>.</td></tr>
+          <tr><td>Output</td><td><code>docs/cold-email-urls.txt</code> — 57 URLs, ready for <code>outreach.ts --file</code>.</td></tr>
+          <tr><td><code>scripts/outreach.ts</code> pipeline run</td><td>⏸ Paused by user request — costs real Firecrawl+Gemini calls per lead; run manually when ready.</td></tr>
+        </table>
+        <p><strong>To resume:</strong> <code>npx tsx scripts/outreach.ts --file docs/cold-email-urls.txt --limit 10</code> (or any N ≤ 57) — run this yourself in your terminal; it writes local files only (<code>outreach/index.html</code> gallery + <code>outreach/outreach.csv</code> tracker), it does not send email.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PANEL: ACTIONS ============ -->
+  <section class="panel" id="actions">
+    <div class="card">
+      <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="checklist" id="checklist">
+        <label><input type="checkbox" data-id="a1"><span>Add Upstash/KV-backed global rate limit before the Show HN post goes out</span></label>
+        <label><input type="checkbox" data-id="a2"><span>Run <code>outreach.ts --file docs/cold-email-urls.txt --limit 10</code> and manually send the drafts</span></label>
+        <label><input type="checkbox" data-id="a3"><span>Decide: is the export-gate / team-link feature a conscious gate-skip, or should MASTER-PLAN.md be amended?</span></label>
+        <label><input type="checkbox" data-id="a4"><span>Read <code>team_link_copied</code> counts before deciding whether to build the $99 concierge offer</span></label>
+        <label><input type="checkbox" data-id="a5"><span>Tag HN/Twitter signups separately from cold-email signups in PostHog <code>waitlist_segment</code></span></label>
+        <label><input type="checkbox" data-id="a6"><span>Review Show HN post copy against locked positioning ("infrastructure," not "generator")</span></label>
+        <label><input type="checkbox" data-id="a7"><span>If cold-email reply rate is Promising, rerun <code>find-leads.ts</code> to top up beyond 57</span></label>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Generated from the 2026-07-01 review session · state persists locally in this browser only</footer>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.panel');
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.panel).classList.add('active');
+  }));
+
+  const KEY = 'signet-review-checklist';
+  const boxes = document.querySelectorAll('#checklist input[type="checkbox"]');
+  const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+  function updateProgress() {
+    const total = boxes.length;
+    const done = [...boxes].filter(b => b.checked).length;
+    document.getElementById('progressBar').style.width = (done / total * 100) + '%';
+  }
+  boxes.forEach(b => {
+    b.checked = !!saved[b.dataset.id];
+    b.addEventListener('change', () => {
+      saved[b.dataset.id] = b.checked;
+      localStorage.setItem(KEY, JSON.stringify(saved));
+      updateProgress();
+    });
+  });
+  updateProgress();
+</script>
+
+</body>
+</html>

@@ -11,6 +11,7 @@
 
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import type { BrandKit, SignatureFields } from '../lib/types';
+import { ctaTextForRole } from '../lib/brand-kit-schema';
 
 // Env BEFORE importing the pipeline: scrape-site builds its Firecrawl client from
 // process.env at module load, so the libs are imported dynamically inside main().
@@ -84,11 +85,13 @@ async function main() {
       const s = await scrape.scrapeSite(url);
       const { brandKit, contact, source } = await extract.extractBrandKit(s.html, s.screenshotUrl, {
         links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets,
+        fcJson: s.fcJson,
       });
       const host = (() => { try { return new URL(s.finalUrl).hostname.replace(/^www\./, ''); } catch { return url; } })();
       const fields: SignatureFields = {
         fullName: contact.fullName ?? brandKit.companyName,
         jobTitle: contact.jobTitle ?? 'Founder',
+        ctaText: ctaTextForRole(contact.jobTitle ?? 'Founder'),
         email: contact.email ?? `hello@${host}`,
         phone: contact.phone ?? '', website: contact.website ?? s.finalUrl,
         linkedin: contact.linkedin ?? '', github: contact.github ?? '', x: contact.x ?? '', discord: contact.discord ?? '',

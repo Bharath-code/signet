@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractBrandKit, clearExtractCache } from './extract-brand-kit';
+import { extractBrandKit } from './extract-brand-kit';
 import { NEUTRAL_BRAND_KIT } from './brand-kit-schema';
 import type { BrandingProfile } from '@mendable/firecrawl-js';
 
-const { mockExtract, mockSearch } = vi.hoisted(() => ({
-  mockExtract: vi.fn(),
+const { mockSearch } = vi.hoisted(() => ({
   mockSearch: vi.fn(),
 }));
 
@@ -12,11 +11,10 @@ vi.mock('./scrape-site', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    firecrawlClient: { extract: mockExtract, search: mockSearch },
+    firecrawlClient: { search: mockSearch },
   };
 });
 
-// Shared helpers
 const BRANDING: BrandingProfile = {
   colors: { primary: '#D4FF33', secondary: '#0c0c0c' },
   images: { logo: 'https://example.com/logo.png' },
@@ -31,19 +29,9 @@ const BASE_URL = 'https://example.com';
 describe('deterministic path — contact extraction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    clearExtractCache();
   });
 
-  it('extracts contact info from /extract when deterministic brand kit is complete', async () => {
-    mockExtract.mockResolvedValue({
-      success: true,
-      data: {
-        contactName: 'John Doe',
-        contactRole: 'CEO',
-        contactEmail: 'john@example.com',
-        contactPhone: '+1234567890',
-      },
-    });
+  it('extracts contact info from scrape JSON mode when deterministic brand kit is complete', async () => {
     mockSearch.mockResolvedValue({ web: [] });
 
     const result = await extractBrandKit(CSS_HTML, SCREENSHOT_URL, {
@@ -52,33 +40,28 @@ describe('deterministic path — contact extraction', () => {
       baseUrl: BASE_URL,
       links: ['https://linkedin.com/in/johndoe'],
       markdown: 'Welcome to Existing Corp',
+      fcJson: {
+        contactName: 'John Doe',
+        contactRole: 'CEO',
+        contactEmail: 'john@example.com',
+        contactPhone: '+1234567890',
+      },
     });
 
-    // Deterministic path used
     expect(result.source).toBe('firecrawl');
-
-    // Brand kit intact
     expect(result.brandKit.companyName).toBe('Existing Corp');
     expect(result.brandKit.logoUrl).toBe('https://example.com/logo.png');
     expect(result.brandKit.primaryColor).toBe('#d4ff33');
     expect(result.brandKit.secondaryColor).toBe('#0c0c0c');
     expect(result.brandKit.fontFamily).toBe('Inter');
-
-    // Contact info from /extract
     expect(result.contact.fullName).toBe('John Doe');
     expect(result.contact.jobTitle).toBe('CEO');
     expect(result.contact.email).toBe('john@example.com');
     expect(result.contact.phone).toBe('+1234567890');
-
-    // Deterministic socials also present
     expect(result.contact.linkedin).toBe('https://linkedin.com/in/johndoe');
-
-    // /extract was called
-    expect(mockExtract).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to page title for contact when /extract returns null', async () => {
-    mockExtract.mockResolvedValue({ success: false, data: null });
+  it('falls back to page title for contact when JSON mode returned nothing', async () => {
     mockSearch.mockResolvedValue({ web: [] });
 
     const html = CSS_HTML + '\n<p>Contact: jane@example.com</p>';
@@ -93,23 +76,13 @@ describe('deterministic path — contact extraction', () => {
     });
 
     expect(result.source).toBe('firecrawl');
-
-    // Contact from HTML/title fallback
     expect(result.contact.fullName).toBe('Jane Smith');
     expect(result.contact.jobTitle).toBe('Head of Design');
     expect(result.contact.email).toBe('jane@example.com');
     expect(result.contact.phone).toBeUndefined();
   });
 
-  it('prefers /extract contact over HTML fallback when both are available', async () => {
-    mockExtract.mockResolvedValue({
-      success: true,
-      data: {
-        contactName: 'Extracted Name',
-        contactRole: 'Extracted Role',
-        contactEmail: 'extracted@example.com',
-      },
-    });
+  it('prefers JSON-mode contact over HTML fallback when both are available', async () => {
     mockSearch.mockResolvedValue({ web: [] });
 
     const result = await extractBrandKit(CSS_HTML, SCREENSHOT_URL, {
@@ -117,27 +90,23 @@ describe('deterministic path — contact extraction', () => {
       fallbackKit: FALLBACK_KIT,
       baseUrl: BASE_URL,
       pageTitle: 'Brand Co | Products',
+      fcJson: {
+        contactName: 'Extracted Name',
+        contactRole: 'Extracted Role',
+        contactEmail: 'extracted@example.com',
+      },
     });
 
-    // /extract contact wins over HTML fallback
     expect(result.contact.fullName).toBe('Extracted Name');
     expect(result.contact.jobTitle).toBe('Extracted Role');
     expect(result.contact.email).toBe('extracted@example.com');
   });
 
   it('corrects job-title-looking company name from search validation', async () => {
-    // /extract returns nothing
-    mockExtract.mockResolvedValue({ success: false, data: null });
-
-    // searchValidateCompanyName: input = 'Bharathkumar Palanisamy', search returns
-    // a title where brandNameFromTitle picks 'Frontend Engineer' as shortest segment.
-    // Since 'Frontend Engineer' ≠ 'Bharathkumar Palanisamy', it returns 'Frontend Engineer'.
-    // Single-word title ensures 'Frontend Engineer' IS the shortest (no segmentation).
     mockSearch.mockResolvedValue({
       web: [{ title: 'Frontend Engineer' }],
     });
 
-    // fallbackKit company name = 'Frontend Engineer' triggers the correction
     const fbWithJobTitle = { ...NEUTRAL_BRAND_KIT, companyName: 'Frontend Engineer' };
 
     const result = await extractBrandKit(CSS_HTML, SCREENSHOT_URL, {
@@ -148,14 +117,10 @@ describe('deterministic path — contact extraction', () => {
     });
 
     expect(result.source).toBe('firecrawl');
-
-    // searchName returned 'Frontend Engineer', but preferCompanyNameFromTitle
-    // corrects it using the page title
     expect(result.brandKit.companyName).toBe('Bharathkumar Palanisamy');
   });
 
-  it('returns empty contact when both /extract and HTML fallback yield nothing', async () => {
-    mockExtract.mockResolvedValue({ success: false, data: null });
+  it('returns empty contact when both JSON mode and HTML fallback yield nothing', async () => {
     mockSearch.mockResolvedValue({ web: [] });
 
     const result = await extractBrandKit(CSS_HTML, SCREENSHOT_URL, {
@@ -167,14 +132,41 @@ describe('deterministic path — contact extraction', () => {
     });
 
     expect(result.source).toBe('firecrawl');
-
-    // No contact should be set (pageTitle not provided, no /extract data)
     expect(result.contact.fullName).toBeUndefined();
     expect(result.contact.jobTitle).toBeUndefined();
     expect(result.contact.email).toBeUndefined();
     expect(result.contact.phone).toBeUndefined();
-
-    // Brand kit still intact
     expect(result.brandKit.companyName).toBe('Existing Corp');
+  });
+});
+
+describe('vision-unavailable merge path', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('serves a real kit from fcJson with source extract when vision fails and kit is incomplete', async () => {
+    mockSearch.mockResolvedValue({ web: [] });
+
+    // No branding, no CSS vars, neutral fallback → deterministic kit incomplete
+    // → vision path runs; GOOGLE_GENERATIVE_AI_API_KEY is unset in vitest, so
+    // generateObject throws and geminiResult stays undefined (the outage case).
+    const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
+      fallbackKit: NEUTRAL_BRAND_KIT,
+      baseUrl: BASE_URL,
+      fcJson: {
+        companyName: 'Json Co',
+        logoUrl: 'https://example.com/logo.png',
+        primaryColor: '#e23a1a',
+        secondaryColor: '#131210',
+        fontFamily: 'Inter',
+        contactEmail: 'founder@example.com',
+      },
+    });
+
+    expect(result.source).toBe('extract');
+    expect(result.brandKit.companyName).toBe('Json Co');
+    expect(result.brandKit.primaryColor).toBe('#e23a1a');
+    expect(result.contact.email).toBe('founder@example.com');
   });
 });

@@ -1,6 +1,13 @@
 # Plan: Gated "Full Brand Kit Export" (lead-capture upgrade)
 
-**Status:** PARKED — do not build yet. See "Build trigger" below.
+**Status:** SHIPPED 2026-06-29 — simpler than specced. The "client generates a
+.zip bundle (HTML + PNG + jszip)" collapsed to: email flips a per-visitor
+`unlocked` boolean that ungates the already-rendered layouts 2 & 3 + their
+install snippets. No new deps, no PNG/canvas, no zip — the artifacts already
+exist on screen (per open-Qs #2/#3, ship HTML-on-screen first). Reuses
+`/api/waitlist` with `source:'export'` for segmentation. PostHog:
+`export_gate_viewed` → `export_email_submitted`. PNG/zip bundle still deferred
+until export conversion proves the on-screen unlock isn't enough.
 **Origin:** free-tool-strategy audit (2026-06-29). The demo is engineering-as-
 marketing but currently has only ONE capture surface (the waitlist CTA). This
 adds a second, lower-commitment capture: email → full brand kit export.

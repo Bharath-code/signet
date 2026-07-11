@@ -68,3 +68,26 @@ describe('fallbackKitFromMeta', () => {
     expect(fallbackKitFromMeta({}, '')).toEqual(NEUTRAL_BRAND_KIT);
   });
 });
+
+import { parseFcJson } from './scrape-site';
+
+describe('parseFcJson', () => {
+  it('parses valid json-mode output and normalizes colors to hex', () => {
+    const out = parseFcJson({
+      companyName: 'Acme',
+      contactEmail: 'jane@acme.com',
+      primaryColor: 'rgb(226, 58, 26)',
+      secondaryColor: 'not-a-color',
+    });
+    expect(out?.companyName).toBe('Acme');
+    expect(out?.contactEmail).toBe('jane@acme.com');
+    expect(out?.primaryColor).toBe('#e23a1a');
+    expect(out?.secondaryColor).toBeUndefined();
+  });
+
+  it('returns undefined for non-object or schema-violating input', () => {
+    expect(parseFcJson(undefined)).toBeUndefined();
+    expect(parseFcJson('nope')).toBeUndefined();
+    expect(parseFcJson({ companyName: 42 })).toBeUndefined();
+  });
+});

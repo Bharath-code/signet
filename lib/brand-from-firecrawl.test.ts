@@ -82,3 +82,21 @@ describe('brandKitFromFirecrawl', () => {
     expect(out.secondaryColor).toBe('#aabbcc');
   });
 });
+
+describe('buttonPrimary accent', () => {
+  it('uses a vivid buttonPrimary background when palette colors are grey', () => {
+    const kit = brandKitFromFirecrawl({
+      colors: { primary: '#333333', secondary: '#666666', textPrimary: '#111111' },
+      components: { buttonPrimary: { background: '#E23A1A' } },
+    });
+    expect(kit.primaryColor).toBe('#e23a1a');
+  });
+
+  it('still prefers the most saturated color overall', () => {
+    const kit = brandKitFromFirecrawl({
+      colors: { primary: '#D4FF33', textPrimary: '#111111' },
+      components: { buttonPrimary: { background: '#888888' } },
+    });
+    expect(kit.primaryColor).toBe('#d4ff33');
+  });
+});

@@ -90,13 +90,13 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
             title={label}
             sandbox="allow-popups"
             style={{ height }}
-            className={`sig-frame block w-full bg-white${locked ? ' pointer-events-none blur-sm' : ''}`}
+            className={`sig-frame block w-full bg-white${locked ? ' pointer-events-none' : ''}`}
             srcDoc={frameDoc(html)}
           />
           {locked && (
             <div
-              className="locked-overlay absolute inset-0 flex flex-col items-center justify-center gap-3"
-              style={{ background: 'rgba(243,242,236,0.75)' }}
+              className="locked-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 border-t"
+              style={{ borderColor: 'var(--color-line)' }}
             >
               <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">Pro layout</span>
               <a

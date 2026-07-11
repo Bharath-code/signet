@@ -4,7 +4,13 @@ node_modules/
 !.env.example
 .playwright-mcp/
 *.png
+!public/logo-placeholder.png
 outreach/
+
+# local artifacts — not for the public repo
+brag-output*/
+config/
+tsconfig.tsbuildinfo
 
 .DS_Store
 .codex/
@@ -15,3 +21,4 @@ opencode.json
 # brand-extraction eval reports
 .eval/
 .firecrawl/
+.vercel
