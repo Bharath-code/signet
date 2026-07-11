@@ -620,6 +620,15 @@ export default function SignatureDemo() {
                 >
                   {teamLinkCopied ? '✓ Copied' : 'Copy team link'}
                 </button>
+                {process.env.NEXT_PUBLIC_CONCIERGE_URL && (
+                  <a
+                    href={process.env.NEXT_PUBLIC_CONCIERGE_URL}
+                    onClick={() => track('team_cta_clicked', { placement: 'demo_rollout' })}
+                    className="mt-3 block text-sm text-accent-deep underline underline-offset-4 hover:text-accent"
+                  >
+                    Or let us do it — $99 one-time team setup →
+                  </a>
+                )}
               </div>
               {sent ? (
                 <p className="text-accent-deep" role="status">Thanks — we&rsquo;ll be in touch about team deploy.</p>
