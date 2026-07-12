@@ -19,6 +19,10 @@ const STEPS = [
 ];
 
 
+// Stripe Payment Link for the $99 concierge team setup. When unset, the Team
+// tier stays in waitlist mode — nothing changes.
+const CONCIERGE_URL = process.env.NEXT_PUBLIC_CONCIERGE_URL;
+
 const PLANS = [
   {
     name: 'Free',
@@ -50,22 +54,38 @@ const PLANS = [
     highlight: true,
     soon: false,
   },
-  {
-    name: 'Team',
-    price: 'Soon',
-    desc: '',
-    features: [
-      'Everything in Pro',
-      'Google Workspace sync',
-      'One-click deploy to your whole team',
-      'Brand admin controls',
-      'New-hire auto-setup',
-    ],
-    cta: 'Join the waitlist',
-    href: '#notify',
-    highlight: false,
-    soon: true,
-  },
+  CONCIERGE_URL
+    ? {
+        name: 'Team',
+        price: '$99',
+        desc: 'one-time setup',
+        features: [
+          'We generate signatures for your whole team',
+          'Built from one URL — everyone on brand',
+          'Hands-on install help, every mail client',
+          'Done this week, not this quarter',
+        ],
+        cta: 'Set up my team',
+        href: CONCIERGE_URL,
+        highlight: false,
+        soon: false,
+      }
+    : {
+        name: 'Team',
+        price: 'Soon',
+        desc: '',
+        features: [
+          'Everything in Pro',
+          'Google Workspace sync',
+          'One-click deploy to your whole team',
+          'Brand admin controls',
+          'New-hire auto-setup',
+        ],
+        cta: 'Join the waitlist',
+        href: '#notify',
+        highlight: false,
+        soon: true,
+      },
 ];
 
 // Single source of truth — drives both the rendered <details> list and the
@@ -97,7 +117,9 @@ const FAQS = [
   },
   {
     q: "Can I roll signatures out to my whole team?",
-    a: "Team (coming soon) adds Google Workspace sync and one-click deployment across everyone at once. Join the waitlist to be notified at launch.",
+    a: CONCIERGE_URL
+      ? "Team Setup is a $99 one-time concierge service: we generate on-brand signatures for your whole team from one URL and help you install them in every mail client — done this week."
+      : "Team (coming soon) adds Google Workspace sync and one-click deployment across everyone at once. Join the waitlist to be notified at launch.",
   },
 ];
 
@@ -656,13 +678,15 @@ export default function LandingPage() {
                   ))}
                 </ul>
 
-                {plan.soon ? (
-                  <a href={plan.href} onClick={() => track('pro_link_clicked')}
-                    className="plan-cta-outline mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem]">
+                {plan.soon || plan.href.startsWith('http') ? (
+                  <a href={plan.href}
+                    onClick={() => track(plan.name === 'Team' ? 'team_cta_clicked' : 'pro_link_clicked')}
+                    className={`mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
                     {plan.cta}
                   </a>
                 ) : (
-                  <Link href={plan.href} onClick={() => track('pro_link_clicked')}
+                  <Link href={plan.href}
+                    onClick={() => track(plan.name === 'Team' ? 'team_cta_clicked' : 'pro_link_clicked')}
                     className={`mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
                     {plan.cta}
                   </Link>
