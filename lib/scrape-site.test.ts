@@ -26,6 +26,9 @@ describe('brandNameFromTitle', () => {
     expect(brandNameFromTitle('Coca-Cola')).toBe('Coca-Cola');
     expect(brandNameFromTitle('')).toBe('');
   });
+  it('rejects a separator-free SEO tagline so LLM names win the merge', () => {
+    expect(brandNameFromTitle('AI Quote and Order Automation for Distributors & Manufacturers')).toBe('');
+  });
 });
 
 describe('themeColorFromHtml', () => {
