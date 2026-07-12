@@ -134,7 +134,10 @@ export function themeColorFromHtml(html: string): string | undefined {
 // only on pipe/colon/dash/middot and space-padded hyphens keeps "Coca-Cola" intact.
 export function brandNameFromTitle(title: string): string {
   const parts = title.split(/\s*[|·:–—]\s*|\s+-\s+/).map((p) => p.trim()).filter(Boolean);
-  return parts.length ? parts.reduce((a, b) => (b.length < a.length ? b : a)) : '';
+  const name = parts.length ? parts.reduce((a, b) => (b.length < a.length ? b : a)) : '';
+  // A separator-free SEO tagline ("AI Quote and Order Automation for…") is not a
+  // brand name. Returning '' lets the JSON-mode/vision name win the merge instead.
+  return name.length > 40 || name.split(/\s+/).length > 5 ? '' : name;
 }
 
 // Extract only semantically meaningful HTML for the LLM prompt instead of
