@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "signet-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "signet-dev-concierge",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["NEXT_PUBLIC_CONCIERGE_URL=https://buy.stripe.com/test_placeholder", "npm", "run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

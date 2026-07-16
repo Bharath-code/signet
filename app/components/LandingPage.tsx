@@ -691,6 +691,12 @@ export default function LandingPage() {
                     {plan.cta}
                   </Link>
                 )}
+
+                {plan.name === 'Team' && CONCIERGE_URL && (
+                  <p className="mt-3 text-center font-mono text-[0.62rem] text-muted">
+                    After checkout, reply to the receipt email with your team list — name, role, email.
+                  </p>
+                )}
               </div>
             ))}
           </div>
