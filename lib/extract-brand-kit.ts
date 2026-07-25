@@ -15,6 +15,72 @@ export { isLikelyImageUrl };
 
 const VISION_TIMEOUT_MS = 35_000;
 
+// Firecrawl self-reports how sure its brand extractor was. When its internal LLM
+// fails it silently falls back to scraping computed styles and sets
+// confidence.colors = 0 — that's how an unstyled page's browser-default link
+// color (#0000ee) arrives labelled "primary". Measured on moritzlegal.com
+// 2026-07-25: colors/overall both 0, __llm_metadata.llmSucceeded false.
+// Not in the SDK's BrandingProfile type (it has an index signature), so read it
+// defensively. Absent → treat as confident, preserving behavior on payloads
+// that predate the field.
+export function fcColorsConfident(branding?: BrandingProfile): boolean {
+  const c = (branding as { confidence?: { colors?: unknown } } | undefined)?.confidence?.colors;
+  return typeof c === 'number' ? c > 0 : true;
+}
+
+// Both LLM paths invent a phone number when a site publishes none — measured on
+// moritzlegal.com 2026-07-25: "+1 (555) 555-5555". A fake number rendered in a
+// signature someone copies into Gmail is worse than no number at all, so drop
+// anything that doesn't look real. Bias to dropping: an omitted phone degrades
+// gracefully (the row just isn't rendered), a wrong one doesn't.
+export function realPhone(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const s = raw.trim();
+  const d = s.replace(/\D/g, '');
+  if (d.length < 7 || d.length > 15) return undefined;      // E.164 bounds
+  if (/^(\d)\1+$/.test(d)) return undefined;                 // 0000000, 5555555555
+  if (/0?1?234567890?$/.test(d)) return undefined;           // 123-456-7890 keypad walk
+  // North American fiction: the 555 exchange (NANP-reserved 555-0100..0199 plus
+  // the Hollywood 555 block generally). Slice down to the exchange for each
+  // NANP shape — 7-digit local, 10-digit, and 1+10 — and leave every other
+  // length alone, so a real +44 1555… number isn't caught by digit coincidence.
+  const local = d.length === 7 ? d
+    : d.length === 10 ? d.slice(3)
+    : d.length === 11 && d.startsWith('1') ? d.slice(4)
+    : '';
+  if (local.startsWith('555')) return undefined;
+  return s;
+}
+
+// RFC 2606 / RFC 6761 reserved names, which exist precisely so nobody can own them.
+const RESERVED_EMAIL_DOMAINS = /(^|\.)(example\.(com|net|org)|test|invalid|localhost|example)$/;
+// Locals a model reaches for when the page shows no address.
+const PLACEHOLDER_LOCALS = /^(your|youre?mail|my|me|email|e-mail|mail|info-?here|name|first(name)?|firstname\.lastname|last(name)?|user|username|someone|somebody|test|foo|bar|baz|demo|sample|placeholder|john\.?doe|jane\.?doe|hello-?there)$/;
+
+// Same problem as realPhone, different tell. A signature email is worse than a
+// phone when wrong — mail to it bounces, or worse, reaches an unrelated stranger.
+// Syntax and placeholder checks catch the lazy inventions, but the decisive test
+// is presence: a real address is visible somewhere in what we scraped, so an
+// address the page never mentions was invented. `pageText` should be the full
+// html + markdown; when omitted the presence check is skipped (callers without
+// page content still get the cheap checks).
+export function realEmail(raw?: string, pageText?: string): string | undefined {
+  if (!raw) return undefined;
+  const s = raw.trim().replace(/^mailto:/i, '');
+  const m = /^([\w.!#$%&'*+/=?^`{|}~-]+)@([\w-]+(?:\.[\w-]+)+)$/.exec(s);
+  if (!m) return undefined;
+  const [, localPart, domain] = m;
+  if (RESERVED_EMAIL_DOMAINS.test(domain.toLowerCase())) return undefined;
+  if (PLACEHOLDER_LOCALS.test(localPart.toLowerCase())) return undefined;
+  if (pageText) {
+    // Pages encode addresses a few ways (mailto escaping, &#64;). Normalize those
+    // before searching so obfuscation doesn't read as fabrication.
+    const hay = pageText.toLowerCase().replace(/%40|&#64;|&commat;/g, '@');
+    if (!hay.includes(s.toLowerCase())) return undefined;
+  }
+  return s;
+}
+
 export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.5-flash';
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? '';
 
@@ -267,6 +333,10 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   const fb = opts.fallbackKit ?? NEUTRAL_BRAND_KIT;
   const fc = brandKitFromFirecrawl(opts.branding);
   const css = brandColorsFromCss(html);
+  // Full scraped content — what realEmail checks an LLM-supplied address against.
+  // Uses raw html (not htmlSnippets, which is truncated for the prompt and would
+  // drop real addresses that live outside the selected snippets).
+  const pageText = html + '\n' + (opts.markdown ?? '');
 
   // If the fallback company name looks like a job title (common on personal sites),
   // prefer the first segment of the page title instead.
@@ -279,10 +349,18 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
     logoUrl: pickEmailLogo(fc.logoUrl, fb.logoUrl),
     // Firecrawl's branding extractor is a purpose-built brand-detection system — its
     // primaryColor is trustworthy even when it falls in the link-blue hue range (many
-    // tech brands intentionally use saturated blues). Skip isLinkBlue for fc.primaryColor
-    // and keep it only for css.primary (CSS scraping is more likely to pick up incidental
-    // link colors). As a last resort, use fc.secondaryColor for monochrome sites.
-    primaryColor: fc.primaryColor ?? (css.primary && !isLinkBlue(css.primary) ? css.primary : undefined) ?? fc.secondaryColor,
+    // tech brands intentionally use saturated blues), so we skip isLinkBlue for it —
+    // but only while Firecrawl reports it was actually confident. On a failed branding
+    // run it degrades to computed styles, where a link-blue is a link, not a brand.
+    // css.primary keeps the guard unconditionally (CSS scraping is more likely to pick
+    // up incidental link colors). As a last resort, use fc.secondaryColor for
+    // monochrome sites.
+    primaryColor:
+      (fc.primaryColor && (fcColorsConfident(opts.branding) || !isLinkBlue(fc.primaryColor))
+        ? fc.primaryColor
+        : undefined)
+      ?? (css.primary && !isLinkBlue(css.primary) ? css.primary : undefined)
+      ?? fc.secondaryColor,
     secondaryColor: fc.secondaryColor ?? css.secondary,
     fontFamily: fc.fontFamily,
   };
@@ -329,8 +407,10 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
     const contact: Partial<SignatureFields> = deterministicContact(opts);
     if (fcExtract?.contactName) contact.fullName = fcExtract.contactName;
     if (fcExtract?.contactRole) contact.jobTitle = fcExtract.contactRole;
-    if (fcExtract?.contactEmail) contact.email = fcExtract.contactEmail;
-    if (fcExtract?.contactPhone) contact.phone = fcExtract.contactPhone;
+    const fcEmail = realEmail(fcExtract?.contactEmail, pageText);
+    if (fcEmail) contact.email = fcEmail;
+    const fcPhone = realPhone(fcExtract?.contactPhone);
+    if (fcPhone) contact.phone = fcPhone;
     // Fallback: extract contact info from page HTML if /extract returned nothing
     const htmlContact = extractContactFromContent(opts.htmlSnippets ?? '', opts.markdown ?? '', opts.pageTitle);
     if (!contact.fullName && htmlContact.fullName) contact.fullName = htmlContact.fullName;
@@ -465,10 +545,10 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   else if (geminiResult?.contactName) contact.fullName = geminiResult.contactName;
   if (fcExtract?.contactRole) contact.jobTitle = fcExtract.contactRole;
   else if (geminiResult?.contactRole) contact.jobTitle = geminiResult.contactRole;
-  if (fcExtract?.contactEmail) contact.email = fcExtract.contactEmail;
-  else if (geminiResult?.contactEmail) contact.email = geminiResult.contactEmail;
-  if (fcExtract?.contactPhone) contact.phone = fcExtract.contactPhone;
-  else if (geminiResult?.contactPhone) contact.phone = geminiResult.contactPhone;
+  const email = realEmail(fcExtract?.contactEmail, pageText) ?? realEmail(geminiResult?.contactEmail, pageText);
+  if (email) contact.email = email;
+  const phone = realPhone(fcExtract?.contactPhone) ?? realPhone(geminiResult?.contactPhone);
+  if (phone) contact.phone = phone;
   // Fallback: extract contact info from page HTML if both /extract and Gemini returned nothing
   const htmlContact = extractContactFromContent(opts.htmlSnippets ?? '', opts.markdown ?? '', opts.pageTitle);
   if (!contact.fullName && htmlContact.fullName) contact.fullName = htmlContact.fullName;
