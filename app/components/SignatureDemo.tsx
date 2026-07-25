@@ -89,8 +89,6 @@ export default function SignatureDemo() {
     initialSiteUrl: preloaded && fromParam ? fromParam : '',
   });
 
-  const isUnlocked = process.env.NEXT_PUBLIC_SIGNET_COPY === '1';
-  const isOutreach = !!fromParam;
   const extracted = !!brand.siteUrl;
   // Soft confidence: only Firecrawl's deterministic branding is trustworthy as-read.
   // Anything LLM-derived ('extract'/'vision') or degraded is a best guess the user
@@ -107,12 +105,6 @@ export default function SignatureDemo() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState('');
-  // Export gate: email unlocks all three layouts for this visitor. Separate
-  // state from the team-waitlist form so the two CTAs don't cross-talk.
-  const [unlocked, setUnlocked] = useState(isUnlocked);
-  const [exportEmail, setExportEmail] = useState('');
-  const [unlocking, setUnlocking] = useState(false);
-  const [unlockErr, setUnlockErr] = useState('');
   const [teamLinkCopied, setTeamLinkCopied] = useState(false);
 
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
@@ -135,32 +127,7 @@ export default function SignatureDemo() {
 
   useEffect(() => {
     track('page_view', '/app');
-    if (!unlocked) track('export_gate_viewed');
   }, []);
-
-  const unlockExport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(exportEmail.trim())) {
-      setUnlockErr('Enter a valid email address.');
-      return;
-    }
-    setUnlocking(true);
-    setUnlockErr('');
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: exportEmail.trim(), source: 'export' }),
-      });
-      if (!res.ok) throw new Error('failed');
-      setUnlocked(true);
-      track('export_email_submitted', { source: 'export' });
-    } catch {
-      setUnlockErr("Couldn't unlock — try again.");
-    } finally {
-      setUnlocking(false);
-    }
-  };
 
   const submitWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,7 +470,6 @@ export default function SignatureDemo() {
                   font={brand.font}
                   siteUrl={brand.siteUrl || undefined}
                   roles={brand.roles}
-                  proHref="/#notify"
                 />
               </div>
             ))}
@@ -519,77 +485,15 @@ export default function SignatureDemo() {
                   font={brand.font}
                   siteUrl={brand.siteUrl || undefined}
                   roles={brand.roles}
-                  proHref="#unlock"
-                  locked={!unlocked}
                 />
               ))}
             </div>
-            {(isOutreach || !unlocked) && (
-              <p className="text-center font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">
-                1 of 3 layouts · <a href="#unlock" className="text-ink underline-offset-2 hover:underline">Unlock all three →</a>
-              </p>
-            )}
           </>
         )}
       </div>
 
       </div>
       </div>
-
-      {/* export gate — email unlocks all three layouts (preview stays free). */}
-      {!unlocked && (
-        <section id="unlock" className="rise mt-10 border-t border-line pt-10" style={{ animationDelay: '440ms' }}>
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-md">
-              <span className="eyebrow">Unlock all three</span>
-              <h2 className="mt-4 font-display text-2xl text-ink md:text-3xl">
-                Get all three layouts — copy-ready.
-              </h2>
-              <p className="mt-2 text-muted">
-                You&rsquo;ve seen one. Drop your email to unlock the other two, with
-                paste-into-Gmail, Outlook &amp; Apple&nbsp;Mail code for each.
-              </p>
-            </div>
-            <form onSubmit={unlockExport} noValidate className="w-full max-w-sm">
-              <div className="flex items-end gap-3">
-                <label className="flex-1">
-                  <span className={label}>Email</span>
-                  <input
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    name="email"
-                    spellCheck={false}
-                    required
-                    placeholder="you@work.com"
-                    value={exportEmail}
-                    onChange={(e) => setExportEmail(e.target.value)}
-                    disabled={unlocking}
-                    suppressHydrationWarning
-                    aria-label="Email address to unlock all layouts"
-                    className={`${field} mt-1`}
-                  />
-                </label>
-                <button disabled={unlocking} className={`${btn} bg-accent text-paper hover:bg-accent-deep`}>
-                  {unlocking ? 'Unlocking…' : 'Unlock layouts'}
-                </button>
-              </div>
-              {unlockErr && <p className="mt-2 text-sm text-accent-deep" role="alert">{unlockErr}</p>}
-            </form>
-          </div>
-        </section>
-      )}
-      {unlocked && !isUnlocked && (
-        <p className="rise mt-10 border-t border-line pt-10 text-accent-deep" role="status" style={{ animationDelay: '440ms' }}>
-          ✓ Unlocked — all three are yours. Hit <span className="text-ink">Copy</span> on any layout above.
-        </p>
-      )}
-
-      {/* copy hint + install guide — featured layout is free to copy */}
-      <p className="mt-4 text-[0.72rem] text-muted">
-        Click <span className="text-ink">Copy</span> on the layout above, then drop it into your mail client:
-      </p>
-      <InstallInstructions />
 
       {/* team rollout — one section, two asks (instant link copy + future auto-deploy
           email capture), instead of two competing boxed CTAs. Only shown after a real
@@ -666,6 +570,12 @@ export default function SignatureDemo() {
           </div>
         </section>
       )}
+
+      {/* copy hint + install guide — all three layouts are free to copy, no gate */}
+      <p className="mt-10 border-t border-line pt-10 text-[0.72rem] text-muted">
+        All three are yours. Click <span className="text-ink">Copy</span> on any layout above, then drop it into your mail client:
+      </p>
+      <InstallInstructions />
 
       <footer className="mt-16 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">
         No template picker · No IT ticket · No filling forms

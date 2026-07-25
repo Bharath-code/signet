@@ -425,7 +425,6 @@ export default function LandingPage() {
                       height={h}
                       font={brand.font}
                       siteUrl={brand.siteUrl || undefined}
-                      proHref="#notify"
                       hideCopy
                     />
                   </div>
