@@ -40,16 +40,42 @@ export function isLinkBlue(raw: string): boolean {
   return hue >= 195 && hue <= 245;
 }
 
+// RGB max−min spread. ~0 for greys/black/white, high for vivid hues. Mirrors the
+// VIVID threshold in brand-from-firecrawl.ts.
+const VIVID = 40;
+function chroma(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return Math.max(r, g, b) - Math.min(r, g, b);
+}
+
 export function brandColorsFromCss(html: string): { primary?: string; secondary?: string } {
   const res: { primary?: string; secondary?: string } = {};
+  const all: string[] = [];
   const re = /--([a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\b/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     const name = m[1].toLowerCase();
     const hex = normHex(m[2]);
     if (!hex) continue;
+    all.push(hex);
     if (!res.primary && /(^|-)(primary|accent|brand)(-|$|[0-9])/.test(name)) res.primary = hex;
     else if (!res.secondary && /(^|-)(secondary|muted|subtle)(-|$|[0-9])/.test(name)) res.secondary = hex;
+  }
+  // Name-agnostic fallback. Framer emits `--token-<uuid>`, and CSS Modules /
+  // styled-components / Tailwind arbitrary values hash their names too, so the
+  // semantic match above finds nothing on a large share of modern sites — every
+  // color gets parsed, then discarded. Saturation carries the signal the name
+  // doesn't: on a real Framer page (moritzlegal.com, measured 2026-07-25) the
+  // brand tan #b58159 scores chroma 92 while every neutral in the palette lands
+  // under 35, so the max is unambiguous. Link-blue is still rejected here — an
+  // unstyled <a> color is not a brand color no matter how saturated.
+  //
+  // ponytail: highest-chroma token wins, no occurrence weighting. A site whose
+  //   brand is muted but which declares one vivid error-red could pick wrong;
+  //   weight by how often the token is referenced if the eval shows misses.
+  if (!res.primary) {
+    const vivid = all.filter((h) => chroma(h) >= VIVID && !isLinkBlue(h));
+    if (vivid.length) res.primary = vivid.reduce((a, b) => (chroma(b) > chroma(a) ? b : a));
   }
   if (!res.primary) {
     const theme = themeColor(html);

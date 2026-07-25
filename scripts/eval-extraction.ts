@@ -86,7 +86,7 @@ async function main() {
     try {
       const s = await scrape.scrapeSite(url);
       const { brandKit, contact, source } = await extract.extractBrandKit(s.html, s.screenshotUrl, {
-        links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets,
+        links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets, cssVars: s.cssVars,
         fcJson: s.fcJson,
       });
       const host = (() => { try { return new URL(s.finalUrl).hostname.replace(/^www\./, ''); } catch { return url; } })();
@@ -133,7 +133,7 @@ async function main() {
   console.log(`Fallback rate    : ${pct(fallbacks, rows.length)}%  (${fallbacks}/${rows.length})`);
   console.log(`SVG logos        : ${svgLogos}  (would break in Gmail — should be ~0 after hardening)`);
   console.log(`Weak logos       : ${weakLogos}  (.ico or <48px — renders soft/inconsistently in Gmail)`);
-  console.log(`Card logos       : ${cardLogos}  (og:image banner, not a brand mark — crushed into the 84x40 cell)`);
+  console.log(`Card logos       : ${cardLogos}  (og:image banner, not a brand mark — crushed into the 140x40 cell)`);
   console.log(`Avg time         : ${Math.round(ok.reduce((a, r) => a + r.ms, 0) / (ok.length || 1))}ms`);
 
   // ── HTML report ───────────────────────────────────────────────────────────
