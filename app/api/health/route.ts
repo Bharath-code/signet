@@ -3,9 +3,38 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { GEMINI_MODEL } from '@/lib/extract-brand-kit';
 
+// Credit-usage is the only Firecrawl endpoint that authenticates the key without
+// spending a credit — a scrape would bill every health check. 401 separates a bad
+// key from an exhausted one, which a scrape's error alone would not.
+const FIRECRAWL_CREDITS_URL = 'https://api.firecrawl.dev/v2/team/credit-usage';
+
+async function pingFirecrawl(): Promise<{ status: string; credits?: number }> {
+  const key = process.env.FIRECRAWL_API_KEY;
+  if (!key) return { status: 'no-key' };
+  try {
+    const res = await fetch(FIRECRAWL_CREDITS_URL, {
+      headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(10_000),
+      cache: 'no-store',
+    });
+    if (res.status === 401 || res.status === 403)
+      return { status: 'bad-key (create a fresh key at firecrawl.dev/app/api-keys — format fc-…)' };
+    if (!res.ok) return { status: `error: HTTP ${res.status}` };
+    const credits = (await res.json())?.data?.remainingCredits;
+    if (typeof credits !== 'number') return { status: 'ok' };
+    return credits <= 0
+      ? { status: 'quota-exceeded (0 credits left — top up at firecrawl.dev/app/usage)', credits }
+      : { status: 'ok', credits };
+  } catch (err) {
+    const msg = (err as Error).message ?? '';
+    return { status: /abort|timeout|timed out/i.test(msg) ? 'error: timeout' : `error: ${msg.slice(0, 120)}` };
+  }
+}
+
 // GET /api/health — pings each provider so key/quota problems are obvious.
 export async function GET() {
-  const firecrawl = process.env.FIRECRAWL_API_KEY ? 'key-set' : 'no-key';
+  const fc = await pingFirecrawl();
+  const firecrawl = fc.status;
   let gemini: string;
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -32,6 +61,9 @@ export async function GET() {
     }
   }
 
-  const ok = firecrawl === 'key-set' && gemini === 'ok';
-  return NextResponse.json({ ok, firecrawl, gemini, model: GEMINI_MODEL }, { status: ok ? 200 : 503 });
+  const ok = firecrawl === 'ok' && gemini === 'ok';
+  return NextResponse.json(
+    { ok, firecrawl, credits: fc.credits, gemini, model: GEMINI_MODEL },
+    { status: ok ? 200 : 503 },
+  );
 }

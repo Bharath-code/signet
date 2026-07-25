@@ -31,7 +31,7 @@ Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a track
 - `RESEND_API_KEY` — Resend API key for waitlist emails (get one free at resend.com)
 - `RESEND_AUDIENCE_ID` — optional; if set, `POST /api/waitlist` also adds contacts to a Resend Audience for bulk emailing later
 
-`GET /api/health` pings both providers and reports `ok` / `quota-exceeded` / `bad-key` / `no-key` plus the model tested. Use it to diagnose key problems instead of reading server logs.
+`GET /api/health` pings both providers and reports `ok` / `quota-exceeded` / `bad-key` / `no-key` plus the model tested and Firecrawl's `credits` remaining. Use it to diagnose key problems instead of reading server logs. The Firecrawl ping hits `/v2/team/credit-usage` — the only endpoint that authenticates the key without spending a credit, so health is free to poll. Don't swap it for a scrape.
 
 `POST /api/waitlist` accepts `{ email }`, sends a notification to the founder email, and optionally upserts the contact into a Resend Audience. Returns `{ ok: true }` or `{ error }`. Returns `503` when `RESEND_API_KEY` is not set (graceful — form shows an error, no crash).
 
