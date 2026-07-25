@@ -117,6 +117,12 @@ describe('renderSignature', () => {
     const ok = renderSignature(kit, fields, 'logo-cta', 'https://acme.com');
     expect(ok).toContain('href="https://acme.com/"');
   });
+
+  it('CTA falls back to the Website field when no extracted URL is passed', () => {
+    const f = { ...fields, website: 'company.com' };
+    expect(renderSignature(kit, f, 'logo-cta')).toContain('href="https://company.com/"');
+    expect(renderSignature(kit, fields, 'logo-cta')).toContain('href="#"'); // neither source
+  });
 });
 
 describe('safeHref', () => {

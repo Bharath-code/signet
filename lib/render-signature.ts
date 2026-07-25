@@ -157,8 +157,9 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
   }
 
   // href sink — scheme-validate like every other link (websiteUrl can arrive
-  // from a raw ?from= query param, not just the server's finalUrl).
-  const safeCta = websiteUrl ? safeHref(websiteUrl) : null;
+  // from a raw ?from= query param, not just the server's finalUrl). Falls back to
+  // the Website field so the button still links somewhere before any extraction.
+  const safeCta = safeHref(websiteUrl || fields.website);
   const ctaHref = safeCta ? esc(safeCta) : '#';
   const ctaRow = layout === 'logo-cta'
     ? `<tr>

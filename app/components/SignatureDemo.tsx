@@ -490,7 +490,9 @@ export default function SignatureDemo() {
           </>
         ) : (
           <>
-            {LAYOUTS.filter((l) => l.id === 'logo').map(({ id, label: name, h }) => (
+            {/* Featured = logo-cta: the only layout with the CTA button, so the
+                "Button text" field actually drives something the visitor can see. */}
+            {LAYOUTS.filter((l) => l.id === 'logo-cta').map(({ id, label: name, h }) => (
               <div key={id} className="mx-auto w-full max-w-2xl">
                 <SignaturePreview
                   kit={brand.kit}
@@ -506,7 +508,7 @@ export default function SignatureDemo() {
               </div>
             ))}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {LAYOUTS.filter((l) => l.id !== 'logo').map(({ id, label: name, h }) => (
+              {LAYOUTS.filter((l) => l.id !== 'logo-cta').map(({ id, label: name, h }) => (
                 <SignaturePreview
                   key={id}
                   kit={brand.kit}
