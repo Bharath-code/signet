@@ -281,3 +281,74 @@ describe('realEmail', () => {
     expect(realEmail('mailto:founder@acme.com')).toBe('founder@acme.com');
   });
 });
+
+describe('low-confidence accent routes to vision instead of defaulting to ink', () => {
+  it('leaves primaryColor unresolved rather than silently taking fc.secondaryColor', async () => {
+    // moritzlegal.com shape: failed branding run, link-blue primary, ink secondary,
+    // and no CSS token to recover from. Taking #000000 here would mark the kit
+    // complete and skip vision — shipping a black bar for a site with a real accent.
+    const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
+      fallbackKit: NEUTRAL_BRAND_KIT,
+      baseUrl: BASE_URL,
+      branding: {
+        colors: { primary: '#0000ee', secondary: '#000000' },
+        images: { logo: 'https://example.com/logo.png' },
+        confidence: { colors: 0, buttons: 0, overall: 0 },
+      } as unknown as BrandingProfile,
+    });
+    // Vision is unavailable in tests, so this degrades — the point is that it did
+    // NOT short-circuit to the deterministic black kit tagged 'firecrawl'.
+    expect(result.source).not.toBe('firecrawl');
+  });
+
+  it('still takes fc.secondaryColor for a genuinely monochrome site when confident', async () => {
+    const result = await extractBrandKit(CSS_HTML, SCREENSHOT_URL, {
+      fallbackKit: FALLBACK_KIT,
+      baseUrl: BASE_URL,
+      markdown: 'Existing Corp',
+      branding: {
+        colors: { secondary: '#0c0c0c' },
+        images: { logo: 'https://example.com/logo.png' },
+        typography: { fontFamilies: { heading: 'Inter' } },
+        confidence: { colors: 0.9, buttons: 0.9, overall: 0.9 },
+      } as unknown as BrandingProfile,
+    });
+    expect(result.brandKit.primaryColor).toBe('#d4ff33'); // CSS token still wins
+  });
+});
+
+describe('a vivid CSS brand token outranks a link-blue Firecrawl accent', () => {
+  // moritzlegal.com, measured 2026-07-26: Firecrawl returned #0000ee at
+  // confidence 0.9 while the page's own Framer tokens carried #b58159.
+  const FRAMER_VARS = '--token-33c274b3: #b58159;--token-a889: #000;--token-e6c9: #fff';
+
+  it('prefers the CSS token even when Firecrawl reports high confidence', async () => {
+    const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
+      fallbackKit: FALLBACK_KIT,
+      baseUrl: BASE_URL,
+      cssVars: FRAMER_VARS,
+      branding: {
+        colors: { primary: '#0000ee', secondary: '#000000' },
+        images: { logo: 'https://example.com/logo.png' },
+        typography: { fontFamilies: { heading: 'Inter' } },
+        confidence: { colors: 0.9, buttons: 0.9, overall: 0.9 },
+      } as unknown as BrandingProfile,
+    });
+    expect(result.brandKit.primaryColor).toBe('#b58159');
+  });
+
+  it('keeps a non-link-blue Firecrawl accent ahead of the CSS token', async () => {
+    const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
+      fallbackKit: FALLBACK_KIT,
+      baseUrl: BASE_URL,
+      cssVars: FRAMER_VARS,
+      branding: {
+        colors: { primary: '#e23a1a', secondary: '#000000' },
+        images: { logo: 'https://example.com/logo.png' },
+        typography: { fontFamilies: { heading: 'Inter' } },
+        confidence: { colors: 0.9, buttons: 0.9, overall: 0.9 },
+      } as unknown as BrandingProfile,
+    });
+    expect(result.brandKit.primaryColor).toBe('#e23a1a');
+  });
+});

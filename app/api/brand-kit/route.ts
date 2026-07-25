@@ -94,7 +94,7 @@ export async function POST(req: Request) {
       baseUrl: finalUrl,
       branding: scraped.branding,
       fallbackKit: scraped.fallbackKit,
-      htmlSnippets: scraped.htmlSnippets,
+      htmlSnippets: scraped.htmlSnippets, cssVars: scraped.cssVars,
       lang: scraped.lang,
       pageTitle: scraped.pageTitle,
       fcJson: scraped.fcJson,
