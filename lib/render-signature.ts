@@ -140,7 +140,7 @@ function details(kit: BrandKit, f: SignatureFields, roles: Roles): string {
 function logoCell(kit: BrandKit, roles: Roles): string {
   const accent = esc(roles.accent);
   return `<td style="padding-right:12px;vertical-align:top;border-right:3px solid ${accent}">
-      <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="40" style="display:block;border:0;max-height:40px;max-width:84px;width:auto;height:auto">
+      <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="40" style="display:block;border:0;max-height:40px;max-width:140px;width:auto;height:auto">
     </td>`;
 }
 
