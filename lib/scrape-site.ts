@@ -198,7 +198,10 @@ function scrapeOnce(url: string, maxAge: number, mobile = false, proxy: ProxyTie
     proxy,
     waitFor: parseInt(process.env.FIRECRAWL_WAIT_FOR ?? '', 10) || 3000,
     maxAge,
-    ...(mobile ? { mobile: true, viewport: { width: 390, height: 844 } as const } : {}),
+    // `mobile: true` is the whole mobile-viewport knob. ScrapeOptions has no
+    // top-level `viewport` (it belongs to the screenshot *format*), so the one
+    // that used to sit here was silently dropped by the API — removed, not moved.
+    ...(mobile ? { mobile: true } : {}),
   });
 }
 
