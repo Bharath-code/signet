@@ -38,6 +38,8 @@ type Row = {
   screenshotUrl?: string;
   signatureHtml?: string;
   svgLogo: boolean;
+  weakLogo: boolean;   // .ico or sub-48px favicon — renders, but soft
+  cardLogo: boolean;   // og:image social banner standing in for a brand mark
   error?: string;
 };
 
@@ -101,12 +103,14 @@ async function main() {
       return {
         url, finalUrl: s.finalUrl, ok: true, source, ms,
         brandKit, screenshotUrl: s.screenshotUrl, svgLogo: logo.isSvgUrl(brandKit.logoUrl),
+        weakLogo: logo.isPoorLogoUrl(brandKit.logoUrl),
+        cardLogo: logo.isSocialCardUrl(brandKit.logoUrl),
         signatureHtml: render.renderSignature(brandKit, fields, 'logo', fields.website),
       };
     } catch (err) {
       const ms = Date.now() - t0;
       console.log(`✗ ${url.padEnd(34)} FAILED    ${ms}ms`);
-      return { url, finalUrl: url, ok: false, source: 'fallback', ms, svgLogo: false, error: (err as Error).message };
+      return { url, finalUrl: url, ok: false, source: 'fallback', ms, svgLogo: false, weakLogo: false, cardLogo: false, error: (err as Error).message };
     }
   });
 
@@ -115,6 +119,12 @@ async function main() {
   const skipVision = ok.filter((r) => r.source === 'firecrawl').length;
   const fallbacks = rows.length - ok.length;
   const svgLogos = rows.filter((r) => r.svgLogo).length;
+  // Logo *quality*, not just extraction success: a 16px .ico scores identically to a
+  // real wordmark on every other metric here, which is how it went unnoticed.
+  const weakLogos = rows.filter((r) => r.weakLogo).length;
+  // Counted because a weak-logo fix once traded 8 favicons for og cards and every
+  // other number here still read perfect. Both failure modes must be visible at once.
+  const cardLogos = rows.filter((r) => r.cardLogo).length;
   const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
   const skipRate = pct(skipVision, ok.length);
 
@@ -122,6 +132,8 @@ async function main() {
   console.log(`Skip-vision rate : ${skipRate}%  (${skipVision}/${ok.length} successful)   target ≥70%`);
   console.log(`Fallback rate    : ${pct(fallbacks, rows.length)}%  (${fallbacks}/${rows.length})`);
   console.log(`SVG logos        : ${svgLogos}  (would break in Gmail — should be ~0 after hardening)`);
+  console.log(`Weak logos       : ${weakLogos}  (.ico or <48px — renders soft/inconsistently in Gmail)`);
+  console.log(`Card logos       : ${cardLogos}  (og:image banner, not a brand mark — crushed into the 84x40 cell)`);
   console.log(`Avg time         : ${Math.round(ok.reduce((a, r) => a + r.ms, 0) / (ok.length || 1))}ms`);
 
   // ── HTML report ───────────────────────────────────────────────────────────
@@ -136,7 +148,7 @@ async function main() {
     <div style="border:1px solid #ddd;border-radius:6px;margin:0 0 20px;overflow:hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#fafafa;border-bottom:1px solid #eee">
         <strong>${esc(r.brandKit?.companyName ?? r.url)}</strong>
-        <span>${badge(r)} &nbsp; <code>${r.ms}ms</code> ${r.svgLogo ? '&nbsp;⚠️ SVG logo' : ''} ${r.degraded ? `&nbsp;degraded:${esc(r.degraded)}` : ''}</span>
+        <span>${badge(r)} &nbsp; <code>${r.ms}ms</code> ${r.svgLogo ? '&nbsp;⚠️ SVG logo' : ''} ${r.weakLogo ? '&nbsp;⚠️ weak logo' : ''} ${r.cardLogo ? '&nbsp;⚠️ og card' : ''} ${r.degraded ? `&nbsp;degraded:${esc(r.degraded)}` : ''}</span>
       </div>
       <div style="display:flex;gap:0;flex-wrap:wrap">
         <div style="flex:1;min-width:340px;border-right:1px solid #eee;background:#f3f3f3">
@@ -160,6 +172,8 @@ async function main() {
       <b>Skip-vision rate:</b> ${skipRate}% (${skipVision}/${ok.length}) &nbsp;<i>target ≥70%</i><br>
       <b>Fallback rate:</b> ${pct(fallbacks, rows.length)}% (${fallbacks}/${rows.length}) &nbsp;·&nbsp;
       <b>SVG logos:</b> ${svgLogos} &nbsp;·&nbsp;
+      <b>Weak logos:</b> ${weakLogos} &nbsp;·&nbsp;
+      <b>Card logos:</b> ${cardLogos} &nbsp;·&nbsp;
       <b>Avg time:</b> ${Math.round(ok.reduce((a, r) => a + r.ms, 0) / (ok.length || 1))}ms<br>
       <span style="color:#666">Left = the live site (Firecrawl screenshot). Right = our rendered signature. Eyeball brand-match per row.</span>
     </div>

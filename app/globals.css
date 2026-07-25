@@ -61,7 +61,7 @@
 }
 
 /* Clears the sticky nav (h-16 = 64px) so #how/#pricing/#faq/#notify land in view. */
-#how, #pricing, #faq, #notify, #unlock {
+#how, #pricing, #faq, #notify {
   scroll-margin-top: 88px;
 }
 
@@ -176,28 +176,6 @@
 }
 .tab-content { animation: tab-fade-in 0.3s var(--ease-fluid) both; }
 @media (prefers-reduced-motion: reduce) { .tab-content { animation: none; } }
-
-/* ── Locked overlay fade ──────────────────────────────────────────────────── */
-@keyframes overlay-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-.locked-overlay {
-  opacity: 0;
-  animation: overlay-in 0.35s var(--ease-fluid) 0.15s forwards;
-  /* Opaque diagonal hairline hatch — a printer's "proof void" mark, not glass.
-     No blur, no transparency: the Hard-Offset rule forbids soft/glassy elevation. */
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--color-paper-deep),
-    var(--color-paper-deep) 7px,
-    var(--color-line) 7px,
-    var(--color-line) 8px
-  );
-}
-@media (prefers-reduced-motion: reduce) {
-  .locked-overlay { animation: none; opacity: 1; }
-}
 
 /* ── Font picker click pulse ──────────────────────────────────────────────── */
 .font-btn:active:not(:disabled) {

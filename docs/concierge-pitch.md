@@ -1,6 +1,6 @@
 # Concierge Team Setup — Pitch, Copy & Delivery
 
-$99 one-time. Manual fulfillment (see `CLAUDE.md` / `docs/launch-checklist.md`) — no team-generation code exists yet. This doc is the pitch script + copy + intake/delivery process so it can be sold consistently across the call, the landing page, and outbound email.
+$99 one-time for teams up to 15 people; $199 one-time for 16–30. Larger than 30: quote live on the call (~$7/seat). Lead with "$99 flat" everywhere — the $199 tier is only spoken when a team turns out to be 16+, never advertised up front. Manual fulfillment (see `CLAUDE.md` / `docs/launch-checklist.md`) — no team-generation code exists yet. This doc is the pitch script + copy + intake/delivery process so it can be sold consistently across the call, the landing page, and outbound email.
 
 ---
 
@@ -68,7 +68,10 @@ Use after a warm reply or when segmenting "just me" vs. "my team of N" (`docs/la
 > "I'll build the brand kit from your site — same logo/color/font extraction you saw in the demo — then generate one signature per person and send you copy-paste HTML with install steps for whichever mail clients your team uses. Done this week."
 
 **Price + close:**
-> "It's a $99 flat one-time fee, no subscription. I can send the payment link now and start as soon as it clears."
+> "It's a $99 flat one-time fee for teams up to 15, no subscription. I can send the payment link now and start as soon as it clears."
+
+**If the team is 16–30:**
+> "For a team your size it's $199 one-time — still flat, still no subscription, still done this week."
 
 **If they hesitate on price:** don't discount — ask what's blocking them. This is the willingness-to-pay signal (`docs/launch-checklist.md` Phase 3 gate); a discount defeats the test.
 

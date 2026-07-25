@@ -18,13 +18,11 @@ type Props = {
   height: number;
   font: string;
   siteUrl?: string;
-  proHref: string;
   roles?: Roles;
-  locked?: boolean; // blurs iframe + shows upgrade overlay; used for 2nd/3rd layout for free users
   hideCopy?: boolean; // suppress copy button entirely (landing page — copy lives in /app)
 };
 
-export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, proHref, roles, locked, hideCopy }: Props) {
+export function SignaturePreview({ kit, fields, layout, label, height, font, siteUrl, roles, hideCopy }: Props) {
   const html = renderSignature({ ...kit, fontFamily: font }, fields, layout, siteUrl, roles);
   const [copied, setCopied] = useState(false);
   // Key that changes on every html refresh so the iframe triggers a fade-in
@@ -63,16 +61,7 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
       <div className="bezel-inner">
         <figcaption className="flex items-center justify-between border-b border-line px-4 py-3">
           <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">{label}</span>
-          {locked ? (
-            <a
-              href={proHref}
-              onClick={() => track('pro_link_clicked', { layout })}
-              className="flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] text-accent transition-colors hover:text-ink"
-            >
-              Unlock with Pro
-              <span className="hero-button-trail" aria-hidden>→</span>
-            </a>
-          ) : !hideCopy ? (
+          {!hideCopy ? (
             <button
               onClick={copy}
               className={`flex items-center gap-1.5 font-mono text-[0.64rem] uppercase tracking-[0.14em] transition-colors ${
@@ -84,31 +73,14 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
             </button>
           ) : null}
         </figcaption>
-        <div className="relative">
-          <iframe
-            key={frameKey}
-            title={label}
-            sandbox="allow-popups"
-            style={{ height }}
-            className={`sig-frame block w-full bg-white${locked ? ' pointer-events-none' : ''}`}
-            srcDoc={frameDoc(html)}
-          />
-          {locked && (
-            <div
-              className="locked-overlay absolute inset-0 flex flex-col items-center justify-center gap-3 border-t"
-              style={{ borderColor: 'var(--color-line)' }}
-            >
-              <span className="font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted">Pro layout</span>
-              <a
-                href={proHref}
-                onClick={() => track('pro_layout_unlock_clicked', { layout })}
-                className="border border-ink px-4 py-2 font-mono text-[0.68rem] uppercase tracking-[0.14em] text-ink transition-colors hover:bg-ink hover:text-paper"
-              >
-                Join waitlist to unlock →
-              </a>
-            </div>
-          )}
-        </div>
+        <iframe
+          key={frameKey}
+          title={label}
+          sandbox="allow-popups"
+          style={{ height }}
+          className="sig-frame block w-full bg-white"
+          srcDoc={frameDoc(html)}
+        />
       </div>
     </figure>
   );
