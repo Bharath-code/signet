@@ -184,6 +184,7 @@ export type ExtractOpts = {
   branding?: BrandingProfile;
   fallbackKit?: BrandKit;
   htmlSnippets?: string;
+  cssVars?: string; // `--name: #hex` digest from rawHtml (see ScrapeResult.cssVars)
   validatedName?: string;
   lang?: string; // P3: <html lang="xx"> for CJK font mapping
   pageTitle?: string; // The page <title> from Firecrawl metadata (for contact name/title fallback)
@@ -332,7 +333,10 @@ function buildConfidence(
 export async function extractBrandKit(html: string, screenshotUrl: string, opts: ExtractOpts = {}): Promise<ExtractResult> {
   const fb = opts.fallbackKit ?? NEUTRAL_BRAND_KIT;
   const fc = brandKitFromFirecrawl(opts.branding);
-  const css = brandColorsFromCss(html);
+  // cssVars first: Firecrawl's cleaned `html` has no <style> blocks, so the
+  // declarations only survive in the rawHtml digest. html still supplies <meta
+  // theme-color> and any inline style= attributes.
+  const css = brandColorsFromCss((opts.cssVars ?? '') + '\n' + html);
   // Full scraped content — what realEmail checks an LLM-supplied address against.
   // Uses raw html (not htmlSnippets, which is truncated for the prompt and would
   // drop real addresses that live outside the selected snippets).
@@ -344,6 +348,13 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
     ? preferCompanyNameFromTitle(fb.companyName, opts.pageTitle)
     : fb.companyName;
   const companyName = opts.validatedName ?? (correctedFallbackName !== NEUTRAL_BRAND_KIT.companyName ? correctedFallbackName : undefined);
+  const fcConfident = fcColorsConfident(opts.branding);
+  // Firecrawl's accent, dropped outright when it's a link-blue from a run its own
+  // extractor reported as failed.
+  const fcPrimary = fc.primaryColor && (fcConfident || !isLinkBlue(fc.primaryColor))
+    ? fc.primaryColor : undefined;
+  const cssPrimary = css.primary && !isLinkBlue(css.primary) ? css.primary : undefined;
+
   const det = {
     companyName,
     logoUrl: pickEmailLogo(fc.logoUrl, fb.logoUrl),
@@ -355,12 +366,30 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
     // css.primary keeps the guard unconditionally (CSS scraping is more likely to pick
     // up incidental link colors). As a last resort, use fc.secondaryColor for
     // monochrome sites.
+    // The fc.secondaryColor last resort is gated on confidence too. It's usually
+    // the page's ink (#000): taking it when Firecrawl was confident and simply
+    // found no accent is right (the site really is monochrome, and it saves a
+    // vision call), but taking it after a FAILED branding run makes the kit look
+    // complete, skips vision, and ships a black bar for a site that has a real
+    // accent — the exact moritzlegal.com failure. When we don't trust the run,
+    // leave this undefined so detComplete fails and the color goes to vision:
+    // untrustworthy accents are judged, not guessed.
+    // Precedence, most trustworthy first:
+    //  1. Firecrawl's accent when it ISN'T a link-blue — its purpose-built extractor
+    //     beats our regex, and real tech-brand blues live here.
+    //  2. A vivid CSS brand token. This outranks a link-blue Firecrawl accent even
+    //     when Firecrawl reports high confidence: measured on moritzlegal.com
+    //     2026-07-26, it returned #0000ee at confidence 0.9 while the page's own
+    //     tokens carried the real brand tan #b58159. Confidence means its extractor
+    //     ran, not that a browser-default link color became a brand color.
+    //  3. The link-blue itself, if that's genuinely all we have.
+    //  4. Ink, only when the run was trustworthy (a real monochrome site). After a
+    //     failed run this stays undefined so detComplete fails and vision judges.
     primaryColor:
-      (fc.primaryColor && (fcColorsConfident(opts.branding) || !isLinkBlue(fc.primaryColor))
-        ? fc.primaryColor
-        : undefined)
-      ?? (css.primary && !isLinkBlue(css.primary) ? css.primary : undefined)
-      ?? fc.secondaryColor,
+      (fcPrimary && !isLinkBlue(fcPrimary) ? fcPrimary : undefined)
+      ?? cssPrimary
+      ?? fcPrimary
+      ?? (fcConfident ? fc.secondaryColor : undefined),
     secondaryColor: fc.secondaryColor ?? css.secondary,
     fontFamily: fc.fontFamily,
   };

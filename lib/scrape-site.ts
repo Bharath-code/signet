@@ -92,6 +92,10 @@ type ScrapeMeta = {
 
 export type ScrapeResult = {
   html: string;
+  // Just the `--name: #hex` declarations recovered from rawHtml's <style> blocks.
+  // Kept as a compact digest rather than the raw document: rawHtml runs ~900KB on
+  // a Framer site, and the color extractor only ever needed these pairs.
+  cssVars: string;
   // P1: semantically relevant HTML snippets (headings, meta, logos) for LLM prompt
   // instead of dumping 20K chars of raw HTML
   htmlSnippets: string;
@@ -182,7 +186,11 @@ export function fallbackKitFromMeta(meta: ScrapeMeta, html: string, baseUrl?: st
   });
 }
 
-const SCRAPE_FORMATS: FormatString[] = ['branding', 'markdown', 'html', 'links', 'screenshot'];
+// rawHtml rides along free (measured 2026-07-26: 1 credit with or without it).
+// It's the ONLY format that preserves <style> blocks — Firecrawl's cleaned `html`
+// strips them entirely, which left brandColorsFromCss unable to see any CSS custom
+// property that wasn't an inline style= attribute.
+const SCRAPE_FORMATS: FormatString[] = ['branding', 'markdown', 'html', 'rawHtml', 'links', 'screenshot'];
 const EXTRA_FORMATS: FormatString[] = ['branding', 'html', 'links'];
 
 type ProxyTier = 'auto' | 'enhanced';
@@ -313,6 +321,10 @@ export async function scrapeSite(url: string): Promise<ScrapeResult> {
   }
 
   const finalUrl = doc.metadata?.url ?? url;
+  const cssVars = [doc, ...extraDocs]
+    .flatMap((d) => (d.rawHtml ?? '').match(/--[a-z0-9-]+\s*:\s*#[0-9a-fA-F]{3,8}\b/gi) ?? [])
+    .join(';')
+    .slice(0, 20000);
   const html = combinedHtml.slice(0, 60000);
   const markdown = combinedMarkdown.slice(0, 60000);
   const links = [...linkSet];
@@ -323,6 +335,7 @@ export async function scrapeSite(url: string): Promise<ScrapeResult> {
 
   const result: ScrapeResult = {
     html,
+    cssVars,
     htmlSnippets: relevantHtmlSnippets(html),
     markdown,
     links,
