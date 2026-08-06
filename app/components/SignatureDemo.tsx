@@ -20,8 +20,12 @@ import type { BrandKit } from '@/lib/types';
 // writes; kit-codec validates on the way back in.
 // Always /signature: a teammate has the kit already, so they need the editor,
 // not the URL box. Keeping them off /app means a team rollout costs no credits.
-function makeShareUrl(kit: BrandKit, roles: Roles, font: string): string {
-  return `${window.location.origin}/signature?kit=${encodeKitParam({ brandKit: kit, roles, font })}`;
+// `from` carries the site the kit was read from. It drives the "extracted"
+// labels and the paid CTA on the far side, so a copied link behaves like an
+// outreach link instead of looking like an unverified demo kit.
+function makeShareUrl(kit: BrandKit, roles: Roles, font: string, siteUrl: string): string {
+  const from = siteUrl ? `from=${encodeURIComponent(siteUrl)}&` : '';
+  return `${window.location.origin}/signature?${from}kit=${encodeKitParam({ brandKit: kit, roles, font })}`;
 }
 
 type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
@@ -535,7 +539,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
       {/* team rollout — one section, two asks (instant link copy + future auto-deploy
           email capture), instead of two competing boxed CTAs. Only shown after a real
           extraction: inviting a team rollout of the demo kit would be dishonest. */}
-      {extracted && (
+      {(extracted || (concierge && !!preloaded)) && (
         <section className="rise mt-16 border-t border-line pt-10" style={{ animationDelay: '460ms' }}>
           <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
             <div className="max-w-md">
@@ -574,7 +578,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                 <span className={label}>{concierge ? 'Or do it yourself' : 'Share with your team'}</span>
                 <button
                   onClick={async () => {
-                    await navigator.clipboard.writeText(makeShareUrl(brand.kit, brand.roles, brand.font));
+                    await navigator.clipboard.writeText(makeShareUrl(brand.kit, brand.roles, brand.font, brand.siteUrl));
                     setTeamLinkCopied(true);
                     track('team_link_copied');
                     setTimeout(() => setTeamLinkCopied(false), 2000);
