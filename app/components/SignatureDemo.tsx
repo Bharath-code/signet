@@ -160,7 +160,7 @@ export default function SignatureDemo() {
       className="sticky top-0 z-50 border-b"
       style={{ background: 'rgba(243,242,236,0.86)', backdropFilter: 'blur(10px)', borderColor: 'var(--color-line)' }}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:px-10">
         <Link href="/" className="flex items-center gap-2.5">
           <BrandMark size={24} />
           <span className="font-display text-lg font-extrabold tracking-tight text-ink">Signet</span>
@@ -170,7 +170,9 @@ export default function SignatureDemo() {
         </Link>
       </div>
     </nav>
-    <main className="mx-auto w-full max-w-6xl px-6 py-16 md:px-10 md:py-24">
+    {/* max-w-7xl, wider than the landing page's 6xl: this is the studio, and the
+        preview column has to carry two signatures side by side at xl. */}
+    <main className="mx-auto w-full max-w-7xl px-6 py-16 md:px-10 md:py-24">
       {/* hero */}
       <header className="rise max-w-3xl" style={{ animationDelay: '40ms' }}>
         <span className="eyebrow">Email signature studio</span>
@@ -218,8 +220,13 @@ export default function SignatureDemo() {
 
       {/* studio: editor (left) + live preview (right, sticky on desktop) so every
           edit is visible without scrolling — the magic moment stays on screen. */}
-      <div className="mt-16 grid grid-cols-1 gap-x-10 gap-y-10 md:grid-cols-2 md:items-start">
-      <div>
+      {/* Equal halves up to xl, then 2/5 + 3/5. The wider preview column exists so
+          the two secondary signatures can sit side by side and still clear the
+          ~340px each needs before an email address and a phone number clip
+          (measured 2026-08-06). Below xl the pair stacks, so the extra width buys
+          nothing there — and taking it would clip the FORM's own inputs instead. */}
+      <div className="mt-16 grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-2 md:items-start xl:grid-cols-5">
+      <div className="xl:col-span-2">
 
       {/* divider */}
       <div
@@ -417,7 +424,7 @@ export default function SignatureDemo() {
 
       </div>
       {/* preview column — sticky on desktop so it stays visible while editing */}
-      <div className="md:sticky md:top-20">
+      <div className="md:sticky md:top-20 xl:col-span-3">
 
       {/* preview cards — show skeleton during initial extraction, real cards once loaded */}
       <div className="rise space-y-5" style={{ animationDelay: '380ms' }}>
@@ -438,8 +445,8 @@ export default function SignatureDemo() {
                 </div>
               </div>
             </div>
-            {/* Secondary skeletons — smaller side-by-side */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {/* Secondary skeletons — same breakpoint as the real previews below */}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {[1, 2].map((i) => (
                 <div key={i} className="skeleton-card">
                   <div className="flex items-center justify-between border-b border-line px-4 py-3">
@@ -473,7 +480,10 @@ export default function SignatureDemo() {
                 />
               </div>
             ))}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {/* Side by side only from xl up. Below that the studio column is too
+                narrow to give each card the ~340px an email address and a phone
+                number need, so they stack instead of clipping mid-string. */}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               {LAYOUTS.filter((l) => l.id !== 'logo-cta').map(({ id, label: name, h }) => (
                 <SignaturePreview
                   key={id}

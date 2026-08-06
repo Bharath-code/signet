@@ -23,6 +23,19 @@ function themeColor(html: string): string | null {
   return hex ? normHex(hex) : null;
 }
 
+// #0000EE and #0000FF are the browser's OWN default <a> colors — no brand picks
+// them on purpose. isLinkBlue can't be trusted to settle this alone, because real
+// tech-brand blues sit in the same hue window and must survive it (Mercura's
+// #4066f2 measured 2026-08-06 scores hue 227 — inside isLinkBlue's range). So
+// exact-match these two values and nothing else. Measured on vantel.ai the same
+// day: Firecrawl returned #0000ee at high confidence, which passed the
+// completeness check and shipped a browser default as the brand accent.
+const DEFAULT_LINK_BLUES = new Set(['#0000ee', '#0000ff']);
+export function isDefaultLinkBlue(raw?: string): boolean {
+  const hex = raw ? normHex(raw) : null;
+  return !!hex && DEFAULT_LINK_BLUES.has(hex);
+}
+
 // The generic web hyperlink blue (azure cluster, hue ~195–245°) is the #1 source
 // of bogus "brand accents" — Firecrawl often reports a page's link color as a brand
 // color. This flags that cluster so the orchestrator can route to vision instead.
@@ -58,7 +71,7 @@ export function brandColorsFromCss(html: string): { primary?: string; secondary?
     const hex = normHex(m[2]);
     if (!hex) continue;
     all.push(hex);
-    if (!res.primary && /(^|-)(primary|accent|brand)(-|$|[0-9])/.test(name)) res.primary = hex;
+    if (!res.primary && !isDefaultLinkBlue(hex) && /(^|-)(primary|accent|brand)(-|$|[0-9])/.test(name)) res.primary = hex;
     else if (!res.secondary && /(^|-)(secondary|muted|subtle)(-|$|[0-9])/.test(name)) res.secondary = hex;
   }
   // Name-agnostic fallback. Framer emits `--token-<uuid>`, and CSS Modules /

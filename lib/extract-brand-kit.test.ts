@@ -202,7 +202,24 @@ describe('fcColorsConfident + link-blue gating of Firecrawl colors', () => {
     expect(result.brandKit.primaryColor).toBe('#000000');
   });
 
+  // Fixture is Mercura's #4066f2 (measured 2026-08-06), a real brand blue that sits
+  // inside isLinkBlue's hue window. It used to be #0000ee, which made this case
+  // indistinguishable from the one below.
   it('keeps a saturated blue when Firecrawl IS confident (real tech-brand blues)', async () => {
+    const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
+      fallbackKit: NEUTRAL_BRAND_KIT,
+      baseUrl: BASE_URL,
+      branding: {
+        colors: { primary: '#4066f2', secondary: '#000000' },
+        images: { logo: 'https://example.com/logo.png' },
+        confidence: { colors: 0.9, buttons: 0.9, overall: 0.9 },
+      } as unknown as BrandingProfile,
+    });
+
+    expect(result.brandKit.primaryColor).toBe('#4066f2');
+  });
+
+  it('drops a browser-default link blue even when Firecrawl is confident', async () => {
     const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
       fallbackKit: NEUTRAL_BRAND_KIT,
       baseUrl: BASE_URL,
@@ -213,7 +230,8 @@ describe('fcColorsConfident + link-blue gating of Firecrawl colors', () => {
       } as unknown as BrandingProfile,
     });
 
-    expect(result.brandKit.primaryColor).toBe('#0000ee');
+    // vantel.ai, measured 2026-08-06: shipped #0000ee as the brand accent.
+    expect(result.brandKit.primaryColor).not.toBe('#0000ee');
   });
 });
 
