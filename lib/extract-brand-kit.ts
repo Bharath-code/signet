@@ -4,10 +4,10 @@ import { z } from 'zod';
 import type { BrandingProfile } from '@mendable/firecrawl-js';
 import { brandKitSchema, NEUTRAL_BRAND_KIT } from './brand-kit-schema';
 import { safeHref } from './render-signature';
-import { brandColorsFromCss, isLinkBlue } from './extract-colors';
+import { brandColorsFromCss, isLinkBlue, isDefaultLinkBlue } from './extract-colors';
 import { brandKitFromFirecrawl, type FirecrawlBrand } from './brand-from-firecrawl';
 import { isLikelyImageUrl, pickEmailLogo } from './logo-url';
-import { firecrawlClient, brandNameFromTitle, type FcExtractData } from './scrape-site';
+import { firecrawlClient, brandNameFromTitle, realAnswer, type FcExtractData } from './scrape-site';
 import type { BrandKit, SignatureFields, BrandKitConfidence, FieldConfidence } from './types';
 import type { SearchResultWeb } from '@mendable/firecrawl-js';
 
@@ -351,7 +351,13 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   const fcConfident = fcColorsConfident(opts.branding);
   // Firecrawl's accent, dropped outright when it's a link-blue from a run its own
   // extractor reported as failed.
-  const fcPrimary = fc.primaryColor && (fcConfident || !isLinkBlue(fc.primaryColor))
+  // A browser-default link blue is dropped even when Firecrawl reports high
+  // confidence — confidence means its extractor ran, not that #0000ee became a
+  // brand color. Dropping it here (not just at rung 1 below) means rung 3 can't
+  // resurrect it either. Measured on vantel.ai 2026-08-06: the result then falls
+  // to rung 4 (ink) and reads as monochrome, which is honest; it does NOT reach
+  // vision, because rung 4 still completes the kit.
+  const fcPrimary = fc.primaryColor && !isDefaultLinkBlue(fc.primaryColor) && (fcConfident || !isLinkBlue(fc.primaryColor))
     ? fc.primaryColor : undefined;
   const cssPrimary = css.primary && !isLinkBlue(css.primary) ? css.primary : undefined;
 
@@ -570,10 +576,14 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
   const brandKit = brandKitSchema.parse({ companyName: companyNameFinal, logoUrl, primaryColor, secondaryColor, fontFamily });
 
   const contact: Partial<SignatureFields> = {};
+  // fcExtract is already cleaned in parseFcJson; Gemini answers the same way, so
+  // it gets the same guard.
+  const gName = realAnswer(geminiResult?.contactName);
+  const gRole = realAnswer(geminiResult?.contactRole);
   if (fcExtract?.contactName) contact.fullName = fcExtract.contactName;
-  else if (geminiResult?.contactName) contact.fullName = geminiResult.contactName;
+  else if (gName) contact.fullName = gName;
   if (fcExtract?.contactRole) contact.jobTitle = fcExtract.contactRole;
-  else if (geminiResult?.contactRole) contact.jobTitle = geminiResult.contactRole;
+  else if (gRole) contact.jobTitle = gRole;
   const email = realEmail(fcExtract?.contactEmail, pageText) ?? realEmail(geminiResult?.contactEmail, pageText);
   if (email) contact.email = email;
   const phone = realPhone(fcExtract?.contactPhone) ?? realPhone(geminiResult?.contactPhone);

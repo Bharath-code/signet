@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { themeColorFromHtml, fallbackKitFromMeta, brandNameFromTitle, iconFromHtml } from './scrape-site';
+import { themeColorFromHtml, fallbackKitFromMeta, brandNameFromTitle, iconFromHtml, realAnswer } from './scrape-site';
 import { NEUTRAL_BRAND_KIT } from './brand-kit-schema';
+
+describe('realAnswer', () => {
+  it('drops the prose a model writes instead of omitting a field', () => {
+    for (const v of ['Not specified', 'not specified.', 'N/A', 'n/a', 'None', 'unknown', 'Unspecified', '—', '--', '  '])
+      expect(realAnswer(v), v).toBeUndefined();
+    expect(realAnswer(undefined)).toBeUndefined();
+  });
+  it('keeps a real name, including one that merely contains a stop word', () => {
+    expect(realAnswer('Joe Savidge')).toBe('Joe Savidge');
+    expect(realAnswer('  Nana Owusu  ')).toBe('Nana Owusu');
+    expect(realAnswer('Head of None-Standard Ops')).toBe('Head of None-Standard Ops');
+  });
+  it('keeps a non-answer out of the parsed contact fields', () => {
+    const out = parseFcJson({ companyName: 'SAMMY Labs', contactName: 'Not specified', contactRole: 'N/A' });
+    expect(out?.contactName).toBeUndefined();
+    expect(out?.contactRole).toBeUndefined();
+    expect(out?.companyName).toBe('SAMMY Labs');
+  });
+});
 
 describe('iconFromHtml', () => {
   it('extracts apple-touch-icon and resolves relative hrefs against the page', () => {

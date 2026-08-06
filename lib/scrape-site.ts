@@ -80,7 +80,23 @@ export function parseFcJson(raw: unknown): FcExtractData | undefined {
   if (!parsed.success) return undefined;
   parsed.data.primaryColor = normHex(parsed.data.primaryColor);
   parsed.data.secondaryColor = normHex(parsed.data.secondaryColor);
+  parsed.data.contactName = realAnswer(parsed.data.contactName);
+  parsed.data.contactRole = realAnswer(parsed.data.contactRole);
+  parsed.data.contactEmail = realAnswer(parsed.data.contactEmail);
+  parsed.data.contactPhone = realAnswer(parsed.data.contactPhone);
+  parsed.data.companyName = realAnswer(parsed.data.companyName);
   return parsed.data;
+}
+
+// A JSON-mode model answers an absent field with prose ("Not specified", "N/A")
+// instead of omitting the key, and the schema accepts it because it is a valid
+// string. That prose then renders as a person's NAME in the signature — measured
+// on sammylabs.com 2026-08-06, which shipped "Not specified · SAMMY Labs".
+// Every text field the model fills passes through here.
+const NON_ANSWER = /^(n\/?a|none|non-?e?xistent|null|undefined|unknown|unspecified|[-–—]{1,3}|not\s+(specified|available|found|provided|listed|given|applicable|mentioned))\.?$/i;
+export function realAnswer(v?: string): string | undefined {
+  const s = v?.trim();
+  return s && !NON_ANSWER.test(s) ? s : undefined;
 }
 
 type ScrapeMeta = {

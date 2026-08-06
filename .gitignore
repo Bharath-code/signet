@@ -6,6 +6,9 @@ node_modules/
 *.png
 !public/logo-placeholder.png
 outreach/
+# outreach working files — real names, personal email addresses, lead lists
+docs/outreach-send-today.md
+docs/outreach-screenshots/
 
 # local artifacts — not for the public repo
 brag-output*/

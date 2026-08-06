@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { brandColorsFromCss, isLinkBlue } from './extract-colors';
+import { brandColorsFromCss, isLinkBlue, isDefaultLinkBlue } from './extract-colors';
+
+describe('isDefaultLinkBlue', () => {
+  it('flags only the browser default anchor colors', () => {
+    for (const c of ['#0000ee', '#0000EE', '#00e', '#0000ff']) expect(isDefaultLinkBlue(c), c).toBe(true);
+  });
+  it('spares real brand blues that share the hue window', () => {
+    for (const c of ['#4066f2' /* Mercura */, '#1a73e8', '#0066ff', '#533afd']) expect(isDefaultLinkBlue(c), c).toBe(false);
+  });
+  it('handles an absent value', () => {
+    expect(isDefaultLinkBlue(undefined)).toBe(false);
+  });
+});
 
 describe('isLinkBlue', () => {
   it('flags generic web link blues', () => {
@@ -14,6 +26,11 @@ describe('isLinkBlue', () => {
 });
 
 describe('brandColorsFromCss', () => {
+  it('refuses a semantic token whose value is the browser default link blue', () => {
+    const html = '<style>:root{--brand-primary:#0000ee;--surface:#b58159}</style>';
+    expect(brandColorsFromCss(html).primary).toBe('#b58159');
+  });
+
   it('reads semantic CSS tokens', () => {
     const html = '<style>:root{--color-primary:#D4FF33;--color-secondary:#0c0c0c}</style>';
     expect(brandColorsFromCss(html)).toEqual({ primary: '#d4ff33', secondary: '#0c0c0c' });
