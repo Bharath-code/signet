@@ -37,7 +37,14 @@ Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a track
 
 ## Architecture: the extraction pipeline
 
-The whole app is one server pipeline plus one client page. Data flows:
+The whole app is one server pipeline plus one client component (`SignatureDemo`) mounted at two routes:
+
+- **`/app`** (`mode="studio"`) — the self-serve product. It has the URL field and the Generate button, so it is the only page that can spend Firecrawl credits. Reached from the landing page. Held for after concierge validation.
+- **`/signature`** (`mode="concierge"`) — the outreach landing page. Every cold email and every copied team link points here with the kit already encoded in `?kit=`. It renders **no URL field and no Generate button**, so the whole outreach funnel costs zero credits however often a recipient edits or reloads. The $99 concierge link is the one vermilion CTA; the waitlist sits below it. `noindex`.
+
+`/app` still honours `?kit=` for links sent before the split.
+
+Data flows:
 
 ```
 SignatureDemo (client) ──POST {url}──▶ /api/brand-kit
@@ -49,7 +56,7 @@ SignatureDemo renders renderSignature(kit, fields, layout) into <iframe srcDoc>
 
 Key invariants — read these before changing the relevant file:
 
-- **Brand kit is deterministic-first; Gemini is a gap-filler.** `extractBrandKit` builds the visual kit from Firecrawl's native `branding` format (`lib/brand-from-firecrawl.ts`) → CSS tokens → scrape meta. If logo + 2 colors + font + company name are all present it returns `source: 'firecrawl'` and **skips the Gemini vision call entirely**. Vision runs only to fill gaps (and to extract contact name/role/email/phone), returning `source: 'vision'`. Firecrawl/CSS values always override the model's. No durable cache yet (Firecrawl `maxAge` + the route's in-process Map only; JSON-mode contact data rides on the same scrape, so on the happy path — complete branding, no retries — there is exactly one Firecrawl call per uncached request; `scrapeSite` can still issue retries or extra page scrapes when branding is thin/incomplete) — add KV when traffic justifies.
+- **Brand kit is deterministic-first; Gemini is a gap-filler.** `extractBrandKit` builds the visual kit from Firecrawl's native `branding` format (`lib/brand-from-firecrawl.ts`) → CSS tokens → scrape meta. If logo + 2 colors + font + company name are all present it returns `source: 'firecrawl'` and **skips the Gemini vision call entirely**. Vision runs only to fill gaps (and to extract contact name/role/email/phone), returning `source: 'vision'`. Firecrawl/CSS values always override the model's. Kit results are cached in Redis for 1h (see Gotchas; Firecrawl `maxAge` and the in-process Map sit alongside it; JSON-mode contact data rides on the same scrape, so on the happy path — complete branding, no retries — there is exactly one Firecrawl call per uncached request; `scrapeSite` can still issue retries or extra page scrapes when branding is thin/incomplete).
 
 - **Untrustworthy accents are routed to vision, not trusted.** A generic web link-blue (`isLinkBlue` in `lib/extract-colors.ts`) or a missing accent (monochrome brand) makes `det.primaryColor` undefined, which fails the completeness check and sends the *color* to the vision pass — Firecrawl frequently reports a page's link color as a brand color, and vision judges brand-vs-link far better. Logo precedence is square-mark-first: `apple-touch-icon` (`iconFromHtml`) > favicon > og:image (a wide social card, last resort), and `pickEmailLogo` (`lib/logo-url.ts`) keeps a raster ahead of any SVG (Gmail won't render SVG).
 
@@ -74,7 +81,7 @@ Note: the schema's `z.url()` on `logoUrl` is permissive (accepts `data:`/`javasc
 
 ## Gotchas
 
-- **Both in-process `Map`s are dev-only caches, and one of them is a control.** `cache` and `rateMap` (`app/api/brand-kit/route.ts`) and `scrapeCache` (`lib/scrape-site.ts`) are module-level Maps. They work perfectly under `npm run dev` (one long-lived process) and largely evaporate on serverless: cold starts wipe them and concurrent instances don't share them. For the caches that means repeat URLs re-scrape; for `rateMap` it means the "10/hour per IP" limit is really 10/hour **per lambda instance**, so the effective ceiling is a multiple of the intended one. The rate limiter is the one that matters — it's what stands between a bored visitor and the credit balance. Fix is one durable store (Vercel KV / Upstash) keyed by URL and IP at the route level; that also covers `scrapeCache` downstream. Deliberately deferred 2026-07-25 — no traffic yet, ~49.9k credits in hand.
+- **The rate limiter and the kit cache are durable; `scrapeCache` still is not.** `app/api/brand-kit/route.ts` runs on Upstash Redis (Vercel Marketplace, env `KV_REST_API_URL` / `KV_REST_API_TOKEN`): `@upstash/ratelimit` sliding windows (`bk:h` 10/hour, `bk:d` 25/day per IP) and a shared kit cache (`bk:kit:<normalized-url>`, 1h TTL). The in-process `cache` Map stays as an L1 read; `rateMap` stays as the fallback when Redis is absent or throws, so a Redis outage **fails open** to the old per-instance ceiling rather than blocking every generation. `scrapeCache` (`lib/scrape-site.ts`) is still a module-level Map and still evaporates on serverless — the kit cache in front of it absorbs most of that. Shipped 2026-08-06, replacing the deferral of 2026-07-25.
 - **Firecrawl `maxAge` saves latency, not credits.** Measured 2026-07-25: a repeat scrape well inside the 1h window returned `creditsUsed: 1` and the balance dropped by 1. Don't reason about credit spend as though the server-side cache is free.
 - **A generation costs ~5 credits, not 1.** Measured across 3 eval runs (60 site extractions + probes): 347 credits, ≈5.6 per site. The happy path really is one call, but `scrapeSite` fans out — screenshot-failure retry at `maxAge: 0`, mobile scrape when branding is thin, `client.map()`, then up to 2 brand-page scrapes. Budget from 5, not from 1.
 - **Model IDs churn.** `gemini-2.0-flash` was shut down 2026-06-01. Change the model only via `GEMINI_MODEL` / the `GEMINI_MODEL` constant in `lib/extract-brand-kit.ts` (shared with the health route so they can't drift). A wrong model ID surfaces as Google `404 NOT_FOUND`; a `403 PERMISSION_DENIED` is a project/key problem, not a model problem.
