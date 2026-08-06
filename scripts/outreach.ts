@@ -59,8 +59,10 @@ const domain = (url: string) => { try { return new URL(url).hostname.replace(/^w
 
 // Encode the pre-generated kit into the URL so the page loads instantly —
 // no re-scrape, no API call, signature renders on first paint.
+// /signature (not /app) has no URL field at all, so an outreach recipient can
+// never trigger a scrape: the whole funnel costs zero Firecrawl credits.
 function signetLink(url: string, brandKit: BrandKit, contact: Partial<SignatureFields>): string {
-  return `${SIGNET_URL}/app?from=${encodeURIComponent(url)}&kit=${encodeKitParam({ brandKit, contact })}`;
+  return `${SIGNET_URL}/signature?from=${encodeURIComponent(url)}&kit=${encodeKitParam({ brandKit, contact })}`;
 }
 
 function draftEmail(company: string, name: string | undefined, url: string, brandKit: BrandKit, contact: Partial<SignatureFields>): string {

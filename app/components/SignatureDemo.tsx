@@ -18,8 +18,10 @@ import type { BrandKit } from '@/lib/types';
 // teammate fills in their own name/title/email. roles + font carry the user's
 // edits (they live outside BrandKit). Same ?kit= param the outreach script
 // writes; kit-codec validates on the way back in.
+// Always /signature: a teammate has the kit already, so they need the editor,
+// not the URL box. Keeping them off /app means a team rollout costs no credits.
 function makeShareUrl(kit: BrandKit, roles: Roles, font: string): string {
-  return `${window.location.origin}/app?kit=${encodeKitParam({ brandKit: kit, roles, font })}`;
+  return `${window.location.origin}/signature?kit=${encodeKitParam({ brandKit: kit, roles, font })}`;
 }
 
 type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
@@ -72,7 +74,14 @@ const btn =
   'inline-flex items-center justify-center gap-2 px-6 py-3 font-mono text-[0.72rem] uppercase tracking-[0.12em] ' +
   'transition-colors disabled:opacity-50';
 
-export default function SignatureDemo() {
+// 'studio' = /app, the self-serve product: paste a URL, we scrape it.
+// 'concierge' = /signature, the outreach landing page: the kit arrives in ?kit=,
+// so the page has no scrape capability at all and costs zero credits to open.
+// The paid CTA leads; the waitlist is the fallback for people who aren't ready.
+type Mode = 'studio' | 'concierge';
+
+export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
+  const concierge = mode === 'concierge';
   // Read params FIRST so we can pass preloaded kit to useBrandKit as initial state.
   const searchParams = useSearchParams();
   const fromParam = searchParams.get('from');
@@ -175,7 +184,7 @@ export default function SignatureDemo() {
     <main className="mx-auto w-full max-w-7xl px-6 py-16 md:px-10 md:py-24">
       {/* hero */}
       <header className="rise max-w-3xl" style={{ animationDelay: '40ms' }}>
-        <span className="eyebrow">Email signature studio</span>
+        <span className="eyebrow">{concierge ? 'Made for you' : 'Email signature studio'}</span>
         <h1
           className="mt-7 font-display font-extrabold uppercase leading-[0.9] tracking-[-0.03em] text-ink"
           style={{ fontSize: 'clamp(2.6rem, 7vw, 5rem)' }}
@@ -183,13 +192,30 @@ export default function SignatureDemo() {
           Your signature,<br />perfectly <span style={{ color: 'var(--color-accent)', whiteSpace: 'nowrap' }}>on-brand.</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
-          Paste your website. We read your logo, your colors, and your typeface, and
-          build a signature that looks like your design team made it — in
-          <span className="text-ink"> ten seconds</span>.
+          {preloaded || concierge ? (
+            <>
+              We already read your site. Your logo, your colors, and your typeface are
+              below — <span className="text-ink">edit anything and copy it</span>.
+            </>
+          ) : (
+            <>
+              Paste your website. We read your logo, your colors, and your typeface, and
+              build a signature that looks like your design team made it — in
+              <span className="text-ink"> ten seconds</span>.
+            </>
+          )}
         </p>
       </header>
 
-      {/* url input */}
+      {/* url input — hidden when ?kit= carried the result in. ponytail: a preloaded
+          visitor needs no scrape, and the scrape is the only paid call in the app,
+          so the outreach funnel costs zero credits however often they regenerate.
+          The link below reopens the box under the normal per-IP rate limit. */}
+      {concierge ? null : preloaded ? (
+        <p className="rise mt-10 font-mono text-[0.72rem] uppercase tracking-[0.14em] text-muted" style={{ animationDelay: '140ms' }}>
+          <Link href="/app" className="text-ink underline underline-offset-4">Use a different site →</Link>
+        </p>
+      ) : (
       <form
         onSubmit={(e) => { track('url_submitted'); void brand.generate(e); }}
         className="rise mt-10 flex max-w-2xl flex-col sm:flex-row"
@@ -216,6 +242,7 @@ export default function SignatureDemo() {
           {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
         </button>
       </form>
+      )}
       {brand.note && <p className="mt-3 text-sm text-muted" role="status">{brand.note}</p>}
 
       {/* studio: editor (left) + live preview (right, sticky on desktop) so every
@@ -517,14 +544,34 @@ export default function SignatureDemo() {
                 Everyone, on brand, from one URL.
               </h2>
               <p className="mt-2 text-muted">
-                Send teammates the link below — your brand is already loaded, they just
-                add their own name and copy. Want it fully automated (one sign-in, every
-                signature deployed for you)? Leave your email below.
+                {concierge ? (
+                  <>
+                    We set every teammate up for you — one flat fee, no sign-in, no IT
+                    ticket. Prefer to do it yourself? Copy the team link instead.
+                  </>
+                ) : (
+                  <>
+                    Send teammates the link below — your brand is already loaded, they just
+                    add their own name and copy. Want it fully automated (one sign-in, every
+                    signature deployed for you)? Leave your email below.
+                  </>
+                )}
               </p>
             </div>
             <div className="flex w-full max-w-sm flex-col gap-6">
               <div>
-                <span className={label}>Share with your team</span>
+                {/* concierge: the paid ask leads and is the only filled button, so the
+                    page measures willingness to pay, not interest. */}
+                {concierge && process.env.NEXT_PUBLIC_CONCIERGE_URL && (
+                  <a
+                    href={process.env.NEXT_PUBLIC_CONCIERGE_URL}
+                    onClick={() => track('team_cta_clicked', { placement: 'concierge_primary' })}
+                    className={`${btn} mb-6 w-full bg-accent text-paper hover:bg-accent-deep`}
+                  >
+                    Set up my whole team — $99
+                  </a>
+                )}
+                <span className={label}>{concierge ? 'Or do it yourself' : 'Share with your team'}</span>
                 <button
                   onClick={async () => {
                     await navigator.clipboard.writeText(makeShareUrl(brand.kit, brand.roles, brand.font));
@@ -536,7 +583,7 @@ export default function SignatureDemo() {
                 >
                   {teamLinkCopied ? '✓ Copied' : 'Copy team link'}
                 </button>
-                {process.env.NEXT_PUBLIC_CONCIERGE_URL && (
+                {!concierge && process.env.NEXT_PUBLIC_CONCIERGE_URL && (
                   <a
                     href={process.env.NEXT_PUBLIC_CONCIERGE_URL}
                     onClick={() => track('team_cta_clicked', { placement: 'demo_rollout' })}
@@ -551,7 +598,7 @@ export default function SignatureDemo() {
               ) : (
                 <form onSubmit={submitWaitlist} noValidate>
                   <label>
-                    <span className={label}>Work email — notify me at launch</span>
+                    <span className={label}>{concierge ? 'Not ready? Send me the details' : 'Work email — notify me at launch'}</span>
                     <div className="mt-2 flex items-end gap-3">
                       <input
                         type="email"
@@ -568,7 +615,12 @@ export default function SignatureDemo() {
                         aria-label="Work email address"
                         className={`${field} flex-1`}
                       />
-                      <button disabled={sending} className={`${btn} bg-accent text-paper hover:bg-accent-deep`}>
+                      {/* concierge: the $99 button owns the one vermilion stamp on this
+                          page (One Stamp rule), so the fallback ask goes quiet. */}
+                      <button
+                        disabled={sending}
+                        className={`${btn} ${concierge ? 'border border-line text-ink hover:border-accent hover:text-accent' : 'bg-accent text-paper hover:bg-accent-deep'}`}
+                      >
                         {sending ? 'Saving…' : 'Notify me'}
                       </button>
                     </div>

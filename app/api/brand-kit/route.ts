@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
+import { Ratelimit } from '@upstash/ratelimit';
 import { scrapeSite } from '@/lib/scrape-site';
 import { extractBrandKit } from '@/lib/extract-brand-kit';
 import { NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
@@ -8,6 +10,15 @@ type CacheEntry = { brandKit: BrandKit; contact: Partial<SignatureFields>; confi
 // module-level Map survives across requests in the same Node.js process
 const cache = new Map<string, CacheEntry>();
 const TTL = 60 * 60 * 1000; // 1 hour
+
+// ─── Durable store ───────────────────────────────────────────────────────
+// Upstash Redis (Vercel Marketplace) — env names are KV_*, not UPSTASH_*, so
+// Redis.fromEnv() does not apply here. Absent env = local dev without the
+// integration: everything below falls back to the in-process Maps.
+const redis =
+  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+    ? new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN })
+    : null;
 
 // ─── Rate limiter ────────────────────────────────────────────────────────
 // 10 generations/hour, 25/day per IP (launch-week bump; was 3/10).
@@ -25,6 +36,31 @@ function getClientIp(req: Request): string {
   const real = req.headers.get('x-real-ip');
   if (real) return real.trim();
   return 'local';
+}
+
+// Durable limiters. One shared counter across every lambda instance, so the
+// quota below is the real ceiling — the in-process Map version multiplied it by
+// the instance count. ephemeralCache short-circuits an already-blocked IP
+// without a round trip.
+const limiters = redis
+  ? {
+      hour: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(HOUR_LIMIT, '1 h'), prefix: 'bk:h', ephemeralCache: new Map(), analytics: false }),
+      day: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(DAY_LIMIT, '24 h'), prefix: 'bk:d', ephemeralCache: new Map(), analytics: false }),
+    }
+  : null;
+
+async function checkRateDurable(ip: string): Promise<boolean> {
+  if (!limiters) return checkRate(ip);
+  try {
+    const [h, d] = await Promise.all([limiters.hour.limit(ip), limiters.day.limit(ip)]);
+    return h.success && d.success;
+  } catch (err) {
+    // ponytail: Redis outage falls back to the per-instance Map. It fails open
+    // to a looser ceiling rather than blocking every generation. Swap to
+    // `return false` if protecting the credit balance outranks availability.
+    console.error('rate limiter unavailable, using in-process fallback:', err);
+    return checkRate(ip);
+  }
 }
 
 function checkRate(ip: string): boolean {
@@ -63,15 +99,26 @@ export async function POST(req: Request) {
   }
 
   const key = normalizeUrl(url);
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.ts < TTL) {
+  // L1: same-instance Map (free). L2: Redis, shared by every instance — this is
+  // what stops a repeat URL from re-scraping after a cold start (~5 credits).
+  let cached = cache.get(key);
+  if (cached && Date.now() - cached.ts >= TTL) cached = undefined;
+  if (!cached && redis) {
+    try {
+      const hit = await redis.get<CacheEntry>(`bk:kit:${key}`);
+      if (hit) { cached = hit; cache.set(key, hit); }
+    } catch (err) {
+      console.error('cache read failed, treating as miss:', err);
+    }
+  }
+  if (cached) {
     return NextResponse.json({ brandKit: cached.brandKit, contact: cached.contact, confidence: cached.confidence, finalUrl: cached.finalUrl, fallback: false, cached: true });
   }
 
   // Rate-limit check: protects Firecrawl/Gemini budget from bots.
   // Returns neutral fallback (HTTP 200) so the UI always renders.
   const ip = getClientIp(req);
-  if (!checkRate(ip)) {
+  if (!(await checkRateDurable(ip))) {
     return NextResponse.json({ brandKit: NEUTRAL_BRAND_KIT, contact: {}, fallback: true, rateLimited: true });
   }
 
@@ -99,7 +146,9 @@ export async function POST(req: Request) {
       pageTitle: scraped.pageTitle,
       fcJson: scraped.fcJson,
     });
-    cache.set(key, { brandKit, contact, confidence, finalUrl, ts: Date.now() });
+    const entry: CacheEntry = { brandKit, contact, confidence, finalUrl, ts: Date.now() };
+    cache.set(key, entry);
+    if (redis) await redis.set(`bk:kit:${key}`, entry, { ex: TTL / 1000 }).catch((err) => console.error('cache write failed:', err));
     return NextResponse.json({ brandKit, contact, confidence, finalUrl, fallback: false, source });
   } catch (err) {
     console.error('extraction failed — salvaging scrape metadata:', err);
