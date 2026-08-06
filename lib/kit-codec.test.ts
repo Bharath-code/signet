@@ -58,14 +58,35 @@ describe('kit codec', () => {
     expect(decodeKitParam(legacy.replace(/\+/g, ' '))?.brandKit.companyName).toBe(name);
   });
 
-  it('rejects non-http(s) contact links and malformed payloads', () => {
+  it('drops a non-http(s) contact link but keeps the rest of the kit', () => {
     const evil = encodeKitParam({
       brandKit: kit,
-      contact: { linkedin: 'javascript:alert(1)' } as Partial<SignatureFields>,
+      contact: { fullName: 'Ada', linkedin: 'javascript:alert(1)' } as Partial<SignatureFields>,
     });
-    expect(decodeKitParam(evil)).toBeNull();
+    const got = decodeKitParam(evil);
+    expect(got?.fields.linkedin).toBe('');
+    expect(got?.fields.fullName).toBe('Ada');
+  });
+
+  it('rejects malformed payloads', () => {
     expect(decodeKitParam('not-base64!!!')).toBeNull();
     expect(decodeKitParam(Buffer.from('{"brandKit":{}}').toString('base64url'))).toBeNull();
+  });
+
+  it('round-trips hand-typed editor fields, completing a bare domain', () => {
+    const got = decodeKitParam(encodeKitParam({
+      brandKit: kit,
+      contact: {
+        fullName: 'Ada Lovelace', jobTitle: 'Founder',
+        email: 'ada@example.com', phone: '+44 20 7946 0000',
+        website: 'example.com', linkedin: 'linkedin.com/in/ada',
+      } as Partial<SignatureFields>,
+    }));
+    expect(got?.fields.fullName).toBe('Ada Lovelace');
+    expect(got?.fields.email).toBe('ada@example.com');
+    expect(got?.fields.phone).toBe('+44 20 7946 0000');
+    expect(got?.fields.website).toBe('https://example.com');
+    expect(got?.fields.linkedin).toBe('https://linkedin.com/in/ada');
   });
 
   it('defaults ctaText from the job title when absent', () => {

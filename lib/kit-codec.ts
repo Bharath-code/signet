@@ -31,11 +31,24 @@ const hex = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
 
 // Only accept http(s) — blocks javascript:/data: in href sinks.
 const httpUrl = z.string().url().refine((u) => /^https?:\/\//i.test(u), 'must be http(s)');
+// Editor fields are typed by hand, so a link field often arrives as a bare
+// domain ("company.com" — that is literally the placeholder). Add the scheme
+// before .url() sees it, otherwise a valid signature encodes into a link that
+// fails to decode.
+const urlish = z.preprocess(
+  // Only a string with no scheme at all is completed. "javascript:alert(1)"
+  // keeps its scheme and still fails httpUrl below.
+  (v) => (typeof v === 'string' && v !== '' && !/^[a-z][a-z0-9+.-]*:/i.test(v) ? `https://${v}` : v),
+  httpUrl,
+);
+
 // Extraction leaves missing fields as '' (not undefined) — treat '' as "absent"
 // rather than failing .url()/.email() validation on it.
+// .catch('') keeps the failure per-field: one unparseable value drops that field
+// instead of voiding the whole kit and dumping the recipient on a neutral demo.
 const orBlank = <T extends z.ZodTypeAny>(schema: T) =>
-  z.union([z.literal(''), schema]).optional().default('');
-const shortStr = (max: number) => z.string().max(max).optional().default('');
+  z.union([z.literal(''), schema]).optional().default('').catch('');
+const shortStr = (max: number) => z.string().max(max).optional().default('').catch('');
 
 const contactSchema = z.object({
   fullName:  shortStr(120),
@@ -43,9 +56,9 @@ const contactSchema = z.object({
   ctaText:   shortStr(80),
   email:     orBlank(z.string().email().max(254)),
   phone:     shortStr(40),
-  website:   orBlank(httpUrl),
-  linkedin:  orBlank(httpUrl),
-  github:    orBlank(httpUrl),
+  website:   orBlank(urlish),
+  linkedin:  orBlank(urlish),
+  github:    orBlank(urlish),
   x:         shortStr(80),   // x.com handles aren't always full URLs in older extractions
   discord:   shortStr(120),
 });

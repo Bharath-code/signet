@@ -14,18 +14,30 @@ import type { Roles } from '@/lib/render-signature';
 import type { SignatureFields, ToggleableField, FieldConfidence } from '@/lib/types';
 import type { BrandKit } from '@/lib/types';
 
-// Encode brand kit into a shareable URL — personal fields left blank so each
-// teammate fills in their own name/title/email. roles + font carry the user's
-// edits (they live outside BrandKit). Same ?kit= param the outreach script
-// writes; kit-codec validates on the way back in.
+// Encode brand kit into a shareable URL. There is no server-side store, so the
+// URL is the only state: anything not encoded here is lost when the recipient
+// opens the link in another browser.
+// `contact` is opt-in. The team link omits it (each teammate fills in their own
+// name/title/email); the outreach link includes it, so a lead opens the exact
+// signature that was built for them. roles + font always ride along — they hold
+// the user's colour/font edits and live outside BrandKit.
+// Same ?kit= param the outreach script writes; kit-codec validates on the way in.
+// ponytail: layout choice and per-field Shown/Hidden toggles are not encoded;
+// add them to kit-codec if a recipient ever reports losing those.
 // Always /signature: a teammate has the kit already, so they need the editor,
 // not the URL box. Keeping them off /app means a team rollout costs no credits.
 // `from` carries the site the kit was read from. It drives the "extracted"
 // labels and the paid CTA on the far side, so a copied link behaves like an
 // outreach link instead of looking like an unverified demo kit.
-function makeShareUrl(kit: BrandKit, roles: Roles, font: string, siteUrl: string): string {
+function makeShareUrl(
+  kit: BrandKit,
+  roles: Roles,
+  font: string,
+  siteUrl: string,
+  contact?: Partial<SignatureFields>,
+): string {
   const from = siteUrl ? `from=${encodeURIComponent(siteUrl)}&` : '';
-  return `${window.location.origin}/signature?${from}kit=${encodeKitParam({ brandKit: kit, roles, font })}`;
+  return `${window.location.origin}/signature?${from}kit=${encodeKitParam({ brandKit: kit, contact, roles, font })}`;
 }
 
 type FieldDef = { key: keyof SignatureFields; label: string; type?: string; placeholder?: string };
@@ -118,9 +130,20 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState('');
-  const [teamLinkCopied, setTeamLinkCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState<'team' | 'filled' | null>(null);
 
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
+
+  const copyShareLink = async (kind: 'team' | 'filled') => {
+    const url = makeShareUrl(
+      brand.kit, brand.roles, brand.font, brand.siteUrl,
+      kind === 'filled' ? brand.fields : undefined,
+    );
+    await navigator.clipboard.writeText(url);
+    setLinkCopied(kind);
+    track('team_link_copied', { kind });
+    setTimeout(() => setLinkCopied(null), 2000);
+  };
 
   // If kit was NOT preloaded, auto-fetch it from the ?from= URL.
   // useRef guards against React strict-mode double-fire.
@@ -551,13 +574,14 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                 {concierge ? (
                   <>
                     We set every teammate up for you — one flat fee, no sign-in, no IT
-                    ticket. Prefer to do it yourself? Copy the team link instead.
+                    ticket. Prefer to do it yourself? Copy a link below instead.
                   </>
                 ) : (
                   <>
-                    Send teammates the link below — your brand is already loaded, they just
-                    add their own name and copy. Want it fully automated (one sign-in, every
-                    signature deployed for you)? Leave your email below.
+                    Copy the link with these details to send someone their finished
+                    signature, or the blank team link so each teammate adds their own name.
+                    Want it fully automated (one sign-in, every signature deployed for
+                    you)? Leave your email below.
                   </>
                 )}
               </p>
@@ -577,15 +601,16 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                 )}
                 <span className={label}>{concierge ? 'Or do it yourself' : 'Share with your team'}</span>
                 <button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(makeShareUrl(brand.kit, brand.roles, brand.font, brand.siteUrl));
-                    setTeamLinkCopied(true);
-                    track('team_link_copied');
-                    setTimeout(() => setTeamLinkCopied(false), 2000);
-                  }}
-                  className={`${btn} mt-2 w-full ${teamLinkCopied ? 'bg-accent text-paper' : 'border border-line text-ink hover:border-accent hover:text-accent'}`}
+                  onClick={() => copyShareLink('filled')}
+                  className={`${btn} mt-2 w-full ${linkCopied === 'filled' ? 'bg-accent text-paper' : 'border border-line text-ink hover:border-accent hover:text-accent'}`}
                 >
-                  {teamLinkCopied ? '✓ Copied' : 'Copy team link'}
+                  {linkCopied === 'filled' ? '✓ Copied' : 'Copy link with these details'}
+                </button>
+                <button
+                  onClick={() => copyShareLink('team')}
+                  className={`${btn} mt-2 w-full ${linkCopied === 'team' ? 'bg-accent text-paper' : 'border border-line text-ink hover:border-accent hover:text-accent'}`}
+                >
+                  {linkCopied === 'team' ? '✓ Copied' : 'Copy blank team link'}
                 </button>
                 {!concierge && process.env.NEXT_PUBLIC_CONCIERGE_URL && (
                   <a
