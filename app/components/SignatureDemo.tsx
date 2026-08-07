@@ -48,6 +48,7 @@ const TABS: { id: string; label: string; fields: FieldDef[] }[] = [
       { key: 'fullName', label: 'Full name' },
       { key: 'jobTitle', label: 'Job title' },
       { key: 'ctaText', label: 'Button text', placeholder: 'Visit website →' },
+      { key: 'ctaUrl', label: 'Button link', placeholder: 'calendly.com/you/30min' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'phone', label: 'Phone' },
     ],
@@ -75,9 +76,9 @@ const confidenceLabel = (c?: FieldConfidence): string | null => {
 };
 
 // name + title always render; everything else is a visibility toggle.
-// ctaText is also excluded — it's always editable, not a show/hide toggle.
+// ctaText/ctaUrl are also excluded — always editable, not show/hide toggles.
 const isToggleable = (k: keyof SignatureFields): k is ToggleableField =>
-  k !== 'fullName' && k !== 'jobTitle' && k !== 'ctaText';
+  k !== 'fullName' && k !== 'jobTitle' && k !== 'ctaText' && k !== 'ctaUrl';
 
 const label = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted';
 const field =

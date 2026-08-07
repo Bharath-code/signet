@@ -7,7 +7,7 @@ const kit: BrandKit = {
   primaryColor: '#1a2b3c', secondaryColor: '#aabbcc', fontFamily: 'Inter',
 };
 const fields: SignatureFields = {
-  fullName: 'Alex Rivera', jobTitle: 'Head of Sales', ctaText: 'Schedule a call →',
+  fullName: 'Alex Rivera', jobTitle: 'Head of Sales', ctaText: 'Schedule a call →', ctaUrl: '',
   email: 'alex@company.com', phone: '+1 (555) 012-3456',
   website: '', linkedin: '', github: '', x: '', discord: '',
 };
@@ -33,6 +33,18 @@ describe('renderSignature', () => {
 
   it('logo-cta includes the CTA button copy from fields.ctaText', () => {
     expect(renderSignature(kit, fields, 'logo-cta')).toContain('Schedule a call');
+  });
+
+  it('ctaUrl retargets the button ahead of the site URL', () => {
+    const withCta = { ...fields, ctaUrl: 'https://calendly.com/me/30min' };
+    const html = renderSignature(kit, withCta, 'logo-cta', 'https://acme.test');
+    expect(html).toContain('https://calendly.com/me/30min');
+    expect(html).not.toContain('href="https://acme.test"');
+  });
+
+  it('rejects a non-http ctaUrl instead of rendering it', () => {
+    const bad = { ...fields, ctaUrl: 'javascript:alert(1)' };
+    expect(renderSignature(kit, bad, 'logo-cta')).not.toContain('javascript:');
   });
 
   it('minimal does NOT include the logo image', () => {

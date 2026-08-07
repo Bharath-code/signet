@@ -12,7 +12,7 @@ const kit: BrandKit = {
 
 // what useBrandKit produces after extraction — missing fields are '', not undefined
 const extractedFields: SignatureFields = {
-  fullName: 'Jane Doe', jobTitle: 'CEO', ctaText: 'Book a demo →',
+  fullName: 'Jane Doe', jobTitle: 'CEO', ctaText: 'Book a demo →', ctaUrl: '',
   email: '', phone: '', website: 'https://acme.com/',
   linkedin: '', github: '', x: '', discord: '',
 };

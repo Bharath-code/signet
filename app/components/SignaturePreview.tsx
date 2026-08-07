@@ -76,7 +76,7 @@ export function SignaturePreview({ kit, fields, layout, label, height, font, sit
         <iframe
           key={frameKey}
           title={label}
-          sandbox="allow-popups"
+          sandbox="allow-popups allow-popups-to-escape-sandbox"
           style={{ height }}
           className="sig-frame block w-full bg-white"
           srcDoc={frameDoc(html)}

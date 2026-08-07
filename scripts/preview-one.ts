@@ -29,6 +29,7 @@ async function main() {
     fullName: contact.fullName  ?? brandKit.companyName,
     jobTitle: contact.jobTitle  ?? '',
     ctaText:  ctaTextForRole(contact.jobTitle ?? ''),
+    ctaUrl:  '',
     email:    contact.email     ?? '',
     phone:    contact.phone     ?? '',
     website:  contact.website   ?? s.finalUrl,

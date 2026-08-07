@@ -54,6 +54,7 @@ const contactSchema = z.object({
   fullName:  shortStr(120),
   jobTitle:  shortStr(120),
   ctaText:   shortStr(80),
+  ctaUrl:    orBlank(urlish),
   email:     orBlank(z.string().email().max(254)),
   phone:     shortStr(40),
   website:   orBlank(urlish),
@@ -106,6 +107,7 @@ export function decodeKitParam(raw: string): DecodedKit | null {
     const fields: SignatureFields = {
       fullName: c.fullName, jobTitle: c.jobTitle,
       ctaText: c.ctaText || ctaTextForRole(c.jobTitle),
+      ctaUrl: c.ctaUrl,
       email: c.email, phone: c.phone, website: c.website,
       linkedin: c.linkedin, github: c.github, x: c.x, discord: c.discord,
     };
