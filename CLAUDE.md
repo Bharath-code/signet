@@ -20,6 +20,26 @@ npx vitest -t "minimal"                        # single test by name
 
 There is no ESLint setup (scaffolded with `--no-eslint`); `npm run build` is the type gate.
 
+## Outreach scripts
+
+`scripts/outreach.ts` runs the real pipeline offline and emits a gallery plus a CSV tracker into `outreach/` (gitignored — it holds real names and lead lists). Every link it emits points at `/signature?…&kit=`, never `/app`, so a recipient can reload forever at zero Firecrawl cost.
+
+```bash
+npx tsx scripts/outreach.ts                        # 50 latest Show HN sites
+npx tsx scripts/outreach.ts --file urls.txt        # one URL per line
+npx tsx scripts/outreach.ts --screenshot           # also render outreach/<slug>.png
+npx tsx scripts/outreach.ts --url site.com --roster outreach/team.txt   # roster mode
+```
+
+**Roster mode** is for one company with a public team page. It scrapes the site **once**, then renders one card per person in the roster file (`Name, Title, email?` per line; `#` comments and blank lines skipped). N people cost ~5 credits total, not 5 each. `--roster` requires `--url`.
+
+Two reasons it exists, both worth preserving:
+
+- **It removes the intake step.** `docs/concierge-pitch.md` says to ask the buyer for a team roster. When the roster is already published you can build the cards *before* the first email, which is a far stronger pitch than a single-user demo.
+- **It fixes the stranger-in-the-signature bug.** A `/app?from=<domain>` link re-scrapes on click, and the vision pass can fill `fullName`/`linkedin` with whoever it found on the page — a real person unrelated to the recipient. Roster mode sets every contact field explicitly and encodes them in `?kit=`, so nothing is scraped at click time and unset social fields stay empty. **Do not "improve" roster mode by falling back to extracted contact data.** The empty field is the feature.
+
+Always open `outreach/index.html` and check each card before sending. Nothing here validates that a name or title is correct — the gallery is the only check.
+
 ## Environment
 
 Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a tracked placeholder template; putting real keys there both fails to load and risks committing them):

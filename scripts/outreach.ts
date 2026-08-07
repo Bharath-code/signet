@@ -6,6 +6,11 @@
 //   npx tsx scripts/outreach.ts --file urls.txt           # one URL per line instead of HN
 //   npx tsx scripts/outreach.ts --screenshot              # also render outreach/<slug>.png per target
 //
+//   npx tsx scripts/outreach.ts --url moritzlegal.com --roster outreach/moritz.txt
+//     Roster mode: scrape ONE site, then build a card per person on the list
+//     ("Name, Title, email?" per line). One scrape, N links — for a team whose
+//     people page is public, so no roster has to be requested before the pitch.
+//
 // Output → outreach/index.html (gallery) + outreach/outreach.csv (tracker)
 //          + outreach/*.png when --screenshot is passed (paste straight into email client)
 
@@ -23,6 +28,8 @@ const flag = (f: string) => process.argv.includes(f);
 const arg = (f: string) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : undefined; };
 const LIMIT = Number(arg('--limit') ?? 50);
 const FILE = arg('--file');
+const URL_ARG = arg('--url');
+const ROSTER = arg('--roster');
 const SCREENSHOT = flag('--screenshot');
 // Set SIGNET_URL in .env.local (e.g. https://signet.app) for production links.
 // Falls back to localhost for local testing.
@@ -81,7 +88,21 @@ design team made it, took ten seconds, no signup.
 — Bharath`;
 }
 
-type Row = { company: string; name: string; email: string; url: string; sig: string; mail: string };
+type Row = { company: string; name: string; email: string; url: string; link: string; sig: string; mail: string };
+
+type Person = { fullName: string; jobTitle: string; email: string };
+
+// "Name, Title, email?" per line. Blank lines and # comments are skipped, so a
+// public team page can be pasted in and tidied rather than retyped.
+function readRoster(path: string): Person[] {
+  return readFileSync(path, 'utf8').split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'))
+    .map((l) => {
+      const [fullName, jobTitle = '', email = ''] = l.split(',').map((s) => s.trim());
+      return { fullName, jobTitle, email };
+    });
+}
 
 type Pipeline = {
   scrapeSite: typeof import('../lib/scrape-site').scrapeSite;
@@ -108,6 +129,7 @@ async function build(url: string, p: Pipeline): Promise<Row | null> {
     };
     return {
       company: brandKit.companyName, name: contact.fullName ?? '', email: contact.email ?? '', url: s.finalUrl,
+      link: signetLink(s.finalUrl, brandKit, contact),
       sig: renderSignature(brandKit, fields, 'logo', s.finalUrl),
       mail: draftEmail(brandKit.companyName, contact.fullName, s.finalUrl, brandKit, contact),
     };
@@ -115,6 +137,39 @@ async function build(url: string, p: Pipeline): Promise<Row | null> {
     console.warn(`skip ${url}: ${(e as Error).message}`);
     return null;
   }
+}
+
+// One scrape, one brand kit, N cards. Only the per-person fields vary, so
+// re-running the pipeline per teammate would burn ~5 credits each for an
+// identical kit. Throws like build() does not — a roster run is one target, and
+// a silent skip would leave the caller with an empty gallery and no reason why.
+async function buildRoster(url: string, people: Person[], p: Pipeline): Promise<Row[]> {
+  const { scrapeSite, extractBrandKit, renderSignature } = p;
+  const s = await scrapeSite(url);
+  const { brandKit } = await extractBrandKit(s.html, s.screenshotUrl, {
+    links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets, cssVars: s.cssVars,
+  });
+  return people.map((person) => {
+    const contact: Partial<SignatureFields> = {
+      fullName: person.fullName, jobTitle: person.jobTitle,
+      email: person.email, website: s.finalUrl,
+    };
+    const fields: SignatureFields = {
+      fullName: person.fullName,
+      jobTitle: person.jobTitle,
+      ctaText: ctaTextForRole(person.jobTitle),
+      ctaUrl: '',
+      email: person.email, phone: '',
+      website: s.finalUrl,
+      linkedin: '', github: '', x: '', discord: '',
+    };
+    return {
+      company: brandKit.companyName, name: person.fullName, email: person.email, url: s.finalUrl,
+      link: signetLink(s.finalUrl, brandKit, contact),
+      sig: renderSignature(brandKit, fields, 'logo', s.finalUrl),
+      mail: '', // the pitch is one email to the decision-maker, not one per person
+    };
+  });
 }
 
 // ponytail: 4-wide pool, not a queue lib — keeps Firecrawl/Gemini from being hammered.
@@ -153,35 +208,43 @@ async function screenshotSignatures(rows: Row[]): Promise<void> {
 
 const cell = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
-function gallery(rows: Row[]): string {
+function gallery(rows: Row[], roster: boolean): string {
   const cards = rows.map((r) => `
     <section style="border:1px solid #ddd;border-radius:8px;padding:24px;margin:16px 0">
-      <h2 style="font:600 18px sans-serif;margin:0 0 4px">${r.company}</h2>
+      <h2 style="font:600 18px sans-serif;margin:0 0 4px">${r.name || r.company}</h2>
       <a href="${r.url}" style="font:13px monospace;color:#666">${domain(r.url)}</a>
       <div style="background:#fff;border:1px solid #eee;border-radius:6px;padding:20px;margin:12px 0">${r.sig}</div>
-      <textarea readonly style="width:100%;height:170px;font:13px monospace;padding:10px;border:1px solid #ddd;border-radius:6px">${r.mail}</textarea>
+      <textarea readonly style="width:100%;height:${r.mail ? 170 : 56}px;font:13px monospace;padding:10px;border:1px solid #ddd;border-radius:6px">${r.mail || r.link}</textarea>
     </section>`).join('');
   return `<!doctype html><meta charset="utf-8"><title>Outreach batch</title>
     <body style="max-width:680px;margin:40px auto;padding:0 16px;background:#fafafa">
-    <h1 style="font:700 24px sans-serif">${rows.length} targets — screenshot each signature, paste the email</h1>${cards}`;
+    <h1 style="font:700 24px sans-serif">${roster
+      ? `${rows.length} cards — check every one, then paste its link into the email`
+      : `${rows.length} targets — screenshot each signature, paste the email`}</h1>${cards}`;
 }
 
 async function main() {
-  const urls = FILE ? fileUrls(FILE, LIMIT) : await showHnUrls(LIMIT);
-  console.log(`Processing ${urls.length} sites…`);
+  if (ROSTER && !URL_ARG) throw new Error('--roster needs --url <site> — the roster says who, the URL says whose brand');
+  const urls = URL_ARG ? [URL_ARG] : FILE ? fileUrls(FILE, LIMIT) : await showHnUrls(LIMIT);
+  const people = ROSTER ? readRoster(ROSTER) : [];
+  console.log(ROSTER ? `Building ${people.length} cards from ${urls[0]}…` : `Processing ${urls.length} sites…`);
   const [scrape, extract, render] = await Promise.all([
     import('../lib/scrape-site'), import('../lib/extract-brand-kit'), import('../lib/render-signature'),
   ]);
   const p: Pipeline = { scrapeSite: scrape.scrapeSite, extractBrandKit: extract.extractBrandKit, renderSignature: render.renderSignature };
-  const rows = (await pool(urls, 4, (u) => build(u, p))).filter((r): r is Row => r !== null);
+  const rows = ROSTER
+    ? await buildRoster(urls[0], people, p)
+    : (await pool(urls, 4, (u) => build(u, p))).filter((r): r is Row => r !== null);
 
   mkdirSync('outreach', { recursive: true });
-  writeFileSync('outreach/index.html', gallery(rows));
-  const csv = ['company,name,email,url,replied,signed_up',
-    ...rows.map((r) => [r.company, r.name, r.email, r.url, '', ''].map(cell).join(','))].join('\n');
+  writeFileSync('outreach/index.html', gallery(rows, !!ROSTER));
+  const csv = ['company,name,email,url,link,replied,signed_up',
+    ...rows.map((r) => [r.company, r.name, r.email, r.url, r.link, '', ''].map(cell).join(','))].join('\n');
   writeFileSync('outreach/outreach.csv', csv);
 
-  console.log(`✓ ${rows.length}/${urls.length} built → open outreach/index.html, track in outreach/outreach.csv`);
+  // roster mode is N people from 1 site, so "n/urls.length" would read "4/1"
+  const built = ROSTER ? `${rows.length} cards` : `${rows.length}/${urls.length}`;
+  console.log(`✓ ${built} built → open outreach/index.html, track in outreach/outreach.csv`);
 
   if (SCREENSHOT && rows.length) {
     console.log('Rendering PNGs…');
