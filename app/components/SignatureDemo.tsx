@@ -607,12 +607,18 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                 >
                   {linkCopied === 'filled' ? '✓ Copied' : 'Copy link with these details'}
                 </button>
-                <button
-                  onClick={() => copyShareLink('team')}
-                  className={`${btn} mt-2 w-full ${linkCopied === 'team' ? 'bg-accent text-paper' : 'border border-line text-ink hover:border-accent hover:text-accent'}`}
-                >
-                  {linkCopied === 'team' ? '✓ Copied' : 'Copy blank team link'}
-                </button>
+                {/* concierge: no blank team link. It rolls a whole team out for
+                    free, which is the paid ask on this same page — the page has to
+                    measure willingness to pay, not hand over the product. /app
+                    keeps it: that's the self-serve product. */}
+                {!concierge && (
+                  <button
+                    onClick={() => copyShareLink('team')}
+                    className={`${btn} mt-2 w-full ${linkCopied === 'team' ? 'bg-accent text-paper' : 'border border-line text-ink hover:border-accent hover:text-accent'}`}
+                  >
+                    {linkCopied === 'team' ? '✓ Copied' : 'Copy blank team link'}
+                  </button>
+                )}
                 {!concierge && process.env.NEXT_PUBLIC_CONCIERGE_URL && (
                   <a
                     href={process.env.NEXT_PUBLIC_CONCIERGE_URL}
