@@ -39,7 +39,7 @@
 
 | # | Founder(s) | Company | Team | Why | Angle |
 |---|-----------|---------|------|-----|-------|
-| 11 | **Pamir Ehsas, Stefan Mandaric** | [moritzlegal.com](https://moritzlegal.com) — AI-native law firm (rebranded from Arcline, $9M seed) | 2 | 50+ startup customers, all acquired/served over email. A law-firm replacement MUST look more polished than a law firm. | "Your clients judge legal work by its presentation" |
+| 11 | **Pamir Ehsas, Stefan Mandaric** | [moritzlegal.com](https://moritzlegal.com) — AI-native law firm (rebranded from Arcline, $9M seed) | **29** | 29 lawyers across ~12 countries (verified on `/lawyers`, 2026-08-07) and hiring. 50+ startup customers served over email. A law-firm replacement MUST look more polished than a law firm. | "29 lawyers, 29 different sign-offs" — team tier, **$199** not $99 |
 | 12 | **Ryan Walker, Javed Qadrud-Din, JP Mohler** | [general.legal](https://general.legal) — AI contract-review law firm, $500 flat-fee/contract | 3 | 100+ growth-stage clients, $1M ARR in-batch. Flat-fee pitch = they get compared to real firms on professionalism. | Same flat-fee no-subscription philosophy as your $99 tier — mirror it in the pitch |
 | 13 | **Matthew Asir, Rachel Asir, Claire Jutabha** | [legalos.ai](https://legalos.ai) — AI immigration law firm (O-1/H-1B) | 3 | Visa applicants trust signals matter enormously; every client interaction is email. | "100% approval rate deserves a 100% professional inbox presence" |
 | 14 | **Iqbol Temirkhojaev** | [wayco.ai](https://wayco.ai) — Voice AI for medlegal intake | 1 | Solo founder emailing law firms — free-demo target, upsell later. | Solo → free demo first |
@@ -52,9 +52,13 @@
 | 16 | **Tasklet** (S26) | Cloud agent across business apps | B2B sales motion, email-heavy |
 | 17 | **Ploy** (S26) | AI agents that operate company websites | They pitch "your website matters" — signature is the same pitch for email |
 
-**Email guesses:** `pamir@moritzlegal.com`, `ryan@general.legal`, `matthew@legalos.ai`, `iqbol@wayco.ai`. Bounce → X/LinkedIn DM per `docs/outreach-playbook.md`.
+**Emails:** `pamir@live.no` (Pamir Ehsas, verified — personal, not a guess), `ryan@general.legal`, `matthew@legalos.ai`, `iqbol@wayco.ai` (guesses). Bounce → X/LinkedIn DM per `docs/outreach-playbook.md`.
 
 ### Sample email — Moritz (adapt for 12–14)
+
+> **Superseded for Moritz.** They are 29 lawyers, so the single-user pitch below
+> undersells them. Send the four-card version in `docs/outreach-send-today.md` instead.
+> The template below is still correct for leads 12–14, which are 1–3 people.
 
 **Subject:** moritzlegal.com → your brand, auto-extracted
 

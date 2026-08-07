@@ -6,7 +6,7 @@ import { useBrandKit, LAYOUTS, PRESETS } from './useBrandKit';
 import { SignaturePreview } from './SignaturePreview';
 import { InstallInstructions } from './InstallInstructions';
 import { BrandMark } from './Logo';
-import { track } from './track';
+import { track, identify } from './track';
 import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
 import { toEmailSafeFont as fontMatch } from '@/lib/email-fonts';
 import { encodeKitParam, decodeKitParam } from '@/lib/kit-codec';
@@ -150,6 +150,11 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
   // useRef guards against React strict-mode double-fire.
   const didAutoGenerate = useRef(false);
   useEffect(() => {
+    // Name the click before any event fires. The recipient's email rides in
+    // ?kit=, so a roster link is person-level; a company link falls back to the
+    // domain. Both beat an anonymous session ID we can never match to a reply.
+    const who = preloaded?.fields?.email || fromParam;
+    if (who) identify(who, { outreach_domain: fromParam ?? '', outreach_person: !!preloaded?.fields?.email });
     if (fromParam && !preloaded && !didAutoGenerate.current) {
       didAutoGenerate.current = true;
       track('outreach_click', { url: fromParam });

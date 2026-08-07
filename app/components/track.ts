@@ -35,6 +35,19 @@ export function track(name: string, props?: string | Record<string, unknown>) {
   }
 }
 
+// Name the anonymous visitor. Every outreach link carries the recipient's own
+// contact data inside ?kit=, so a cold-email click is already identifiable —
+// no visitor de-anonymisation vendor needed. Call before the first track().
+// ponytail: identity comes from the link, not a reverse-IP service.
+export function identify(id: string, props?: Record<string, unknown>) {
+  if (typeof window === 'undefined' || !id) return;
+  try {
+    posthog.identify(id, props);
+  } catch {
+    // analytics must never break the product
+  }
+}
+
 // Register super properties — persisted by PostHog and attached to every
 // subsequent event. Used for the logo A/B split so the existing funnel can be
 // broken down by `logo_variant` with no call-site changes.

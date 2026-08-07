@@ -152,6 +152,12 @@ Track after sending 100 outreach emails:
 
 **Key insight:** Email signatures are set-and-forget. Monthly subscriptions for individuals will churn at month 2 because the job is already done. One-time pricing matches the product's nature. Subscriptions only make sense for the Team tier where the admin has ongoing jobs.
 
+### Widen the outcome (decided 2026-08-07)
+
+Signatures alone sit next to no services budget — nobody pays a salary to maintain them, so the "$1 of software next to $6 of services" math does not apply at this scope. The fix is a wider outcome on the same pipeline: a **team brand rollout** — signatures + deck template + document footer, from one scrape and one `BrandKit`. Price $499 one-time, or $99/mo for updates. The current $99/$199 concierge price is a floor set too low to anchor to in three years.
+
+**Sell it before building it.** Pamir (moritzlegal.com, 29 lawyers) is the first test. Build output two only after one buyer pays for it.
+
 ---
 
 ## The One Thing to Do Today
