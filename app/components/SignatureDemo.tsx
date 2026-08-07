@@ -597,7 +597,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                     onClick={() => track('team_cta_clicked', { placement: 'concierge_primary' })}
                     className={`${btn} mb-6 w-full bg-accent text-paper hover:bg-accent-deep`}
                   >
-                    Set up my whole team — $99
+                    Set up my whole team — from $99
                   </a>
                 )}
                 <span className={label}>{concierge ? 'Or do it yourself' : 'Share with your team'}</span>
