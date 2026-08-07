@@ -94,6 +94,7 @@ async function main() {
         fullName: contact.fullName ?? brandKit.companyName,
         jobTitle: contact.jobTitle ?? 'Founder',
         ctaText: ctaTextForRole(contact.jobTitle ?? 'Founder'),
+        ctaUrl: '',
         email: contact.email ?? `hello@${host}`,
         phone: contact.phone ?? '', website: contact.website ?? s.finalUrl,
         linkedin: contact.linkedin ?? '', github: contact.github ?? '', x: contact.x ?? '', discord: contact.discord ?? '',

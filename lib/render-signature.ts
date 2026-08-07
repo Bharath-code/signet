@@ -122,7 +122,7 @@ function details(kit: BrandKit, f: SignatureFields, roles: Roles): string {
       const href = safeHref(raw);
       if (!href) return '';
       const text = label === 'Website' ? (() => { try { return new URL(href).hostname.replace(/^www\./, ''); } catch { return label; } })() : label;
-      return `<a href="${esc(href)}" style="color:${ink};text-decoration:none">${esc(text)}</a>`;
+      return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" style="color:${ink};text-decoration:none">${esc(text)}</a>`;
     })
     .filter(Boolean);
   const linkLine = links.length
@@ -139,8 +139,8 @@ function details(kit: BrandKit, f: SignatureFields, roles: Roles): string {
 
 function logoCell(kit: BrandKit, roles: Roles): string {
   const accent = esc(roles.accent);
-  return `<td style="padding-right:12px;vertical-align:top;border-right:3px solid ${accent}">
-      <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="40" style="display:block;border:0;max-height:40px;max-width:140px;width:auto;height:auto">
+  return `<td style="padding-right:16px;vertical-align:middle;border-right:3px solid ${accent}">
+      <img src="${esc(kit.logoUrl)}" alt="${esc(kit.companyName)}" height="56" style="display:block;border:0;max-height:56px;max-width:160px;width:auto;height:auto">
     </td>`;
 }
 
@@ -159,7 +159,9 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
   // href sink — scheme-validate like every other link (websiteUrl can arrive
   // from a raw ?from= query param, not just the server's finalUrl). Falls back to
   // the Website field so the button still links somewhere before any extraction.
-  const safeCta = safeHref(websiteUrl || fields.website);
+  // ctaUrl wins when the user sets one (Calendly, a booking page, a doc). It is
+  // the only field that retargets the button, so it comes before the site URL.
+  const safeCta = safeHref(fields.ctaUrl || websiteUrl || fields.website);
   const ctaHref = safeCta ? esc(safeCta) : '#';
   const ctaRow = layout === 'logo-cta'
     ? `<tr>

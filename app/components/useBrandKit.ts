@@ -102,6 +102,7 @@ export function useBrandKit(opts: HookOpts = {}) {
         setFields({
           fullName: c.fullName ?? '', jobTitle: c.jobTitle ?? '',
           ctaText: ctaTextForRole(c.jobTitle ?? ''),
+          ctaUrl: '',
           email: c.email ?? '', phone: c.phone ?? '',
           website: c.website ?? '', linkedin: c.linkedin ?? '',
           github: c.github ?? '', x: c.x ?? '', discord: c.discord ?? '',

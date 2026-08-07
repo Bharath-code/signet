@@ -48,6 +48,7 @@ export const DEMO_FIELDS: SignatureFields = {
   fullName: 'Alex Rivera',
   jobTitle: 'Head of Sales',
   ctaText: 'Schedule a call →',
+  ctaUrl: '',
   email: 'alex@company.com',
   phone: '+1 (555) 012-3456',
   website: 'company.com',
