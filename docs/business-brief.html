@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Signet — Business plate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #131210;
+    --muted: #5E5A52;
+    --paper: #F3F2EC;
+    --paper-deep: #E9E8DF;
+    --card: #FFFFFF;
+    --line: #D8D6CC;
+    --stamp: #E23A1A;
+    --stamp-deep: #BF2E0F;
+    --ease: cubic-bezier(0.32, 0.72, 0, 1);
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --body: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --nav-h: 64px;
+    --tabs-h: 52px;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, [role="tab"], [role="button"], summary, label { cursor: pointer; }
+  ::selection { background: var(--stamp); color: #fff; }
+  :where(a, button, [tabindex], input, [role="tab"], [role="button"]):focus-visible {
+    outline: 2px solid var(--stamp);
+    outline-offset: 2px;
+  }
+
+  /* ── Masthead ─────────────────────────────────────────── */
+  .mast {
+    position: sticky; top: 0; z-index: 40;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    height: var(--nav-h);
+    padding: 0 1.25rem;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+    display: flex; align-items: center; gap: .55rem;
+  }
+  .brand i {
+    width: 10px; height: 10px; background: var(--stamp);
+    display: inline-block; flex: none;
+  }
+  .mast-mid {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .mast-right {
+    justify-self: end;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .mast-right b { color: var(--stamp); font-weight: 500; }
+
+  /* ── View tabs ────────────────────────────────────────── */
+  .tabs {
+    position: sticky; top: var(--nav-h); z-index: 30;
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs [role="tab"] {
+    appearance: none; background: none; border: 0;
+    border-bottom: 2px solid transparent;
+    padding: .9rem 1.25rem .8rem;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    transition: color .2s var(--ease), border-color .2s var(--ease);
+  }
+  .tabs [role="tab"][aria-selected="true"] {
+    color: var(--ink);
+    border-bottom-color: var(--stamp);
+  }
+  .tabs [role="tab"]:hover { color: var(--ink); }
+
+  /* ── Stage ────────────────────────────────────────────── */
+  .stage { min-height: calc(100dvh - var(--nav-h) - var(--tabs-h)); }
+  .view { display: none; }
+  .view.is-on { display: block; }
+
+  /* ── Map (bird's eye) ─────────────────────────────────── */
+  .map-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, .9fr);
+    min-height: calc(100dvh - var(--nav-h) - var(--tabs-h));
+  }
+  .plate {
+    position: relative;
+    padding: 1.5rem 1.5rem 2rem;
+    border-right: 1px solid var(--line);
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 48px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 48px 100%,
+      var(--paper);
+    background-blend-mode: multiply;
+  }
+  .plate-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 1rem; margin-bottom: 1.25rem;
+  }
+  .plate-head h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 4vw, 3.2rem);
+    line-height: .95;
+    letter-spacing: -.03em;
+    text-wrap: balance;
+    max-width: 14ch;
+  }
+  .lens {
+    display: flex; border: 1.5px solid var(--ink); background: var(--card);
+  }
+  .lens button {
+    appearance: none; border: 0; background: transparent;
+    padding: .55rem .85rem;
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    transition: background .2s var(--ease), color .2s var(--ease);
+  }
+  .lens button + button { border-left: 1.5px solid var(--ink); }
+  .lens button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+  .territories {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1.5px solid var(--ink);
+    background: var(--card);
+    min-height: 420px;
+  }
+  .terr {
+    padding: 1.1rem 1rem 6.75rem;
+    position: relative;
+  }
+  .terr + .terr { border-left: 1.5px dashed var(--line); }
+  .terr-k {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .35rem;
+  }
+  .terr h2 {
+    margin: 0 0 1rem;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+    letter-spacing: -.02em;
+    line-height: 1.05;
+  }
+  .nodes { display: flex; flex-direction: column; gap: .45rem; }
+  .node {
+    appearance: none;
+    text-align: left;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: .65rem .75rem;
+    color: inherit;
+    font: inherit;
+    transition: border-color .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
+  }
+  .node:hover, .node.is-on {
+    border-color: var(--ink);
+    box-shadow: 6px 6px 0 -1px var(--line);
+    background: var(--card);
+  }
+  .node.is-on { border-color: var(--stamp); }
+  .node .n-name {
+    display: block;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: .95rem;
+    letter-spacing: -.015em;
+    line-height: 1.2;
+  }
+  .node .n-meta {
+    display: block;
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: .15rem;
+  }
+
+  .bridge {
+    position: absolute;
+    left: 50%; bottom: 1rem;
+    transform: translateX(-50%);
+    width: min(92%, 520px);
+    z-index: 2;
+  }
+  .bridge-bar {
+    appearance: none; width: 100%;
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: .7rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: 0;
+    padding: .7rem .9rem;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    text-align: left;
+    transition: background .2s var(--ease);
+  }
+  .bridge-bar:hover, .bridge-bar.is-on { background: var(--stamp); }
+  .bridge-bar .mid { text-align: center; font-weight: 500; }
+  .you {
+    position: absolute;
+    left: calc(50% - 1px);
+    bottom: 4.4rem;
+    transform: translateX(-50%);
+    z-index: 3;
+  }
+  .you button {
+    appearance: none;
+    background: var(--stamp);
+    color: #fff;
+    border: 1.5px solid var(--stamp-deep);
+    padding: .55rem .9rem;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: .95rem;
+    letter-spacing: -.02em;
+    box-shadow: 6px 6px 0 0 var(--ink);
+    transition: transform .12s var(--ease);
+  }
+  .you button:hover { transform: translateY(1px); }
+  .you span {
+    display: block;
+    font-family: var(--mono);
+    font-size: .55rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    opacity: .85;
+    font-weight: 500;
+  }
+
+  .read {
+    background: var(--paper);
+    padding: 1.5rem 1.35rem 2.5rem;
+    overflow: auto;
+    max-height: calc(100dvh - var(--nav-h) - var(--tabs-h));
+  }
+  .read-k {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--stamp);
+    margin: 0 0 .4rem;
+  }
+  .read h3 {
+    margin: 0 0 .75rem;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.55rem;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  .read p { margin: 0 0 .85rem; max-width: 62ch; color: var(--ink); }
+  .read .muted { color: var(--muted); }
+  .chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: .58rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    border: 1px solid var(--line);
+    padding: .2rem .45rem;
+    margin: 0 .35rem .5rem 0;
+    color: var(--muted);
+  }
+  .chip.hi { border-color: var(--ink); color: var(--ink); }
+  .quote {
+    margin: 1rem 0;
+    padding: .85rem 0;
+    border-top: 1px solid var(--line);
+    font-style: italic;
+    max-width: 50ch;
+  }
+  .quote cite {
+    display: block;
+    font-style: normal;
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: .4rem;
+  }
+
+  /* ── Article views ────────────────────────────────────── */
+  .sheet { max-width: 1120px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .lede {
+    max-width: 22ch;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(2rem, 5.5vw, 3.6rem);
+    line-height: .95;
+    letter-spacing: -.03em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .deck { max-width: 62ch; margin: 0 0 2rem; font-size: 1.15rem; }
+  .split-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1.5px solid var(--ink);
+    background: var(--card);
+  }
+  .col { padding: 1.4rem 1.25rem 1.6rem; }
+  .col + .col { border-left: 1.5px solid var(--ink); }
+  .col h3 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.45rem;
+    letter-spacing: -.02em;
+    margin: 0 0 .5rem;
+  }
+  .col ul { margin: .6rem 0 0; padding: 0; list-style: none; }
+  .col li {
+    padding: .45rem 0;
+    border-top: 1px solid var(--line);
+    font-size: 1rem;
+  }
+  .col li:first-child { border-top: 0; }
+  .money { color: var(--stamp); font-family: var(--mono); font-size: .72rem; letter-spacing: .04em; }
+
+  table.ladder {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+    font-size: .98rem;
+  }
+  .ladder th, .ladder td {
+    text-align: left;
+    padding: .7rem .85rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .ladder th {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--paper-deep);
+  }
+  .ladder tr:last-child td { border-bottom: 0; }
+  .ladder tr.is-us td { background: color-mix(in srgb, var(--stamp) 8%, var(--card)); }
+  .ladder .who { font-family: var(--display); font-weight: 700; letter-spacing: -.015em; }
+
+  .voices { display: grid; gap: 0; border: 1.5px solid var(--ink); background: var(--card); }
+  .voice {
+    padding: 1.15rem 1.2rem;
+    border-top: 1px solid var(--line);
+  }
+  .voice:first-child { border-top: 0; }
+  .voice q { font-style: italic; font-size: 1.08rem; }
+  .voice .src {
+    margin-top: .45rem;
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .kill {
+    margin-top: 2rem;
+    padding: 1.25rem;
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .kill h3 {
+    font-family: var(--display);
+    font-weight: 800;
+    margin: 0 0 .6rem;
+    letter-spacing: -.02em;
+  }
+  .kill ol { margin: 0; padding-left: 1.1rem; }
+  .kill li { margin: .25rem 0; }
+
+  .days { display: grid; gap: .55rem; }
+  .day {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .85rem;
+    align-items: start;
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: .85rem 1rem;
+  }
+  .day:has(input:checked) { border-color: var(--ink); }
+  .day input {
+    appearance: none;
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--ink);
+    margin-top: .2rem;
+    background: var(--card);
+    flex: none;
+  }
+  .day input:checked { background: var(--stamp); border-color: var(--stamp); }
+  .day strong { display: block; font-family: var(--display); font-weight: 700; letter-spacing: -.015em; }
+  .day small { color: var(--muted); font-size: .92rem; }
+
+  .bar {
+    margin: 1.25rem 0 1.75rem;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border: 1.5px solid var(--ink);
+  }
+  .bar > div { padding: .9rem 1rem; }
+  .bar > div + div { border-left: 1.5px solid var(--ink); }
+  .bar .k {
+    font-family: var(--mono);
+    font-size: .58rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .bar .v {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.35rem;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    margin-top: .2rem;
+  }
+
+  .src-list {
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    font-size: .92rem;
+    color: var(--muted);
+    max-width: 75ch;
+  }
+  .src-list a { color: var(--ink); }
+
+  .here {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1.5px solid var(--ink);
+  }
+
+  @media (max-width: 860px) {
+    .mast { grid-template-columns: 1fr auto; }
+    .mast-mid { display: none; }
+    .map-shell { grid-template-columns: 1fr; }
+    .plate { border-right: 0; border-bottom: 1px solid var(--line); }
+    .plate-head { flex-direction: column; align-items: flex-start; }
+    .read { max-height: none; }
+    .territories { min-height: 0; grid-template-columns: 1fr; }
+    .terr + .terr { border-left: 0; border-top: 1.5px dashed var(--line); }
+    .terr { padding-bottom: 1.1rem; }
+    .terr + .terr { padding-bottom: 6.75rem; }
+    .split-2, .bar { grid-template-columns: 1fr; }
+    .col + .col, .bar > div + div { border-left: 0; border-top: 1.5px solid var(--ink); }
+    .you { bottom: 4.2rem; }
+    .bridge { width: calc(100% - 1.5rem); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+  <header class="mast">
+    <div class="brand"><i aria-hidden="true"></i> Signet</div>
+    <div class="mast-mid">Internal · not for customers</div>
+    <div class="mast-right">You are here · <b>$0 paid</b></div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Briefing views">
+    <button role="tab" id="tab-map" aria-controls="view-map" aria-selected="true">Map</button>
+    <button role="tab" id="tab-split" aria-controls="view-split" aria-selected="false">The split</button>
+    <button role="tab" id="tab-money" aria-controls="view-money" aria-selected="false">Who pays</button>
+    <button role="tab" id="tab-voices" aria-controls="view-voices" aria-selected="false">Field notes</button>
+    <button role="tab" id="tab-next" aria-controls="view-next" aria-selected="false">Next 14 days</button>
+  </div>
+
+  <!-- MAP -->
+  <section class="view is-on stage" id="view-map" role="tabpanel" aria-labelledby="tab-map">
+    <div class="map-shell">
+      <div class="plate">
+        <div class="plate-head">
+          <h1>Two markets. Signet sits in one.</h1>
+          <div class="lens" role="group" aria-label="Reading lens">
+            <button type="button" data-lens="founder" aria-pressed="true">Founder</button>
+            <button type="button" data-lens="market" aria-pressed="false">Market</button>
+            <button type="button" data-lens="buyer" aria-pressed="false">Buyer</button>
+          </div>
+        </div>
+
+        <div class="territories" aria-label="Market map">
+          <div class="terr" data-side="gen">
+            <div class="terr-k">Left plate · commodity</div>
+            <h2>Generation</h2>
+            <div class="nodes">
+              <button class="node is-on" data-id="hubspot"><span class="n-name">HubSpot free tool</span><span class="n-meta">~55k US visits / mo</span></button>
+              <button class="node" data-id="mysig"><span class="n-name">MySignature</span><span class="n-meta">$700k / yr · SEO</span></button>
+              <button class="node" data-id="fiverr"><span class="n-name">Fiverr / Canva</span><span class="n-meta">$10–50 · “good enough”</span></button>
+              <button class="node" data-id="clones"><span class="n-name">Weekend clones</span><span class="n-meta">Sigmint $12 · Lovable prompt</span></button>
+            </div>
+          </div>
+          <div class="terr" data-side="mgmt">
+            <div class="terr-k">Right plate · where money lives</div>
+            <h2>Management</h2>
+            <div class="nodes">
+              <button class="node" data-id="wisestamp"><span class="n-name">WiseStamp</span><span class="n-meta">$19–189/mo + $1/seat</span></button>
+              <button class="node" data-id="exclaimer"><span class="n-name">Exclaimer</span><span class="n-meta">80k companies · ~70% share</span></button>
+              <button class="node" data-id="codetwo"><span class="n-name">CodeTwo / Opensense</span><span class="n-meta">IT · Outlook · ~$2k / 100 users</span></button>
+              <button class="node" data-id="newold"><span class="n-name">Newoldstamp</span><span class="n-meta">~$1.80 / sig / mo · acquired</span></button>
+            </div>
+          </div>
+
+          <div class="you">
+            <button type="button" data-id="signet" aria-label="Signet position">
+              <span>You are here</span>
+              Signet
+            </button>
+          </div>
+          <div class="bridge">
+            <button class="bridge-bar" type="button" data-id="concierge">
+              <span>Demo</span>
+              <span class="mid">$99 concierge — the only bridge</span>
+              <span>Paid job</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="read" id="reader" aria-live="polite">
+        <!-- filled by JS -->
+      </aside>
+    </div>
+  </section>
+
+  <!-- SPLIT -->
+  <section class="view" id="view-split" role="tabpanel" aria-labelledby="tab-split" hidden>
+    <div class="sheet">
+      <p class="lede">The magic moment is not the product they pay for.</p>
+      <p class="deck">Paste-URL → on-brand HTML is the best <em>sales opener</em> in a category of template pickers. It is not a moat. HubSpot already gives generation away. Anyone with an LLM can clone the generator — Felix Haas posted the Lovable prompt in January 2026 (997 likes).</p>
+
+      <div class="split-2">
+        <div class="col">
+          <div class="terr-k">What Signet is today</div>
+          <h3>A generation demo</h3>
+          <ul>
+            <li>Paste a site. Logo, color, font, three layouts.</li>
+            <li>The 60-second wow. Real, and worth keeping.</li>
+            <li>No auth, no persistence, no Workspace, no banners.</li>
+            <li>Landing still sells $12/mo Pro that does not exist.</li>
+            <li>15+ strategy docs. Outreach CSV: 6 names, empty replies.</li>
+          </ul>
+        </div>
+        <div class="col">
+          <div class="terr-k">What a check is written for</div>
+          <h3>A management job</h3>
+          <ul>
+            <li>Everyone looks like one company. New hires included.</li>
+            <li>Outlook does not eat the logo. Images stay hosted.</li>
+            <li>Marketing can swap a banner without an IT ticket.</li>
+            <li>Legal disclaimer on every outbound mail.</li>
+            <li>Sysadmins: “stop employees from being idiots with signatures.”</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="kill">
+        <h3>Do not build these yet</h3>
+        <ol>
+          <li>Pitch decks, invoices, LinkedIn banners — MySignature expanded <em>after</em> $700k, not before first dollar.</li>
+          <li>Google Workspace OAuth / one-click deploy — incumbents live here; you lose a feature war.</li>
+          <li>Auth, database, $12/mo Pro — trains visitors that the product is not ready.</li>
+          <li>Another strategy document. Extraction quality as the main workstream.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- MONEY -->
+  <section class="view" id="view-money" role="tabpanel" aria-labelledby="tab-money" hidden>
+    <div class="sheet">
+      <p class="lede">People pay for control after install.</p>
+      <p class="deck">Your real competitor for a 12-person startup is nothing + HubSpot, not Exclaimer. YC founders are brand-aware and time-poor — signatures are a vitamin. The buyers with a budget line already exist.</p>
+
+      <table class="ladder">
+        <thead>
+          <tr>
+            <th>Buyer</th>
+            <th>Job they hire</th>
+            <th>What they pay today</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="who">Solopreneur</td>
+            <td>One HTML blob that looks decent</td>
+            <td>HubSpot free · MySignature ~$6–9/user · WiseStamp Pro+ $9/mo</td>
+          </tr>
+          <tr>
+            <td class="who">15–80 person team</td>
+            <td>Same look, new hires, a banner</td>
+            <td>WiseStamp $19–189/mo + $1/seat · Newoldstamp ~$1.80/sig</td>
+          </tr>
+          <tr>
+            <td class="who">IT / enterprise</td>
+            <td>Server-side deploy, Outlook, legal</td>
+            <td>Exclaimer · CodeTwo · ~$2k/year per 100 users</td>
+          </tr>
+          <tr class="is-us">
+            <td class="who">Signet, this month</td>
+            <td>Whole team installed this week</td>
+            <td>$99 one-time concierge — payment link already live</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="deck" style="margin-top:1.75rem">Better first buyers than another YC scrape:</p>
+      <div class="split-2">
+        <div class="col">
+          <h3>Has a budget line</h3>
+          <ul>
+            <li>Small law, consulting, real estate, finance — Exclaimer’s own industry pages.</li>
+            <li>Agencies who already charge clients for this. Fiverr starts at $10; agencies charge hundreds.</li>
+            <li>A marketing or office manager at 15–50 people who has asked the team three times to update the logo.</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h3>Already on your desk</h3>
+          <ul>
+            <li>Moritz — 29 lawyers, roster scraped 7 Aug.</li>
+            <li>Five send-ready leads from 6 Aug (SAMMY, Mercura, Fira…).</li>
+            <li>Dodo payment link is wired. You can take $99 today.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VOICES -->
+  <section class="view" id="view-voices" role="tabpanel" aria-labelledby="tab-voices" hidden>
+    <div class="sheet">
+      <p class="lede">Nobody is asking for AI brand extraction.</p>
+      <p class="deck">G2, sysadmin threads, and founder interviews in 2026. The language is install, Outlook, price, and disappearing signatures — not hex codes.</p>
+
+      <div class="voices">
+        <article class="voice">
+          <q>Email signatures sometimes glitch or unexpectedly disappear from employees’ accounts. I have to go in manually, turn the signature off, and then turn it back on.</q>
+          <div class="src">G2 · WiseStamp · 2026</div>
+        </article>
+        <article class="voice">
+          <q>WiseStamp is way too expensive for what it is.</q>
+          <div class="src">G2 · WiseStamp renewal complaint · 2026</div>
+        </article>
+        <article class="voice">
+          <q>Compatibility with all versions of Outlook. Also, in terms of design, size, and overall structure, it took time at the beginning.</q>
+          <div class="src">G2 · WiseStamp</div>
+        </article>
+        <article class="voice">
+          <q>We use Exclaimer. It’s good but it’s damn expensive.</q>
+          <div class="src">r/sysadmin · centralized signatures</div>
+        </article>
+        <article class="voice">
+          <q>We switched from Exclaimer to CodeTwo because the signature preview in Outlook was word wrapping and confusing our users.</q>
+          <div class="src">r/sysadmin · 2025–26</div>
+        </article>
+        <article class="voice">
+          <q>We reached the ceiling in this niche. If we want to improve growth, we need to go beyond signatures.</q>
+          <div class="src">Vol Zastavny · MySignature · $700k/yr · after they had revenue</div>
+        </article>
+        <article class="voice">
+          <q>Email signature logo showing as a broken box for some people? Don’t fix it with base64. Host it at a normal URL.</q>
+          <div class="src">X · Aug 2026</div>
+        </article>
+      </div>
+
+      <div class="src-list">
+        Sources: WiseStamp pricing (live Aug 2026) · G2 WiseStamp pros/cons ·
+        <a href="https://www.starterstory.com/stories/mysignature-84b72d95-8f5a-474d-aeb0-f295e20dddcf">MySignature $700k case</a> ·
+        <a href="https://ahrefs.com/blog/the-free-tools-seo-strategy/">Ahrefs on HubSpot’s generator (~55k US visits)</a> ·
+        <a href="https://www.emailtooltester.com/en/blog/best-email-signature-generator/">EmailToolTester 2026</a> ·
+        Exclaimer 80k+ businesses · 6sense category share · r/sysadmin threads.
+      </div>
+    </div>
+  </section>
+
+  <!-- NEXT -->
+  <section class="view" id="view-next" role="tabpanel" aria-labelledby="tab-next" hidden>
+    <div class="sheet">
+      <div class="here">
+        <div>
+          <p class="lede">Sell the $99 setup. Stop writing plans.</p>
+          <p class="deck" style="margin:0">One channel. One offer. One number. Check these off as you go — they stay on this machine.</p>
+        </div>
+      </div>
+
+      <div class="bar" aria-label="Success bar after 25 sends">
+        <div>
+          <div class="k">0 replies</div>
+          <div class="v">ICP is wrong. Switch to agencies. Do not build.</div>
+        </div>
+        <div>
+          <div class="k">Replies, $0</div>
+          <div class="v">Last-mile is the gap. Install on a 10-min call.</div>
+        </div>
+        <div>
+          <div class="k">1 × $99</div>
+          <div class="v">You have a business. The fulfillment doc is the spec.</div>
+        </div>
+      </div>
+
+      <div class="days" id="days">
+        <label class="day"><input type="checkbox" data-k="d1" /><div><strong>Day 1 — Honest landing</strong><small>Kill the $12/mo Pro card until it exists. Free generate + $99 team. That is the product.</small></div></label>
+        <label class="day"><input type="checkbox" data-k="d2" /><div><strong>Day 1 — Send Moritz</strong><small>Pamir, 29 lawyers. Roster already in outreach/moritz.txt. Link to /signature?kit=…</small></div></label>
+        <label class="day"><input type="checkbox" data-k="d3" /><div><strong>Day 2 — Five original leads</strong><small>SAMMY, Mercura, Fira, and the two that were send-ready on 6 Aug. Screenshot attached.</small></div></label>
+        <label class="day"><input type="checkbox" data-k="d4" /><div><strong>Days 3–5 — Fifteen more</strong><small>Design/brand agencies + small law/consulting/real estate with a public team page. Cap: 5 sends a day.</small></div></label>
+        <label class="day"><input type="checkbox" data-k="d5" /><div><strong>Day 5 — One follow-up</strong><small>Then move on. A third touch is more expensive than the next lead.</small></div></label>
+        <label class="day"><input type="checkbox" data-k="d6" /><div><strong>If they pay — fulfill by hand</strong><small>Host the logo on a CDN. Install Gmail + Outlook with them. Write down every step. That document is Phase 4.</small></div></label>
+      </div>
+
+      <p class="deck" style="margin-top:2rem">Product to build <em>only</em> if a live call dies on it, in this order: hosted logos forever · install that survives Outlook · roster → N signatures in the UI · Outlook QA on every layout. Workspace after ten paid jobs. Not before.</p>
+    </div>
+  </section>
+
+<script>
+const ENTRIES = {
+  hubspot: {
+    k: "Generation · free",
+    title: "HubSpot already owns the search.",
+    chips: ["High confidence", "SEO", "Free"],
+    body: [
+      "The keyword “email signature” is ~43,000 US searches a month. HubSpot’s free generator pulls about 55,000 US visits a month on that one page — a lead magnet for a CRM, not a signature business.",
+      "This is the floor. Anyone googling the category lands on a free, good-enough HTML blob. Charging $12/month to generate one signature is a fight with HubSpot’s marketing budget."
+    ]
+  },
+  mysig: {
+    k: "Generation · the proof it pays",
+    title: "MySignature: $700k/year, one founder, SEO.",
+    chips: ["High confidence", "$79 ATV", "3% churn"],
+    body: [
+      "Bootstrapped. ~200k visits/month. $300 LTV. They did not cold-email YC. They ranked for the generator keyword and let people who already wanted a signature arrive.",
+      "The same founder later said they hit a ceiling in signatures and had to add email tracking and digital business cards — after $700k, not before the first dollar. Newoldstamp (their team product) was acquired in 2022."
+    ]
+  },
+  fiverr: {
+    k: "Current behavior",
+    title: "The real alternative is $10 and a freelancer.",
+    chips: ["Medium confidence", "Current behavior"],
+    body: [
+      "Fiverr gigs for clickable HTML signatures start around $10. Canva and Gmail native are free. For a founder who cares for one afternoon, this is “good enough.”",
+      "You are not displacing Exclaimer on day one. You are displacing nothing, HubSpot, and a $10 gig."
+    ]
+  },
+  clones: {
+    k: "No moat in generation",
+    title: "The generator is a weekend clone.",
+    chips: ["High confidence", "Aug 2026"],
+    body: [
+      "August 2026 alone: Sigmint launched at $12 one-time. Billbooks shipped a free Outlook-safe generator. Felix Haas posted a Lovable prompt that rebuilds on-brand team signatures — 997 likes.",
+      "URL → pretty HTML is a great demo. It is not defensible. Keep it as the opener. Do not bet the company on being the best template."
+    ]
+  },
+  wisestamp: {
+    k: "Management · SMB / marketing",
+    title: "WiseStamp: people pay, and they complain.",
+    chips: ["High confidence", "G2 2026"],
+    body: [
+      "Live pricing: Basic $19/mo, Grow $49, Platform $189 — each plus $1 per employee, billed annually. Pro+ for individuals starts at $9/mo.",
+      "G2 cons cluster on Outlook sync (8 mentions) and price (6). Verbatim: signatures that disappear; “way too expensive for what it is.” That is the gap a $99 done-this-week job can walk through — for teams too small for the platform fee."
+    ]
+  },
+  exclaimer: {
+    k: "Management · enterprise",
+    title: "Exclaimer already won the category that IT buys.",
+    chips: ["High confidence", "80k+ companies"],
+    body: [
+      "Exclaimer claims 80,000+ businesses and holds roughly 70% of 6sense’s “email signatures” share. Sysadmins buy it even while calling it “damn expensive,” because it stops employees from inventing signatures.",
+      "Do not fight this feature-for-feature. Directory sync, server-side injection, compliance — that is a two-year product. Your wedge is the team that will never sit through an Exclaimer demo."
+    ]
+  },
+  codetwo: {
+    k: "Management · Outlook",
+    title: "IT switches tools over word-wrap.",
+    chips: ["High confidence", "r/sysadmin"],
+    body: [
+      "A 2025–26 sysadmin thread: they left Exclaimer for CodeTwo because Outlook preview word-wrapping confused users. Another: “$2k for 100 users. Worth it.”",
+      "The job is not taste. The job is “it still looks right in Outlook and on the phone.” If Signet’s HTML dies in Outlook, the concierge refunds itself in reputation."
+    ]
+  },
+  newold: {
+    k: "Management · SMB marketing",
+    title: "Newoldstamp: banners are why they stay subscribed.",
+    chips: ["Medium confidence", "Acquired 2022"],
+    body: [
+      "Public pricing sits around $1.80 per signature per month. The product they sell on the homepage is not a prettier template — it is banner campaigns on every outbound email.",
+      "That is recurring value. A one-time HTML export is not. If a concierge customer later asks for banners and new-hire updates, that is when a monthly plan earns its keep."
+    ]
+  },
+  signet: {
+    k: "You are here",
+    title: "A beautiful demo. Zero commercial proof.",
+    chips: ["Founder lens", "Aug 2026"],
+    body: [
+      "The pipeline (Firecrawl → brand kit → three layouts) is good enough to sell. Git since June is extraction, cache, /signature, roster mode. The June 25 plan said: send 100 emails. The tracker still has six companies and empty reply columns.",
+      "Your notes from 12 July: “Blocker: outreach validation (1/10).” The $99 Dodo link is already in the env. Moritz’s roster has been sitting in a text file since 7 August. The stuckness is not product. It is unsent mail."
+    ]
+  },
+  concierge: {
+    k: "The only offer that matches the research",
+    title: "I already made your team’s signatures. $99. This week.",
+    chips: ["Do this", "Payment link live"],
+    body: [
+      "Show, don’t pitch: their site, already rendered, plus a roster if the team page is public. No subscription. Contrast out loud: WiseStamp would be a platform fee plus seats; this is flat, done this week.",
+      "25 emails, not 100. Five a day. Follow up once. If nobody pays, do not build Workspace and do not expand into decks. If one person pays, the fulfillment notes are the next product spec."
+    ]
+  }
+};
+
+const LENS = {
+  founder: {
+    hubspot: "You will not out-SEO HubSpot this quarter. Do not start there.",
+    mysig: "They won with search after a free generator. You have no ranking and no traffic. Copy the patience, not the expansion.",
+    fiverr: "If a founder can get “good enough” for $10, your demo must be undeniably their brand — then the $99 is for the rest of the team.",
+    clones: "Every week the generator gets cheaper to copy. Speed of selling matters more than another layout.",
+    wisestamp: "Their platform fee is your talking point. 10-person teams are priced like enterprises.",
+    exclaimer: "Ignore this buyer until you have ten paid concierge jobs.",
+    codetwo: "Outlook-safe HTML is a product requirement, not a nice-to-have.",
+    newold: "Do not add banners until someone who paid $99 asks to change a banner.",
+    signet: "Fifteen strategy docs, six unsent leads. The next improvement is a Stripe (Dodo) notification.",
+    concierge: "This is the only experiment that answers the question you are actually asking."
+  },
+  market: {
+    hubspot: "Generation search is real and captured by a free tool sitting on a CRM.",
+    mysig: "Proof the generator category can be a $700k SEO business — with 200k visits/month.",
+    fiverr: "Labor market already productized the one-off signature at $10–50.",
+    clones: "Supply of generators is exploding in 2026. Price of generation → $0.",
+    wisestamp: "SMB management is a crowded paid market with known G2 pain (Outlook, price).",
+    exclaimer: "Category winner on 6sense. 80k+ logos. Not your near-term competitor.",
+    codetwo: "Switching happens on rendering bugs, not on brand-extraction quality.",
+    newold: "Acquired. Recurring hook = campaigns, not the editor.",
+    signet: "Signet occupies generation. Revenue in this category sits one plate to the right.",
+    concierge: "A services wedge into the management plate, using generation as the demo."
+  },
+  buyer: {
+    hubspot: "“I just need something that isn’t Comic Sans.” They will not find you unless they search.",
+    mysig: "Solopreneurs who already googled ‘email signature generator’ and will pay ~$79 once.",
+    fiverr: "“I’ll just hire someone on Fiverr.” Your answer: their actual brand, in ten seconds, then the team.",
+    clones: "Novelty seekers. They will try the free clone and not come back.",
+    wisestamp: "Marketing manager, 20–80 people, tired of chasing the CEO’s old logo.",
+    exclaimer: "IT admin. Needs SSO, audit logs, Exchange. Not your call this year.",
+    codetwo: "Same IT buyer after Exclaimer broke Outlook preview.",
+    newold: "Marketing wants a banner on every outbound this quarter.",
+    signet: "They pasted a URL, smiled, and did not pay. That is a vitamin so far.",
+    concierge: "“Can you do this for the whole team this week?” That sentence is the business."
+  }
+};
+
+const reader = document.getElementById("reader");
+let current = "signet";
+let lens = "founder";
+
+function render(id) {
+  current = id;
+  const e = ENTRIES[id];
+  const note = LENS[lens][id];
+  document.querySelectorAll(".node, .bridge-bar, .you button").forEach(el => {
+    el.classList.toggle("is-on", el.dataset.id === id);
+  });
+  reader.innerHTML = `
+    <p class="read-k">${e.k}</p>
+    <h3>${e.title}</h3>
+    <div>${e.chips.map(c => `<span class="chip${c === "Do this" || c === "High confidence" ? " hi" : ""}">${c}</span>`).join("")}</div>
+    ${e.body.map(p => `<p>${p}</p>`).join("")}
+    <p class="quote">${note}<cite>${lens} lens</cite></p>
+  `;
+}
+
+document.querySelectorAll(".node, .bridge-bar, .you button").forEach(el => {
+  el.addEventListener("click", () => render(el.dataset.id));
+});
+
+document.querySelectorAll("[data-lens]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    lens = btn.dataset.lens;
+    document.querySelectorAll("[data-lens]").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    render(current);
+  });
+});
+
+function showView(id) {
+  document.querySelectorAll(".tabs [role='tab']").forEach(t => {
+    const on = t.getAttribute("aria-controls") === id;
+    t.setAttribute("aria-selected", String(on));
+  });
+  document.querySelectorAll(".view").forEach(v => {
+    const on = v.id === id;
+    v.classList.toggle("is-on", on);
+    v.hidden = !on;
+  });
+}
+
+document.querySelectorAll(".tabs [role='tab']").forEach(tab => {
+  tab.addEventListener("click", () => showView(tab.getAttribute("aria-controls")));
+});
+
+const storeKey = "signet-brief-days";
+const saved = JSON.parse(localStorage.getItem(storeKey) || "{}");
+document.querySelectorAll("#days input").forEach(inp => {
+  inp.checked = Boolean(saved[inp.dataset.k]);
+  inp.addEventListener("change", () => {
+    saved[inp.dataset.k] = inp.checked;
+    localStorage.setItem(storeKey, JSON.stringify(saved));
+  });
+});
+
+render("signet");
+</script>
+</body>
+</html>
