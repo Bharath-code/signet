@@ -14,6 +14,11 @@ export function safeHref(raw: string): string | null {
   return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
 }
 
+// font-family sits in a style="" attribute: esc() covers the HTML context, not the
+// CSS one, where `;` or `url(` would add declarations. Keep only characters a
+// font stack needs. Every font source (extraction, ?kit=, picker) hits this sink.
+export const cssFont = (s: string) => s.replace(/[^\p{L}\p{N}\s,'"_-]/gu, '').trim() || 'Arial, sans-serif';
+
 type RGB = [number, number, number];
 
 function parseHex(hex: string): RGB | null {
@@ -88,7 +93,7 @@ export function brandRoles(kit: BrandKit): { ink: string; accent: string } {
 export type Roles = { ink: string; accent: string };
 
 function details(kit: BrandKit, f: SignatureFields, roles: Roles): string {
-  const font = esc(kit.fontFamily);
+  const font = esc(cssFont(kit.fontFamily));
   const ink = esc(ensureReadable(roles.ink));
 
   // Line 2 = role + org. On a personal site the AI extracts the person's own name
@@ -169,7 +174,7 @@ export function renderSignature(kit: BrandKit, fields: SignatureFields, layout: 
          <td style="padding-top:12px">
            <a href="${ctaHref}" target="_blank" rel="noopener noreferrer"
               style="display:inline-block;background:${inkReadable};color:#fff;
-              font-family:${esc(kit.fontFamily)};font-size:13px;text-decoration:none;
+              font-family:${esc(cssFont(kit.fontFamily))};font-size:13px;text-decoration:none;
               padding:8px 18px;border-radius:4px">${esc(fields.ctaText || 'Visit website →')}</a>
          </td>
        </tr>`

@@ -7,6 +7,7 @@ import { SignaturePreview } from './SignaturePreview';
 import { InstallInstructions } from './InstallInstructions';
 import { BrandMark } from './Logo';
 import { track, identify } from './track';
+import { recipientId } from '@/lib/recipient-id';
 import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
 import { toEmailSafeFont as fontMatch } from '@/lib/email-fonts';
 import { encodeKitParam, decodeKitParam } from '@/lib/kit-codec';
@@ -149,12 +150,14 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
   // If kit was NOT preloaded, auto-fetch it from the ?from= URL.
   // useRef guards against React strict-mode double-fire.
   const didAutoGenerate = useRef(false);
-  useEffect(() => {
-    // Name the click before any event fires. The recipient's email rides in
-    // ?kit=, so a roster link is person-level; a company link falls back to the
-    // domain. Both beat an anonymous session ID we can never match to a reply.
-    const who = preloaded?.fields?.email || fromParam;
-    if (who) identify(who, { outreach_domain: fromParam ?? '', outreach_person: !!preloaded?.fields?.email });
+  useEffect(() => { void (async () => {
+    // Name the click before any event fires. A roster link carries the
+    // recipient's email in ?kit=, so it is person-level — but PostHog gets a hash
+    // (recipientId, matched via the posthog_id column in outreach.csv), never the
+    // address. A company link falls back to the domain.
+    const recipient = preloaded?.fields?.email;
+    const who = recipient ? await recipientId(recipient).catch(() => '') : fromParam;
+    if (who) identify(who, { outreach_domain: fromParam ?? '', outreach_person: !!recipient });
     if (fromParam && !preloaded && !didAutoGenerate.current) {
       didAutoGenerate.current = true;
       track('outreach_click', { url: fromParam });
@@ -164,12 +167,13 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
       track('outreach_click', { url: fromParam, preloaded: true });
       track('outreach_generated', { url: fromParam, preloaded: true });
     }
+  })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    track('page_view', '/app');
-  }, []);
+    track('page_view', concierge ? '/signature' : '/app');
+  }, [concierge]);
 
   const submitWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -359,9 +363,11 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
           const toggleable = isToggleable(f.key);
           const visible = toggleable ? brand.visibility[f.key as ToggleableField] : true;
           return (
-            <label key={f.key} className="block">
+            // Not a wrapping <label>: it would label its first control, the toggle
+            // button, leaving the input unnamed and turning a label click into a toggle.
+            <div key={f.key}>
               <span className="flex items-center justify-between">
-                <span className={label}>{f.label}</span>
+                <label htmlFor={`field-${f.key}`} className={label}>{f.label}</label>
                 {toggleable && (
                   <button
                     type="button"
@@ -380,6 +386,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                 )}
               </span>
               <input
+                id={`field-${f.key}`}
                 type={f.type ?? 'text'}
                 value={brand.fields[f.key]}
                 onChange={brand.setField(f.key)}
@@ -387,7 +394,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                 suppressHydrationWarning
                 className={`${field} mt-1 ${toggleable && !visible ? 'opacity-40' : ''}`}
               />
-            </label>
+            </div>
           );
         })}
       </div>

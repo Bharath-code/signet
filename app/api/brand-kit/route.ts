@@ -1,24 +1,15 @@
 import { NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 import { scrapeSite } from '@/lib/scrape-site';
 import { extractBrandKit } from '@/lib/extract-brand-kit';
 import { NEUTRAL_BRAND_KIT } from '@/lib/brand-kit-schema';
+import { redis, getClientIp } from '@/lib/redis';
 import type { BrandKit, SignatureFields, BrandKitConfidence } from '@/lib/types';
 
 type CacheEntry = { brandKit: BrandKit; contact: Partial<SignatureFields>; confidence: BrandKitConfidence; finalUrl: string; ts: number };
 // module-level Map survives across requests in the same Node.js process
 const cache = new Map<string, CacheEntry>();
 const TTL = 60 * 60 * 1000; // 1 hour
-
-// ─── Durable store ───────────────────────────────────────────────────────
-// Upstash Redis (Vercel Marketplace) — env names are KV_*, not UPSTASH_*, so
-// Redis.fromEnv() does not apply here. Absent env = local dev without the
-// integration: everything below falls back to the in-process Maps.
-const redis =
-  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-    ? new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN })
-    : null;
 
 // ─── Rate limiter ────────────────────────────────────────────────────────
 // 10 generations/hour, 25/day per IP (launch-week bump; was 3/10).
@@ -29,14 +20,10 @@ const HOUR_LIMIT = 10;
 const DAY_LIMIT = 25;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-
-function getClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  const real = req.headers.get('x-real-ip');
-  if (real) return real.trim();
-  return 'local';
-}
+// Site-wide ceiling across every IP, so a botnet under the per-IP limits still
+// can't drain the Firecrawl balance (~5 credits per generation). Set it from the
+// plan: BRAND_KIT_DAILY_CAP=200 ≈ 1,000 credits/day.
+const GLOBAL_DAY_LIMIT = parseInt(process.env.BRAND_KIT_DAILY_CAP ?? '', 10) || 200;
 
 // Durable limiters. One shared counter across every lambda instance, so the
 // quota below is the real ceiling — the in-process Map version multiplied it by
@@ -46,6 +33,7 @@ const limiters = redis
   ? {
       hour: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(HOUR_LIMIT, '1 h'), prefix: 'bk:h', ephemeralCache: new Map(), analytics: false }),
       day: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(DAY_LIMIT, '24 h'), prefix: 'bk:d', ephemeralCache: new Map(), analytics: false }),
+      global: new Ratelimit({ redis, limiter: Ratelimit.fixedWindow(GLOBAL_DAY_LIMIT, '24 h'), prefix: 'bk:g', analytics: false }),
     }
   : null;
 
@@ -53,10 +41,15 @@ async function checkRateDurable(ip: string): Promise<boolean> {
   if (!limiters) return checkRate(ip);
   try {
     const [h, d] = await Promise.all([limiters.hour.limit(ip), limiters.day.limit(ip)]);
-    return h.success && d.success;
+    if (!h.success || !d.success) return false;
+    // After the per-IP check, so a blocked IP can't burn the shared budget.
+    const g = await limiters.global.limit('all');
+    if (!g.success) console.warn(`global daily cap (${GLOBAL_DAY_LIMIT}) reached`);
+    return g.success;
   } catch (err) {
     // ponytail: Redis outage falls back to the per-instance Map. It fails open
-    // to a looser ceiling rather than blocking every generation. Swap to
+    // to a looser ceiling rather than blocking every generation — the global cap
+    // is not enforced during an outage. Swap to
     // `return false` if protecting the credit balance outranks availability.
     console.error('rate limiter unavailable, using in-process fallback:', err);
     return checkRate(ip);

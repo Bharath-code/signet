@@ -5,6 +5,7 @@
 // reader now go through this pair, and the round-trip is unit-tested.
 import { z } from 'zod';
 import { brandKitSchema, ctaTextForRole } from './brand-kit-schema';
+import { EMAIL_FONTS } from './email-fonts';
 import type { BrandKit, SignatureFields } from './types';
 import type { Roles } from './render-signature';
 
@@ -103,7 +104,8 @@ export function decodeKitParam(raw: string): DecodedKit | null {
     const brandKit = brandKitSchema.parse(json.brandKit);
     const c = contactSchema.parse(json.contact ?? {});
     const roles = rolesSchema.safeParse(json.roles);
-    const font = z.string().max(60).safeParse(json.font);
+    // The picker is the only writer, so anything off its list is forged or stale.
+    const font = z.enum(EMAIL_FONTS.map((f) => f.value)).safeParse(json.font);
     const fields: SignatureFields = {
       fullName: c.fullName, jobTitle: c.jobTitle,
       ctaText: c.ctaText || ctaTextForRole(c.jobTitle),

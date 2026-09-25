@@ -18,6 +18,7 @@ import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import type { BrandKit, SignatureFields } from '../lib/types';
 import { ctaTextForRole } from '../lib/brand-kit-schema';
 import { encodeKitParam } from '../lib/kit-codec';
+import { recipientId } from '../lib/recipient-id';
 
 // Load env BEFORE importing the pipeline: scrape-site.ts builds its Firecrawl
 // client from process.env at module-load, and static imports are hoisted above
@@ -238,8 +239,10 @@ async function main() {
 
   mkdirSync('outreach', { recursive: true });
   writeFileSync('outreach/index.html', gallery(rows, !!ROSTER));
-  const csv = ['company,name,email,url,link,replied,signed_up',
-    ...rows.map((r) => [r.company, r.name, r.email, r.url, r.link, '', ''].map(cell).join(','))].join('\n');
+  // posthog_id = the distinct_id /signature identifies this recipient as.
+  const ids = await Promise.all(rows.map((r) => (r.email ? recipientId(r.email) : '')));
+  const csv = ['company,name,email,posthog_id,url,link,replied,signed_up',
+    ...rows.map((r, i) => [r.company, r.name, r.email, ids[i], r.url, r.link, '', ''].map(cell).join(','))].join('\n');
   writeFileSync('outreach/outreach.csv', csv);
 
   // roster mode is N people from 1 site, so "n/urls.length" would read "4/1"

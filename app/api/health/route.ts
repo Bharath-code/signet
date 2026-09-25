@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
@@ -31,8 +32,21 @@ async function pingFirecrawl(): Promise<{ status: string; credits?: number }> {
   }
 }
 
-// GET /api/health — pings each provider so key/quota problems are obvious.
-export async function GET() {
+// Every call spends a Gemini request and reports the credit balance, so it is
+// not public. Production requires ?token=<HEALTH_TOKEN>; with no token set,
+// only local dev can reach it. Hashing first makes lengths equal for the
+// constant-time compare.
+function authorized(req: Request): boolean {
+  const want = process.env.HEALTH_TOKEN;
+  if (!want) return process.env.NODE_ENV !== 'production';
+  const got = new URL(req.url).searchParams.get('token') ?? '';
+  const h = (v: string) => createHash('sha256').update(v).digest();
+  return timingSafeEqual(h(got), h(want));
+}
+
+// GET /api/health?token=… — pings each provider so key/quota problems are obvious.
+export async function GET(req: Request) {
+  if (!authorized(req)) return new NextResponse(null, { status: 404 });
   const fc = await pingFirecrawl();
   const firecrawl = fc.status;
   let gemini: string;
