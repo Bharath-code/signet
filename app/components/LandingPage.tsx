@@ -11,13 +11,22 @@ import { track, setPersonProperty } from './track';
 import { encodeKitParam } from '@/lib/kit-codec';
 import { joinWaitlist } from '@/lib/waitlist';
 import { DEMO_BRAND_KIT, DEMO_FIELDS } from '@/lib/brand-kit-schema';
+import { PressStage, type PressMode } from './landing/PressStage';
+import { ProcessRail } from './landing/ProcessRail';
+import { Registration } from './landing/Registration';
+import { InkingLog, KitReceipt } from './landing/InkingLog';
+import { SealedEnvelope } from './landing/SealedEnvelope';
+import './landing/motion.css';
 
-const STEPS = [
-  { n: '01', title: 'Paste your URL',  body: 'Drop in your company website. No setup, no credentials, no login.' },
-  { n: '02', title: 'Brand extracted', body: 'Logo, colors, and fonts — read directly from your live site in under 10 seconds.' },
-  { n: '03', title: 'Customize',       body: 'Toggle fields on or off — LinkedIn, phone, X, GitHub. Edit colors, font, logo. Role presets (Sales, Founder, Engineer) flip the right fields in one click.' },
-  { n: '04', title: 'Install',         body: 'Copy HTML → paste into Gmail, Outlook, or Apple Mail signature settings. Live in under a minute.' },
-];
+// Placeholder domains typed into the empty hero field: "any company works",
+// said without a sentence of copy. Fictional on purpose.
+const SAMPLE_DOMAINS = ['northwind.co', 'halcyon.studio', 'fernbank-legal.com', 'kiln.coffee'];
+
+// Obvious non-URLs get a hint instead of a wasted request.
+const urlHint = (v: string) =>
+  v.includes('@') ? "That looks like an email. Try the part after the @."
+  : !v.includes('.') ? 'Add the ending too, like .com or .io.'
+  : '';
 
 
 // Stripe Payment Link for the $99 concierge team setup. When unset, the Team
@@ -143,6 +152,12 @@ export default function LandingPage() {
   const [wlDone,       setWlDone]       = useState(false);
   const [wlError,      setWlError]      = useState('');
   const [wlSegment,    setWlSegment]    = useState<'self' | 'team' | ''>('');
+  const [focused,      setFocused]      = useState(false);
+  const [hint,         setHint]         = useState('');
+  const [placeholder,  setPlaceholder]  = useState('yourcompany.com');
+  const [slide,        setSlide]        = useState(0);
+  const formRef  = useRef<HTMLFormElement>(null);
+  const pasteRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const pickSegment = (segment: 'self' | 'team') => {
     setWlSegment(segment);
@@ -157,6 +172,11 @@ export default function LandingPage() {
   });
 
   const handleGenerate = async (e: FormEvent) => {
+    e.preventDefault();
+    clearTimeout(pasteRef.current);
+    const h = urlHint(brand.url.trim());
+    setHint(h);
+    if (h || !brand.url.trim()) return;
     track('url_submitted');
     setSubmitted(true);
     await brand.generate(e);
@@ -177,8 +197,26 @@ export default function LandingPage() {
 
   useEffect(() => { track('page_view'); }, []);
 
+  // Types sample domains into the empty field until it is first focused.
   useEffect(() => {
-    const onScroll = () => setNavSolid(window.scrollY > 40);
+    if (focused || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let d = 0, i = 0, dir = 1;
+    let t: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const w = SAMPLE_DOMAINS[d];
+      i += dir;
+      setPlaceholder(w.slice(0, i) || '\u200b');
+      let wait = dir > 0 ? 70 : 30;
+      if (i === w.length) { dir = -1; wait = 1600; }
+      if (i === 0) { dir = 1; d = (d + 1) % SAMPLE_DOMAINS.length; wait = 300; }
+      t = setTimeout(tick, wait);
+    };
+    t = setTimeout(tick, 900);
+    return () => clearTimeout(t);
+  }, [focused]);
+
+  useEffect(() => {
+    const onScroll = () => setNavSolid(window.scrollY > 8);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -228,6 +266,29 @@ export default function LandingPage() {
   }, []);
 
   const monoLabel = 'font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted';
+
+  // The Press: attract loop on load, replays with the visitor's domain while a
+  // request runs (colours unknown yet, so neutral), rests on their real kit after.
+  const liveDomain = brand.url.trim().replace(/\/.*$/, '');
+  const host = (u: string) => u.replace(/^https?:\/\//i, '').replace(/^www\./, '').replace(/\/.*$/, '');
+  const pressMode: PressMode = brand.loading ? 'live' : focused || hasGenerated ? 'frozen' : 'attract';
+  const pressProps = brand.loading
+    ? {
+        domain: liveDomain,
+        company: liveDomain.replace(/^www\./, '').split('.')[0].replace(/^./, (c) => c.toUpperCase()),
+        primary: '#5E5A52',
+        secondary: '#D8D6CC',
+      }
+    : hasGenerated && brand.source
+      ? {
+          domain: host(brand.siteUrl),
+          company: brand.kit.companyName,
+          primary: brand.kit.primaryColor,
+          secondary: brand.kit.secondaryColor,
+          logoUrl: brand.kit.logoUrl,
+          font: brand.font,
+        }
+      : {};
 
   // Post-signup segmentation: who's this for? Drives the self-vs-team
   // pricing decision. `dark` themes it for the bone-on-ink footer.
@@ -311,68 +372,81 @@ export default function LandingPage() {
             <span className={`${monoLabel} hidden md:inline`}>Gmail · Outlook · Apple Mail</span>
           </div>
 
-          <h1
-            className="rise mt-9 font-display font-extrabold uppercase tracking-[-0.03em] text-ink"
-            style={{ animationDelay: '110ms', fontSize: 'clamp(2.8rem, 9vw, 6rem)', lineHeight: 0.88 }}
-          >
-            Your website<br />is the source<br />of truth<span style={{ color: 'var(--color-accent)' }}>.</span>
-          </h1>
-
-          <div
-            className="rise mt-10 grid grid-cols-1 gap-6 border-t pt-6 md:grid-cols-[1fr_auto] md:items-end"
-            style={{ animationDelay: '180ms', borderColor: 'var(--color-ink)' }}
-          >
-            <p className="max-w-[46ch] text-lg leading-relaxed text-muted">
-              Your team sends thousands of emails a day. Half have the wrong logo. Signet reads
-              your live site — logo, colors, fonts — and builds every signature from the same
-              source. No template picker. No hex codes. No <span className="text-ink">drift</span>.
-            </p>
-            <span className={`${monoLabel} md:text-right`}>Free · No signup</span>
-          </div>
-
-          {/* URL INPUT — sharp bar + flush ink button */}
-          <form
-            onSubmit={handleGenerate}
-            className="rise mt-7 flex flex-col sm:flex-row"
-            style={{ animationDelay: '250ms' }}
-            noValidate
-          >
-            <div className="hero-input-row flex flex-1 items-center gap-3 px-5">
-              <span className="select-none font-mono text-sm text-muted">https://</span>
-              <input
-                type="text"
-                inputMode="url"
-                autoComplete="url"
-                name="company-url"
-                spellCheck={false}
-                value={brand.url}
-                onChange={(e) => brand.setUrl(e.target.value.replace(/^https?:\/\//i, ''))}
-                placeholder="yourcompany.com"
-                suppressHydrationWarning
-                aria-label="Company URL"
-                className="w-full bg-transparent py-3 text-lg text-ink outline-none placeholder:text-muted"
-              />
-            </div>
-            <button
-              id="hero-cta"
-              type="submit"
-              disabled={brand.loading}
-              className="hero-button inline-flex items-center justify-center gap-3 px-8 disabled:opacity-50"
+          <div className="mt-9 grid grid-cols-1 gap-10 md:grid-cols-12 md:items-end">
+            <h1
+              className="rise font-display font-extrabold uppercase tracking-[-0.03em] text-ink md:col-span-7"
+              style={{ animationDelay: '110ms', fontSize: 'clamp(2.6rem, 6.4vw, 5rem)', lineHeight: 0.88 }}
             >
-              {brand.loading ? 'Reading…' : 'Generate'}
-              {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
-            </button>
-          </form>
+              Your website<br />is the source<br />of truth<span style={{ color: 'var(--color-accent)' }}>.</span>
+            </h1>
 
-          {brand.loading && submitted && (
-            <p className={`${monoLabel} mt-5 flex items-center gap-2`}>
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full" style={{ background: 'var(--color-accent)' }} />
-              Reading your site…
-            </p>
-          )}
-          {brand.note && !brand.loading && (
-            <p className={`${monoLabel} mt-5`} role="status">{brand.note}</p>
-          )}
+            {/* THE PRESS — below the form on mobile, beside the H1 on desktop */}
+            <div className="rise order-last md:order-none md:col-span-5" style={{ animationDelay: '320ms' }}>
+              <PressStage mode={pressMode} {...pressProps} />
+            </div>
+
+            <div className="md:col-span-12">
+              <div
+                className="rise grid grid-cols-1 gap-6 border-t pt-6 md:grid-cols-[1fr_auto] md:items-end"
+                style={{ animationDelay: '180ms', borderColor: 'var(--color-ink)' }}
+              >
+                <p className="max-w-[46ch] text-lg leading-relaxed text-muted">
+                  Your team sends thousands of emails a day. Half have the wrong logo. Signet reads
+                  your live site — logo, colors, fonts — and builds every signature from the same
+                  source. No template picker. No hex codes. No <span className="text-ink">drift</span>.
+                </p>
+                <span className={`${monoLabel} md:text-right`}>Free · No signup</span>
+              </div>
+
+              {/* URL INPUT — sharp bar + flush ink button */}
+              <form
+                ref={formRef}
+                onSubmit={handleGenerate}
+                className="rise mt-7 flex flex-col sm:flex-row"
+                style={{ animationDelay: '250ms' }}
+                noValidate
+              >
+                <div className="hero-input-row flex flex-1 items-center gap-3 px-5">
+                  <span className="select-none font-mono text-sm text-muted">https://</span>
+                  <input
+                    type="text"
+                    inputMode="url"
+                    autoComplete="url"
+                    name="company-url"
+                    spellCheck={false}
+                    value={brand.url}
+                    onChange={(e) => { setHint(''); brand.setUrl(e.target.value.replace(/^https?:\/\//i, '')); }}
+                    onFocus={() => { setFocused(true); setPlaceholder('yourcompany.com'); }}
+                    onKeyDown={() => clearTimeout(pasteRef.current)}
+                    onPaste={() => {
+                      clearTimeout(pasteRef.current);
+                      pasteRef.current = setTimeout(() => formRef.current?.requestSubmit(), 400);
+                    }}
+                    placeholder={placeholder}
+                    suppressHydrationWarning
+                    aria-label="Company URL"
+                    aria-describedby={hint ? 'url-hint' : undefined}
+                    aria-invalid={hint ? true : undefined}
+                    className="w-full bg-transparent py-3 text-lg text-ink outline-none placeholder:text-muted"
+                  />
+                </div>
+                <button
+                  id="hero-cta"
+                  type="submit"
+                  disabled={brand.loading}
+                  className="hero-button inline-flex items-center justify-center gap-3 px-8 disabled:opacity-50"
+                >
+                  {brand.loading ? 'Reading…' : 'Sign'}
+                  {!brand.loading && <span className="hero-button-trail" aria-hidden>→</span>}
+                </button>
+              </form>
+
+              {hint && <p id="url-hint" className={`${monoLabel} mt-4`} role="alert">{hint}</p>}
+              {brand.note && !brand.loading && (
+                <p className={`${monoLabel} mt-5`} role="status">{brand.note}</p>
+              )}
+            </div>
+          </div>
 
           {/* LIVE PREVIEWS — all three shown as previews; copy lives in /app */}
           <div className="mt-14">
@@ -380,44 +454,45 @@ export default function LandingPage() {
               <span className={monoLabel}>
                 {hasGenerated ? 'Your signature — three layouts' : 'Preview — three layouts'}
               </span>
-              {!hasGenerated && !submitted && <span className={monoLabel}>Example ↓ paste your URL</span>}
+              {!(brand.loading && submitted) && (
+                <span className={`${monoLabel} tabular-nums md:hidden`} aria-hidden>{slide + 1} / 3</span>
+              )}
+              {!hasGenerated && !submitted && <span className={`${monoLabel} hidden md:inline`}>Example ↓ paste your URL</span>}
             </div>
 
-            {/* Skeleton cards during extraction */}
             {brand.loading && submitted ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="skeleton-card">
-                    <div className="flex items-center justify-between border-b border-line px-4 py-3">
-                      <div className="skeleton-line skeleton-line--short" />
-                    </div>
-                    <div className="flex flex-col gap-2.5 p-4">
-                      <div className="skeleton-line skeleton-line--short" />
-                      <div className="skeleton-line skeleton-line--med" />
-                      <div className="skeleton-line skeleton-line--long" />
-                      <div className="skeleton-line skeleton-line--med" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <InkingLog domain={liveDomain} />
             ) : (
-              /* Real preview cards — remount on extraction for staggered reveal */
-              <div key={extractionKey} className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {LAYOUTS.map(({ id, label: name, h }, i) => (
-                  <div key={id} className="rise" style={{ animationDelay: `${i * 100}ms` }}>
-                    <SignaturePreview
-                      kit={brand.kit}
-                      fields={brand.displayFields}
-                      layout={id}
-                      label={name}
-                      height={h}
-                      font={brand.font}
-                      siteUrl={brand.siteUrl || undefined}
-                      hideCopy
-                    />
-                  </div>
-                ))}
-              </div>
+              <>
+                {hasGenerated && brand.source && (
+                  <div className="mb-5"><KitReceipt kit={brand.kit} font={brand.font} /></div>
+                )}
+                {/* Remount on extraction for the staggered reveal. Mobile: snap-scroll rail. */}
+                <div
+                  key={extractionKey}
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    const w = (el.firstElementChild as HTMLElement | null)?.offsetWidth ?? el.clientWidth;
+                    setSlide(Math.min(2, Math.round(el.scrollLeft / (w + 16))));
+                  }}
+                  className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0"
+                >
+                  {LAYOUTS.map(({ id, label: name, h }, i) => (
+                    <div key={id} className="rise w-[86%] shrink-0 snap-start md:w-auto" style={{ animationDelay: `${i * 60}ms` }}>
+                      <SignaturePreview
+                        kit={brand.kit}
+                        fields={brand.displayFields}
+                        layout={id}
+                        label={name}
+                        height={h}
+                        font={brand.font}
+                        siteUrl={brand.siteUrl || undefined}
+                        hideCopy
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             {/* POST-GENERATION CTA — primary action: open in app (kit pre-loaded) */}
@@ -427,7 +502,7 @@ export default function LandingPage() {
                 <a
                   href={`/app?kit=${encodeKitParam({ brandKit: brand.kit, contact: brand.fields, roles: brand.roles, font: brand.font })}`}
                   onClick={() => track('landing_open_in_app')}
-                  className="hero-button inline-flex items-center gap-2.5 px-10"
+                  className="hero-button press-shadow inline-flex items-center gap-2.5 px-10"
                   style={{ height: 56 }}
                 >
                   Copy my signature — free
@@ -503,7 +578,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ── HOW IT WORKS — tabular 4-step grid with hairline rules ───────── */}
+      {/* ── HOW IT WORKS — one drawn rail: paste · read · set · send ─────── */}
       <section id="how" className="px-6 py-24 md:px-10 md:py-32">
         <div className="mx-auto max-w-6xl">
           <div className="sc-reveal flex items-end justify-between border-b pb-6" style={{ borderColor: 'var(--color-ink)' }}>
@@ -513,25 +588,15 @@ export default function LandingPage() {
             >
               From URL<br />to signature
             </h2>
-            <span className={`${monoLabel} hidden md:inline`}>§ 01 — Process</span>
           </div>
 
-          <div className="sc-stagger grid grid-cols-1 gap-px md:grid-cols-4" style={{ background: 'var(--color-line)' }}>
-            {STEPS.map(s => (
-              <div key={s.n} className="bg-paper p-7 md:p-8">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm font-medium" style={{ color: 'var(--color-accent)' }}>{s.n}</span>
-                  <span className="font-mono text-[0.65rem] text-muted">/ 04</span>
-                </div>
-                <h3 className="mt-12 font-display text-xl font-bold tracking-tight text-ink">{s.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{s.body}</p>
-              </div>
-            ))}
+          <div className="mt-12">
+            <ProcessRail />
           </div>
         </div>
       </section>
 
-      {/* ── BEFORE / AFTER — the brand drift problem vs. extraction ─────── */}
+      {/* ── REGISTRATION — the team drift problem, snapped into register ── */}
       <section className="px-6 py-24 md:px-10 md:py-32" style={{ background: 'var(--color-paper-deep)' }}>
         <div className="mx-auto max-w-6xl">
           <div className="sc-reveal flex items-end justify-between border-b pb-6" style={{ borderColor: 'var(--color-ink)' }}>
@@ -541,74 +606,23 @@ export default function LandingPage() {
             >
               Brand drift<br />is the default.
             </h2>
-            <span className={`${monoLabel} hidden md:inline`}>§ 02 — The problem</span>
           </div>
 
-          <div className="sc-stagger mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-
-            {/* BRAND DRIFT — show the actual team inconsistency problem */}
-            <div className="border bg-card p-7" style={{ borderColor: 'var(--color-line)' }}>
-              <p className={`${monoLabel} mb-6`}>Every template tool — your team right now</p>
-              <div className="divide-y" style={{ borderColor: 'var(--color-line)' }}>
-                {[
-                  { person: 'CEO',        logo: 'Old logo (2022)', color: '#1a56db', colorNote: 'last rebrand' },
-                  { person: 'Sales lead', logo: 'No logo',         color: '#1e40af', colorNote: 'close enough?' },
-                  { person: 'Engineer',   logo: 'Current logo',    color: '#2563eb', colorNote: 'different shade' },
-                  { person: 'Support',    logo: 'No logo',         color: '#000000', colorNote: 'just black' },
-                ].map(row => (
-                  <div key={row.person} className="grid grid-cols-3 gap-2 py-2.5 text-[0.72rem]">
-                    <span className="font-mono text-muted">{row.person}</span>
-                    <span className="text-muted">{row.logo}</span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-3 w-3 shrink-0 border border-line" style={{ background: row.color }} />
-                      <span className="font-mono text-[0.64rem] text-muted">{row.colorNote}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className={`${monoLabel} mt-6`} style={{ color: 'var(--color-accent)' }}>
-                Four employees. Four different brands.
+          <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-[1fr_1.6fr] md:items-center">
+            <div className="flex flex-col gap-6">
+              <p className="max-w-[40ch] text-lg leading-relaxed text-ink">
+                Four people, four copies of the brand: an old logo, no logo, the wrong blue, plain
+                black. Signet builds every signature from one URL, so the whole team prints in register.
               </p>
+              <a
+                href="#pricing"
+                onClick={() => track('team_cta_clicked', { from: 'registration' })}
+                className="press-shadow plan-cta-outline inline-flex w-fit items-center gap-2.5 px-6 py-3.5 text-[0.72rem]"
+              >
+                See team pricing <span aria-hidden>→</span>
+              </a>
             </div>
-
-            {/* WITH SIGNET — source of truth extraction */}
-            <div className="border-2 bg-card p-7" style={{ borderColor: 'var(--color-ink)' }}>
-              <p className="mb-6 font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }}>
-                With Signet — one URL, everyone consistent
-              </p>
-              <div className="flex">
-                <span className="flex flex-1 items-center gap-2 border px-3 py-2.5 font-mono text-[0.78rem] text-muted"
-                  style={{ borderColor: 'var(--color-ink)', background: 'var(--color-paper)' }}>
-                  https://yourcompany.com
-                </span>
-                <span className="flex items-center gap-1.5 px-4 py-2.5 font-mono text-[0.72rem] uppercase tracking-[0.1em]"
-                  style={{ background: 'var(--color-accent)', color: '#fff' }}>
-                  Go →
-                </span>
-              </div>
-              <div className="mt-6 divide-y" style={{ borderColor: 'var(--color-line)' }}>
-                <div className="flex items-center gap-3 py-2.5">
-                  <span className="w-28 shrink-0 font-mono text-[0.68rem] text-muted">Logo</span>
-                  <span className="font-mono text-[0.78rem] text-ink">Current · from your live site</span>
-                </div>
-                <div className="flex items-center gap-3 py-2.5">
-                  <span className="w-28 shrink-0 font-mono text-[0.68rem] text-muted">Brand color</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-4 w-4" style={{ background: '#1d4ed8' }} />
-                    <span className="ml-1 font-mono text-[0.78rem] text-ink">Exact — read from CSS</span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 py-2.5">
-                  <span className="w-28 shrink-0 font-mono text-[0.68rem] text-muted">Font</span>
-                  <span className="font-mono text-[0.78rem] text-ink">Matched to email-safe equiv.</span>
-                </div>
-                <div className="flex items-center gap-3 py-2.5">
-                  <span className="w-28 shrink-0 font-mono text-[0.68rem] text-muted">Result</span>
-                  <span className="font-mono text-[0.78rem] text-ink">CEO, sales, support — all identical.</span>
-                </div>
-              </div>
-              <p className="mt-6 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-ink">No discipline required. Brand-correct by default.</p>
-            </div>
+            <Registration />
           </div>
         </div>
       </section>
@@ -623,7 +637,6 @@ export default function LandingPage() {
             >
               No IT team<br />required.
             </h2>
-            <span className={`${monoLabel} hidden md:inline`}>§ 03 — Pricing</span>
           </div>
 
           <div className="sc-stagger mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -668,13 +681,13 @@ export default function LandingPage() {
                 {plan.soon || plan.href.startsWith('http') ? (
                   <a href={plan.href}
                     onClick={() => track(plan.name === 'Team' ? 'team_cta_clicked' : 'pro_link_clicked')}
-                    className={`mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
+                    className={`press-shadow mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
                     {plan.cta}
                   </a>
                 ) : (
                   <Link href={plan.href}
                     onClick={() => track(plan.name === 'Team' ? 'team_cta_clicked' : 'pro_link_clicked')}
-                    className={`mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
+                    className={`press-shadow mt-8 flex items-center justify-center py-3.5 text-center text-[0.72rem] ${plan.highlight ? 'plan-cta-primary' : 'plan-cta-outline'}`}>
                     {plan.cta}
                   </Link>
                 )}
@@ -700,7 +713,6 @@ export default function LandingPage() {
             >
               Questions,<br />answered
             </h2>
-            <span className={`${monoLabel} hidden md:inline`}>§ 04 — FAQ</span>
           </div>
 
           <div className="sc-stagger mt-4">
@@ -739,17 +751,17 @@ export default function LandingPage() {
         className="px-6 py-28 md:px-10 md:py-36"
         style={{ background: 'var(--color-ink)', color: 'var(--color-paper)' }}
       >
-        <div className="sc-reveal mx-auto max-w-4xl">
-          <span className="font-mono text-[0.7rem] uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }}>
-            ✶ Brand compliance without IT
-          </span>
-          <h2
-            className="mt-6 font-display font-extrabold uppercase tracking-[-0.03em]"
-            style={{ fontSize: 'clamp(2.4rem, 8vw, 6rem)', lineHeight: 0.9, color: 'var(--color-paper)' }}
-          >
-            Stop guessing<br />
-            your own<span style={{ color: 'var(--color-accent)' }}> brand.</span>
-          </h2>
+        <div className="on-ink sc-reveal mx-auto max-w-5xl">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.2fr_1fr] md:items-center">
+            <h2
+              className="font-display font-extrabold uppercase tracking-[-0.03em]"
+              style={{ fontSize: 'clamp(2.4rem, 7vw, 5rem)', lineHeight: 0.9, color: 'var(--color-paper)' }}
+            >
+              Stop guessing<br />
+              your own<span style={{ color: 'var(--color-accent)' }}> brand.</span>
+            </h2>
+            <SealedEnvelope />
+          </div>
 
           <div className="mt-10 flex flex-col gap-6 border-t pt-8 md:flex-row md:items-center md:justify-between"
             style={{ borderColor: 'rgba(243,242,236,0.2)' }}>
@@ -759,7 +771,7 @@ export default function LandingPage() {
             <Link
               href="/app"
               onClick={() => track('pro_link_clicked')}
-              className="inline-flex items-center justify-center gap-3 px-8 font-mono text-[0.78rem] uppercase tracking-[0.12em] transition-colors"
+              className="inline-flex items-center justify-center gap-3 px-8 font-mono text-[0.78rem] uppercase tracking-[0.12em] press-shadow"
               style={{ height: 64, background: 'var(--color-accent)', color: '#fff' }}
             >
               Generate yours free

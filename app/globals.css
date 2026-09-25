@@ -28,6 +28,16 @@
   --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Motion tokens — plain :root (not @theme) so they always emit, used or not.
+   Spec: docs/superpowers/specs/2026-09-25-landing-motion-ux-design.html */
+:root {
+  --ease-ink:   cubic-bezier(0.65, 0, 0.35, 1);  /* things that draw or fill */
+  --dur-tap:    120ms;
+  --dur-ui:     240ms;
+  --dur-reveal: 480ms;
+  --dur-scene:  900ms;
+}
+
 @layer base {
   * { box-sizing: border-box; }
 
@@ -221,6 +231,7 @@
   --grain-y: 0%;
   position: relative;
   isolation: isolate;
+  overflow-x: clip; /* the ::after overhangs 20%; without this, phones scroll sideways */
 }
 .hero-grain::after {
   content: '';

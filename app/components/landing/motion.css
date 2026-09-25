@@ -1,0 +1,165 @@
+/* Landing motion — docs/superpowers/specs/2026-09-25-landing-motion-ux-design.html
+   Rule for every stage: the CSS default is the FINAL frame; keyframes only add the
+   in-between and run under `.run` (see useStage). Reduced motion, a loop cap, or a
+   frozen stage therefore all rest on the finished picture with no extra code. */
+
+.stage-svg * { transform-box: fill-box; }
+.paused *, .held * { animation-play-state: paused !important; }
+
+/* ── Press-shadow buttons: flat at rest, lift on hover, drop on press ─────── */
+.press-shadow {
+  transition: transform var(--dur-tap) var(--ease-fluid), box-shadow var(--dur-tap) var(--ease-fluid),
+    background var(--dur-ui) var(--ease-fluid), color var(--dur-ui) var(--ease-fluid), border-color var(--dur-ui) var(--ease-fluid);
+}
+.press-shadow:hover { transform: translate(-3px, -3px); box-shadow: 3px 3px 0 var(--color-ink); }
+.press-shadow:active { transform: translate(0, 0); box-shadow: 0 0 0 var(--color-ink); }
+.on-ink .press-shadow:hover { box-shadow: 3px 3px 0 var(--color-paper); }
+
+/* ── 4.1 The Press — 9s hero loop ─────────────────────────────────────────── */
+.run .p-stage   { animation: p-stage 9s linear infinite both; }
+.run .p-cover   { animation: p-cover 9s linear infinite both; }
+.run .p-caret   { animation: p-caret 9s linear infinite both; }
+.run .p-btn     { animation: p-btn 9s linear infinite both; }
+.run .p-scan    { animation: p-scan 9s var(--ease-ink) infinite both; }
+.run .p-h1      { animation: p-h1 9s linear infinite both; }
+.run .p-h2      { animation: p-h2 9s linear infinite both; }
+.run .p-h3      { animation: p-h3 9s linear infinite both; }
+.run .c-logo    { animation: c-logo 9s var(--ease-fluid) infinite both; }
+.run .c-a       { animation: c-a 9s var(--ease-fluid) infinite both; }
+.run .c-b       { animation: c-b 9s var(--ease-fluid) infinite both; }
+.run .c-type    { animation: c-type 9s var(--ease-fluid) infinite both; }
+.run .p-card    { animation: p-card 9s var(--ease-fluid) infinite both; }
+.run .p-in54    { animation: p-in54 9s linear infinite both; }
+.run .p-name    { animation: p-name 9s var(--ease-fluid) infinite both; }
+.run .p-title   { animation: p-title 9s var(--ease-fluid) infinite both; }
+.run .p-rule    { animation: p-rule 9s var(--ease-ink) infinite both; }
+.run .p-contact { animation: p-contact 9s linear infinite both; }
+.run .p-cta     { animation: p-cta 9s var(--ease-fluid) infinite both; }
+.run .p-seal    { animation: p-seal 9s var(--ease-fluid) infinite both; }
+.run .p-caps li:nth-child(1) { animation: cap1 9s linear infinite both; }
+.run .p-caps li:nth-child(2) { animation: cap2 9s linear infinite both; }
+.run .p-caps li:nth-child(3) { animation: cap3 9s linear infinite both; }
+.run .p-caps li:nth-child(4) { animation: cap4 9s linear infinite both; }
+.run .p-caps li:nth-child(5) { animation: cap5 9s linear infinite both; }
+
+.p-cover { transform: scaleX(0); transform-origin: 100% 50%; }
+.p-caret, .p-scan, .p-hit, .p-chip { opacity: 0; }
+.c-logo { transform-origin: 0 0; }
+.p-rule { stroke-dasharray: 304; stroke-dashoffset: 0; }
+.p-cta { transform-origin: 0 50%; }
+.p-seal { transform-origin: 50% 50%; transform: rotate(-8deg); }
+.p-caps li { border-top: 2px solid var(--color-line); color: var(--color-ink); }
+
+@keyframes p-stage { 0% { opacity: 0 } 2%, 94% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes p-cover { 0% { transform: scaleX(1) } 2% { transform: scaleX(1); animation-timing-function: steps(12, end) } 12%, 100% { transform: scaleX(0) } }
+@keyframes p-caret { 0%, 4%, 8%, 12% { opacity: 1 } 2%, 6%, 10%, 14%, 100% { opacity: 0 } }
+@keyframes p-btn { 0%, 12% { fill: #131210 } 13%, 17% { fill: #E23A1A } 19%, 100% { fill: #131210 } }
+@keyframes p-scan { 0%, 15% { opacity: 0; transform: translateY(0) } 16% { opacity: 1; transform: translateY(0) } 33% { opacity: 1; transform: translateY(220px) } 35%, 100% { opacity: 0; transform: translateY(220px) } }
+@keyframes p-h1 { 0%, 19% { opacity: 0 } 20%, 34% { opacity: 1 } 36%, 100% { opacity: 0 } }
+@keyframes p-h2 { 0%, 24% { opacity: 0 } 25%, 34% { opacity: 1 } 36%, 100% { opacity: 0 } }
+@keyframes p-h3 { 0%, 28% { opacity: 0 } 29%, 34% { opacity: 1 } 36%, 100% { opacity: 0 } }
+@keyframes c-logo { 0%, 33% { opacity: 0; transform: translate(0, 0) scale(1) } 35%, 38% { opacity: 1; transform: translate(-3px, -3px) scale(1) } 46% { opacity: 1; transform: translate(194px, -40px) scale(1.5) } 54% { opacity: 1; transform: translate(388px, 24px) scale(2) } 57%, 100% { opacity: 0; transform: translate(388px, 24px) scale(2) } }
+@keyframes c-a { 0%, 33% { opacity: 0; transform: translate(0, 0) } 35%, 39% { opacity: 1; transform: translate(-3px, -3px) } 47% { opacity: 1; transform: translate(196px, -70px) } 55% { opacity: 1; transform: translate(392px, -22px) } 57%, 100% { opacity: 0; transform: translate(392px, -22px) } }
+@keyframes c-b { 0%, 34% { opacity: 0; transform: translate(0, 0) } 36%, 40% { opacity: 1; transform: translate(-3px, -3px) } 48% { opacity: 1; transform: translate(289px, -150px) } 55% { opacity: 1; transform: translate(578px, -92px) } 57%, 100% { opacity: 0; transform: translate(578px, -92px) } }
+@keyframes c-type { 0%, 34% { opacity: 0; transform: translate(0, 0) } 36%, 41% { opacity: 1; transform: translate(-3px, -3px) } 49% { opacity: 1; transform: translate(111px, -80px) } 56% { opacity: 1; transform: translate(222px, -30px) } 59%, 100% { opacity: 0; transform: translate(222px, -30px) } }
+@keyframes p-card { 0%, 34% { opacity: 0; transform: translateY(10px) } 40%, 100% { opacity: 1; transform: translateY(0) } }
+@keyframes p-in54 { 0%, 53% { opacity: 0 } 55%, 100% { opacity: 1 } }
+@keyframes p-name { 0%, 56% { opacity: 0; transform: translateY(6px) } 61%, 100% { opacity: 1; transform: translateY(0) } }
+@keyframes p-title { 0%, 58% { opacity: 0; transform: translateY(6px) } 63%, 100% { opacity: 1; transform: translateY(0) } }
+@keyframes p-rule { 0%, 60% { stroke-dashoffset: 304 } 68%, 100% { stroke-dashoffset: 0 } }
+@keyframes p-contact { 0%, 64% { opacity: 0 } 69%, 100% { opacity: 1 } }
+@keyframes p-cta { 0%, 66% { transform: scaleX(0) } 72%, 100% { transform: scaleX(1) } }
+@keyframes p-seal { 0%, 76% { opacity: 0; transform: scale(1.7) rotate(-22deg) } 79% { opacity: 1; transform: scale(.9) rotate(-8deg) } 81%, 100% { opacity: 1; transform: scale(1) rotate(-8deg) } }
+@keyframes cap1 { 0%, 13% { border-top-color: #E23A1A; color: #131210 } 14%, 100% { border-top-color: #D8D6CC; color: #5E5A52 } }
+@keyframes cap2 { 0%, 13% { border-top-color: #D8D6CC; color: #5E5A52 } 14%, 33% { border-top-color: #E23A1A; color: #131210 } 34%, 100% { border-top-color: #D8D6CC; color: #5E5A52 } }
+@keyframes cap3 { 0%, 33% { border-top-color: #D8D6CC; color: #5E5A52 } 34%, 55% { border-top-color: #E23A1A; color: #131210 } 56%, 100% { border-top-color: #D8D6CC; color: #5E5A52 } }
+@keyframes cap4 { 0%, 55% { border-top-color: #D8D6CC; color: #5E5A52 } 56%, 75% { border-top-color: #E23A1A; color: #131210 } 76%, 100% { border-top-color: #D8D6CC; color: #5E5A52 } }
+@keyframes cap5 { 0%, 75% { border-top-color: #D8D6CC; color: #5E5A52 } 76%, 100% { border-top-color: #E23A1A; color: #131210 } }
+
+/* ── 4.3 Process rail — draws once on enter ─────────────────────────────── */
+.run .r-line  { animation: r-line 3.6s var(--ease-ink) both; }
+.run .rv-line { animation: rv-line 3.6s var(--ease-ink) both; }
+.run .r-pen   { animation: r-pen 3.6s var(--ease-ink) both; }
+.run .rv-pen  { animation: rv-pen 3.6s var(--ease-ink) both; }
+/* `forwards`, not `both`: during its delay a node must show the pending ink style */
+.run .r-n1 { animation: r-node 240ms linear forwards; }
+.run .r-n2 { animation: r-node 240ms linear 1.4s forwards; }
+.run .r-n3 { animation: r-node 240ms linear 2.3s forwards; }
+.run .r-n4 { animation: r-node 240ms linear 3.5s forwards; }
+.r-line  { stroke-dasharray: 600; stroke-dashoffset: 0; }
+.rv-line { stroke-dasharray: 330; stroke-dashoffset: 0; }
+.r-pen, .rv-pen { opacity: 0; }
+.r-node { stroke: #E23A1A; stroke-width: 2.5; }
+@keyframes r-line  { from { stroke-dashoffset: 600 } to { stroke-dashoffset: 0 } }
+@keyframes rv-line { from { stroke-dashoffset: 330 } to { stroke-dashoffset: 0 } }
+@keyframes r-pen  { 0% { opacity: 1; transform: translateX(0) } 96% { opacity: 1; transform: translateX(600px) } 100% { opacity: 0; transform: translateX(600px) } }
+@keyframes rv-pen { 0% { opacity: 1; transform: translateY(0) } 96% { opacity: 1; transform: translateY(330px) } 100% { opacity: 0; transform: translateY(330px) } }
+@keyframes r-node { to { stroke: #E23A1A; stroke-width: 2.5 } }
+/* before a node is reached (its delay) it shows the pending style */
+.run .r-node { stroke: #131210; stroke-width: 1.5; }
+
+/* ── 4.4 Registration — drift snaps into register ───────────────────────── */
+.reg-sig { transition: transform var(--dur-scene) var(--ease-fluid); }
+.reg-sig .reg-logo {
+  position: relative; background: #1F4D3A; border: 1.5px solid transparent; color: #fff;
+  transition: background var(--dur-scene) var(--ease-fluid), border-color var(--dur-scene), color var(--dur-scene);
+}
+.reg-sig .reg-logo::after {
+  content: ""; position: absolute; inset: 0; background: inherit; opacity: 0; mix-blend-mode: multiply;
+  transition: transform var(--dur-scene) var(--ease-fluid), opacity var(--dur-scene);
+}
+.reg-sig .reg-nm { font-family: Georgia, "Times New Roman", serif; }
+.reg-sig .reg-rule { background: #1F4D3A; transition: background var(--dur-scene) var(--ease-fluid); }
+.reg-sig:nth-child(2), .reg-sig:nth-child(2) * { transition-delay: 70ms; }
+.reg-sig:nth-child(3), .reg-sig:nth-child(3) * { transition-delay: 140ms; }
+.reg-sig:nth-child(4), .reg-sig:nth-child(4) * { transition-delay: 210ms; }
+
+.drift .reg-sig:nth-child(1) { transform: translateX(10px) rotate(-.5deg); }
+.drift .reg-sig:nth-child(1) .reg-logo { background: #1a56db; }
+.drift .reg-sig:nth-child(1) .reg-logo::after { opacity: .4; transform: translate(4px, 3px); }
+.drift .reg-sig:nth-child(1) .reg-nm { font-family: Arial, Helvetica, sans-serif; }
+.drift .reg-sig:nth-child(1) .reg-rule { background: #1a56db; }
+.drift .reg-sig:nth-child(2) { transform: translateX(-6px); }
+.drift .reg-sig:nth-child(2) .reg-logo { background: transparent; border-color: var(--color-line); border-style: dashed; color: transparent; }
+.drift .reg-sig:nth-child(2) .reg-nm { font-family: Verdana, Geneva, sans-serif; }
+.drift .reg-sig:nth-child(2) .reg-rule { background: #1e40af; }
+.drift .reg-sig:nth-child(3) { transform: translateX(4px) rotate(.4deg); }
+.drift .reg-sig:nth-child(3) .reg-logo::after { opacity: .4; transform: translate(-3px, 2px); }
+.drift .reg-sig:nth-child(3) .reg-rule { background: #2563eb; }
+.drift .reg-sig:nth-child(4) { transform: translateX(-12px) rotate(-.3deg); }
+.drift .reg-sig:nth-child(4) .reg-logo { background: #131210; }
+.drift .reg-sig:nth-child(4) .reg-nm { font-family: "Courier New", Courier, monospace; }
+.drift .reg-sig:nth-child(4) .reg-rule { background: #131210; }
+.reg-note-drift { display: none; }
+.drift .reg-note-drift { display: inline; }
+.drift .reg-note-ok { display: none; }
+
+.reg-mark { position: absolute; width: 26px; height: 26px; transition: transform var(--dur-scene) var(--ease-fluid), opacity var(--dur-scene); }
+.drift .reg-mark { transform: translate(5px, -4px) rotate(14deg); opacity: .55; }
+.drift .reg-mark:nth-of-type(2n) { transform: translate(-4px, 5px) rotate(-11deg); }
+
+/* ── 4.5 Inking — the loading state ─────────────────────────────────────── */
+.ink-roller { transform-origin: 0 50%; transition: transform var(--dur-scene) var(--ease-ink); }
+.ink-log li::before { content: "✓"; color: var(--color-accent); }
+.ink-log li[data-wait]::before { content: "◌"; color: var(--color-muted); }
+.ink-log li[data-wait] { color: var(--color-muted); }
+
+/* ── 4.6 Sealed — envelope in the final CTA ─────────────────────────────── */
+.run .e-card { animation: e-card 6s var(--ease-fluid) infinite both; }
+.run .e-open { animation: e-open 6s linear infinite both; }
+.run .e-flap { animation: e-flap 6s var(--ease-fluid) infinite both; }
+.run .e-seal { animation: e-seal 6s var(--ease-fluid) infinite both; }
+.e-card { transform: translateY(96px); }
+.e-open { opacity: 0; }
+.e-flap { transform-origin: 50% 0; }
+.e-seal { transform-origin: 50% 50%; transform: rotate(-8deg); }
+@keyframes e-card { 0%, 10% { transform: translateY(0) } 40%, 100% { transform: translateY(96px) } }
+@keyframes e-open { 0%, 42% { opacity: 1 } 43%, 100% { opacity: 0 } }
+@keyframes e-flap { 0%, 42% { transform: scaleY(0) } 52%, 100% { transform: scaleY(1) } }
+@keyframes e-seal { 0%, 56% { opacity: 0; transform: scale(1.8) rotate(-24deg) } 60% { opacity: 1; transform: scale(.9) rotate(-8deg) } 62%, 100% { opacity: 1; transform: scale(1) rotate(-8deg) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .run * { animation: none !important; }
+  .reg-sig, .reg-sig *, .reg-sig *::after, .reg-mark, .ink-roller, .press-shadow { transition: none !important; }
+  .press-shadow:hover { transform: none; }
+}
