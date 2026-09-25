@@ -80,3 +80,13 @@ Strategy and visual system live in two root files — read them before UI work:
 
 - **`PRODUCT.md`** — register (`brand`; landing leads), users, purpose, brand personality (Editorial / precise / confident), anti-references (generic SaaS template, clutter), and five design principles (show-don't-tell, instant-proof-no-gates, output-quality-is-the-promise, honest-degradation, editorial-restraint). Accessibility target: WCAG AA.
 - **`DESIGN.md`** (+ `.impeccable/design.json` sidecar) — the "Press & Ink" Swiss system: bone `#F3F2EC` / ink `#131210` / one vermilion stamp `#E23A1A`, Bricolage / Hanken / JetBrains Mono, zero-radius, blur-free hard-offset shadow. Named rules: One Stamp (vermilion ≤10%), Locked-Light (no dark mode), Mono-Metadata, Eyebrow-Discipline, Hard-Offset.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
