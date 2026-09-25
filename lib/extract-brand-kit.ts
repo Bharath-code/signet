@@ -2,7 +2,7 @@ import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { z } from 'zod';
 import type { BrandingProfile } from '@mendable/firecrawl-js';
-import { brandKitSchema, NEUTRAL_BRAND_KIT } from './brand-kit-schema';
+import { brandKitSchema, NEUTRAL_BRAND_KIT, hex } from './brand-kit-schema';
 import { safeHref } from './render-signature';
 import { brandColorsFromCss, isLinkBlue, isDefaultLinkBlue } from './extract-colors';
 import { brandKitFromFirecrawl, type FirecrawlBrand } from './brand-from-firecrawl';
@@ -87,8 +87,6 @@ export function realEmail(raw?: string, pageText?: string): string | undefined {
 
 export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.5-flash';
 export const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? '';
-
-const hex = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'must be hex color');
 
 const combinedSchema = z.object({
   companyName: z.string().min(1),

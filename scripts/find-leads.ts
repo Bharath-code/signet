@@ -18,7 +18,7 @@ const arg = (f: string) => { const i = process.argv.indexOf(f); return i >= 0 ? 
 const LIMIT = Number(arg('--limit') ?? 100);
 const OUT = arg('--out') ?? 'docs/cold-email-urls.txt';
 
-// ICP from MASTER-PLAN.md: funded, email-heavy, brand-critical B2B startups,
+// ICP from docs/MASTER-PLAN.md: funded, email-heavy, brand-critical B2B startups,
 // ~5-50 people (small enough that "5 people, 5 different signatures" lands).
 // ponytail: hand-picked query strings against general web search, not a real
 // YC/Crunchbase directory API — swap in one if hit-rate here proves too noisy.

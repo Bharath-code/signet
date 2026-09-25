@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { BrandKit, SignatureFields } from './types';
 import { SITE_URL } from './site';
 
-const hex = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'must be hex color');
+export const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+export const hex = z.string().regex(HEX_RE, 'must be hex color');
 
 export const brandKitSchema = z.object({
   companyName: z.string().min(1),

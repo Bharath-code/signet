@@ -4,7 +4,7 @@
 // base64 whose '+' URLSearchParams mangles into a space). Every writer and the
 // reader now go through this pair, and the round-trip is unit-tested.
 import { z } from 'zod';
-import { brandKitSchema, ctaTextForRole } from './brand-kit-schema';
+import { brandKitSchema, ctaTextForRole, hex } from './brand-kit-schema';
 import { EMAIL_FONTS } from './email-fonts';
 import type { BrandKit, SignatureFields } from './types';
 import type { Roles } from './render-signature';
@@ -27,8 +27,6 @@ function fromStandardBase64(input: string): string {
   const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
-
-const hex = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
 
 // Only accept http(s) — blocks javascript:/data: in href sinks.
 const httpUrl = z.string().url().refine((u) => /^https?:\/\//i.test(u), 'must be http(s)');
