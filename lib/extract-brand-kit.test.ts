@@ -8,7 +8,7 @@ const { mockSearch } = vi.hoisted(() => ({
 }));
 
 vi.mock('./scrape-site', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('./scrape-site')>();
   return {
     ...actual,
     firecrawlClient: { search: mockSearch },

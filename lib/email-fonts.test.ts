@@ -41,7 +41,7 @@ describe('toEmailSafeFont', () => {
   });
 
   it('every mapping result is an offered picker option', () => {
-    const values = new Set(EMAIL_FONTS.map((f) => f.value));
+    const values = new Set<string>(EMAIL_FONTS.map((f) => f.value));
     for (const sample of ['Playfair', 'Times', 'Poppins', 'Nunito', 'Inter', '']) {
       expect(values.has(toEmailSafeFont(sample))).toBe(true);
     }
