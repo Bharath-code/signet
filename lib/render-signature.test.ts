@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderSignature, ensureReadable, contrastRatio, safeHref } from './render-signature';
+import { renderSignature, ensureReadable, contrastRatio, safeHref, cssFont } from './render-signature';
 import type { BrandKit, SignatureFields } from './types';
 
 const kit: BrandKit = {
@@ -134,6 +134,20 @@ describe('renderSignature', () => {
     const f = { ...fields, website: 'company.com' };
     expect(renderSignature(kit, f, 'logo-cta')).toContain('href="https://company.com/"');
     expect(renderSignature(kit, fields, 'logo-cta')).toContain('href="#"'); // neither source
+  });
+});
+
+describe('cssFont', () => {
+  it('strips declaration breakouts from a font stack', () => {
+    const html = renderSignature({ ...kit, fontFamily: 'Arial;background:url(https://evil.test/p)' }, fields, 'logo-cta');
+    expect(html).not.toContain('evil.test');
+    expect(html).not.toContain('url(');
+  });
+
+  it('keeps real stacks, quoted and non-Latin', () => {
+    expect(cssFont('"Helvetica Neue", Arial, sans-serif')).toBe('"Helvetica Neue", Arial, sans-serif');
+    expect(cssFont('ヒラギノ角ゴ, sans-serif')).toBe('ヒラギノ角ゴ, sans-serif');
+    expect(cssFont(';;')).toBe('Arial, sans-serif');
   });
 });
 

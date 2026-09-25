@@ -8,7 +8,7 @@ const { mockSearch } = vi.hoisted(() => ({
 }));
 
 vi.mock('./scrape-site', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('./scrape-site')>();
   return {
     ...actual,
     firecrawlClient: { search: mockSearch },
@@ -64,22 +64,32 @@ describe('deterministic path — contact extraction', () => {
   it('falls back to page title for contact when JSON mode returned nothing', async () => {
     mockSearch.mockResolvedValue({ web: [] });
 
-    const html = CSS_HTML + '\n<p>Contact: jane@example.com</p>';
+    const html = CSS_HTML + '\n<p>Contact: jane@acme.io</p>';
 
     const result = await extractBrandKit(html, SCREENSHOT_URL, {
       branding: BRANDING,
       fallbackKit: FALLBACK_KIT,
       baseUrl: BASE_URL,
-      markdown: 'Email: jane@example.com',
-      htmlSnippets: '<title>Jane Smith | Head of Design</title>\n<p>jane@example.com</p>',
+      markdown: 'Email: jane@acme.io',
+      htmlSnippets: '<title>Jane Smith | Head of Design</title>\n<p>jane@acme.io</p>',
       pageTitle: 'Jane Smith | Head of Design',
     });
 
     expect(result.source).toBe('firecrawl');
     expect(result.contact.fullName).toBe('Jane Smith');
     expect(result.contact.jobTitle).toBe('Head of Design');
-    expect(result.contact.email).toBe('jane@example.com');
+    expect(result.contact.email).toBe('jane@acme.io');
     expect(result.contact.phone).toBeUndefined();
+  });
+
+  it('does not read a retina asset filename as the contact email', async () => {
+    const result = await extractBrandKit(CSS_HTML, SCREENSHOT_URL, {
+      branding: BRANDING,
+      fallbackKit: FALLBACK_KIT,
+      baseUrl: BASE_URL,
+      htmlSnippets: '<img class="logo" src="/img/logo@2x.png">',
+    });
+    expect(result.contact.email).toBeUndefined();
   });
 
   it('prefers JSON-mode contact over HTML fallback when both are available', async () => {
@@ -279,6 +289,12 @@ describe('realEmail', () => {
     expect(realEmail('not-an-email')).toBeUndefined();
     expect(realEmail('missing@tld')).toBeUndefined();
     expect(realEmail(undefined)).toBeUndefined();
+  });
+
+  it('rejects retina asset filenames that look like addresses', () => {
+    expect(realEmail('logo@2x.png')).toBeUndefined();
+    expect(realEmail('hero@3x.webp')).toBeUndefined();
+    expect(realEmail('ana@studio.design')).toBe('ana@studio.design');
   });
 
   it('drops an address the scraped page never mentions', () => {

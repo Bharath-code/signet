@@ -57,6 +57,8 @@ const RESERVED_EMAIL_DOMAINS = /(^|\.)(example\.(com|net|org)|test|invalid|local
 // Locals a model reaches for when the page shows no address.
 const PLACEHOLDER_LOCALS = /^(your|youre?mail|my|me|email|e-mail|mail|info-?here|name|first(name)?|firstname\.lastname|last(name)?|user|username|someone|somebody|test|foo|bar|baz|demo|sample|placeholder|john\.?doe|jane\.?doe|hello-?there)$/;
 
+const ASSET_TLD = /\.(png|jpe?g|gif|svg|webp|avif|ico|bmp|css|js|mjs|json|woff2?|ttf|otf|mp4|webm|pdf)$/i;
+
 // Same problem as realPhone, different tell. A signature email is worse than a
 // phone when wrong — mail to it bounces, or worse, reaches an unrelated stranger.
 // Syntax and placeholder checks catch the lazy inventions, but the decisive test
@@ -72,6 +74,8 @@ export function realEmail(raw?: string, pageText?: string): string | undefined {
   const [, localPart, domain] = m;
   if (RESERVED_EMAIL_DOMAINS.test(domain.toLowerCase())) return undefined;
   if (PLACEHOLDER_LOCALS.test(localPart.toLowerCase())) return undefined;
+  // Retina assets ("logo@2x.png") are valid email syntax. No real TLD is a file type.
+  if (ASSET_TLD.test(domain)) return undefined;
   if (pageText) {
     // Pages encode addresses a few ways (mailto escaping, &#64;). Normalize those
     // before searching so obfuscation doesn't read as fabrication.
@@ -245,7 +249,7 @@ function extractContactFromContent(htmlSnippets: string, markdown: string, pageT
   // are the site's, not the user's — never surface one as their own address.
   const ROLE_INBOX = /^(support|privacy|info|contact|sales|help|admin|no-?reply|legal|press|security|careers|jobs|abuse|billing|marketing|feedback|webmaster|postmaster|team|office)@/i;
   const emails = (htmlSnippets + '\n' + markdown).match(/[\w.+-]+@[\w-]+\.[\w.-]+/g) ?? [];
-  const personal = emails.find((e) => !ROLE_INBOX.test(e));
+  const personal = emails.find((e) => !ROLE_INBOX.test(e) && realEmail(e));
   if (personal) contact.email = personal;
 
   // Use page title (from Firecrawl metadata) to extract name and role

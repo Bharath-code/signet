@@ -49,11 +49,13 @@ Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a track
 - `GEMINI_MODEL` — optional model override (default `gemini-3.5-flash`)
 - `GEMINI_FALLBACK_MODEL` — optional; a second model `extractBrandKit` tries only if `GEMINI_MODEL` throws (e.g. "high demand" 503). Empty = no fallback
 - `RESEND_API_KEY` — Resend API key for waitlist emails (get one free at resend.com)
+- `HEALTH_TOKEN` — required to call `/api/health` in production (`?token=…`)
+- `BRAND_KIT_DAILY_CAP` — optional; site-wide generations/day across all IPs (default 200)
 - `RESEND_AUDIENCE_ID` — optional; if set, `POST /api/waitlist` also adds contacts to a Resend Audience for bulk emailing later
 
-`GET /api/health` pings both providers and reports `ok` / `quota-exceeded` / `bad-key` / `no-key` plus the model tested and Firecrawl's `credits` remaining. Use it to diagnose key problems instead of reading server logs. The Firecrawl ping hits `/v2/team/credit-usage` — the only endpoint that authenticates the key without spending a credit, so health is free to poll. Don't swap it for a scrape.
+`GET /api/health` pings both providers and reports `ok` / `quota-exceeded` / `bad-key` / `no-key` plus the model tested and Firecrawl's `credits` remaining. Use it to diagnose key problems instead of reading server logs. The Firecrawl ping hits `/v2/team/credit-usage` — the only endpoint that authenticates the key without spending a credit, so the Firecrawl half is free to poll. Don't swap it for a scrape. The Gemini half is **not** free, so the route is locked: production requires `?token=<HEALTH_TOKEN>` and returns `404` otherwise (and `404` for everyone when `HEALTH_TOKEN` is unset); local dev needs no token.
 
-`POST /api/waitlist` accepts `{ email }`, sends a notification to the founder email, and optionally upserts the contact into a Resend Audience. Returns `{ ok: true }` or `{ error }`. Returns `503` when `RESEND_API_KEY` is not set (graceful — form shows an error, no crash).
+`POST /api/waitlist` accepts `{ email }`, sends a notification to the founder email, and optionally upserts the contact into a Resend Audience. Returns `{ ok: true }` or `{ error }`. Returns `503` when `RESEND_API_KEY` is not set (graceful — form shows an error, no crash). Limited to 5/hour per IP (`wl` prefix) because every signup emails the founder; returns `429` over the limit and fails open on a Redis error.
 
 ## Architecture: the extraction pipeline
 
@@ -92,16 +94,19 @@ Key invariants — read these before changing the relevant file:
 
 ## Security model (signature HTML)
 
-Untrusted website content flows: scraped page → LLM → `BrandKit` → HTML → iframe. Two layers keep it safe — preserve both:
+Untrusted website content flows: scraped page → LLM → `BrandKit` → HTML → iframe. Three layers keep it safe — preserve all of them:
 
 1. `renderSignature` HTML-escapes every interpolated value via `esc()` (including color/font values, which sit inside `style="…"`).
 2. `brandKitSchema` validates colors as strict hex at the boundary.
+3. `renderSignature` passes every font through `cssFont()`, which keeps only letters, digits, spaces, `,'"_-`. `esc()` covers the HTML attribute context, not the CSS inside `style=""`, where `;` or `url(` would add declarations. The `?kit=` decoder also accepts only `EMAIL_FONTS` values for `font`.
 
 Note: the schema's `z.url()` on `logoUrl` is permissive (accepts `data:`/`javascript:`), so do **not** rely on it for scheme safety — `logoUrl`'s only sink is `<img src>` (non-executing) and the preview iframes use `sandbox=""`. If you ever add a new sink for `logoUrl` (e.g. an `<a href>`), add scheme validation.
 
+Outreach analytics identify a roster recipient by `recipientId(email)` (`lib/recipient-id.ts`, truncated SHA-256), never the address. `outreach.csv` carries the same value in `posthog_id`.
+
 ## Gotchas
 
-- **The rate limiter and the kit cache are durable; `scrapeCache` still is not.** `app/api/brand-kit/route.ts` runs on Upstash Redis (Vercel Marketplace, env `KV_REST_API_URL` / `KV_REST_API_TOKEN`): `@upstash/ratelimit` sliding windows (`bk:h` 10/hour, `bk:d` 25/day per IP) and a shared kit cache (`bk:kit:<normalized-url>`, 1h TTL). The in-process `cache` Map stays as an L1 read; `rateMap` stays as the fallback when Redis is absent or throws, so a Redis outage **fails open** to the old per-instance ceiling rather than blocking every generation. `scrapeCache` (`lib/scrape-site.ts`) is still a module-level Map and still evaporates on serverless — the kit cache in front of it absorbs most of that. Shipped 2026-08-06, replacing the deferral of 2026-07-25.
+- **The rate limiter and the kit cache are durable; `scrapeCache` still is not.** `app/api/brand-kit/route.ts` runs on Upstash Redis (Vercel Marketplace, env `KV_REST_API_URL` / `KV_REST_API_TOKEN`): `@upstash/ratelimit` sliding windows (`bk:h` 10/hour, `bk:d` 25/day per IP), then a site-wide fixed window (`bk:g`, `BRAND_KIT_DAILY_CAP`, default 200/day ≈ 1,000 credits) checked only after the per-IP limits pass; plus a shared kit cache (`bk:kit:<normalized-url>`, 1h TTL). The in-process `cache` Map stays as an L1 read; `rateMap` stays as the fallback when Redis is absent or throws, so a Redis outage **fails open** to the old per-instance ceiling rather than blocking every generation (the global cap is not enforced during an outage). `scrapeCache` (`lib/scrape-site.ts`) is still a module-level Map and still evaporates on serverless — the kit cache in front of it absorbs most of that. Shipped 2026-08-06, replacing the deferral of 2026-07-25.
 - **Firecrawl `maxAge` saves latency, not credits.** Measured 2026-07-25: a repeat scrape well inside the 1h window returned `creditsUsed: 1` and the balance dropped by 1. Don't reason about credit spend as though the server-side cache is free.
 - **A generation costs ~5 credits, not 1.** Measured across 3 eval runs (60 site extractions + probes): 347 credits, ≈5.6 per site. The happy path really is one call, but `scrapeSite` fans out — screenshot-failure retry at `maxAge: 0`, mobile scrape when branding is thin, `client.map()`, then up to 2 brand-page scrapes. Budget from 5, not from 1.
 - **Model IDs churn.** `gemini-2.0-flash` was shut down 2026-06-01. Change the model only via `GEMINI_MODEL` / the `GEMINI_MODEL` constant in `lib/extract-brand-kit.ts` (shared with the health route so they can't drift). A wrong model ID surfaces as Google `404 NOT_FOUND`; a `403 PERMISSION_DENIED` is a project/key problem, not a model problem.

@@ -1,14 +1,28 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
+import { Ratelimit } from '@upstash/ratelimit';
+import { redis, getClientIp } from '@/lib/redis';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Each signup emails the founder, so an open endpoint is an inbox-flood and a
+// Resend-quota drain. No Redis (local dev) = no limit.
+const limiter = redis
+  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, '1 h'), prefix: 'wl', ephemeralCache: new Map(), analytics: false })
+  : null;
 
 export async function POST(req: Request) {
   const { email, source } = await req.json().catch(() => ({}));
   const isExport = source === 'export';
 
-  if (!email || !EMAIL_RE.test(String(email))) {
+  if (!email || String(email).length > 254 || !EMAIL_RE.test(String(email))) {
     return NextResponse.json({ error: 'Valid email required' }, { status: 400 });
+  }
+
+  // Fails open on a Redis error: a lost lead costs more than a few extra emails.
+  const allowed = await limiter?.limit(getClientIp(req)).then((r) => r.success).catch(() => true);
+  if (allowed === false) {
+    return NextResponse.json({ error: 'rate-limited' }, { status: 429 });
   }
 
   if (!process.env.RESEND_API_KEY) {

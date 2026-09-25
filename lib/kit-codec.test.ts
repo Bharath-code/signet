@@ -46,6 +46,12 @@ describe('kit codec', () => {
     expect(got?.font).toBe('Verdana, Geneva, sans-serif');
   });
 
+  it('drops a font that is not a picker option', () => {
+    const got = decodeKitParam(encodeKitParam({ brandKit: kit, font: 'Arial;background:url(https://evil.test/p)' }));
+    expect(got?.brandKit.companyName).toBe(kit.companyName);
+    expect(got?.font).toBeUndefined();
+  });
+
   it('decodes legacy standard-base64 links, including "+ mangled to space"', () => {
     // 'カ日' is chosen so this payload's UTF-8 base64 alignment emits '+' —
     // the exact char URLSearchParams corrupts into a space
