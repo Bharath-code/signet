@@ -38,6 +38,8 @@ Two reasons it exists, both worth preserving:
 - **It removes the intake step.** `docs/concierge-pitch.md` says to ask the buyer for a team roster. When the roster is already published you can build the cards *before* the first email, which is a far stronger pitch than a single-user demo.
 - **It fixes the stranger-in-the-signature bug.** A `/app?from=<domain>` link re-scrapes on click, and the vision pass can fill `fullName`/`linkedin` with whoever it found on the page — a real person unrelated to the recipient. Roster mode sets every contact field explicitly and encodes them in `?kit=`, so nothing is scraped at click time and unset social fields stay empty. **Do not "improve" roster mode by falling back to extracted contact data.** The empty field is the feature.
 
+**Trigger leads** — `npx tsx scripts/triggers.ts [--days 30] [--resolve]` searches Firecrawl news for rebrands, name changes, mergers and new firms, and appends unseen rows to `outreach/triggers.csv` (~2 credits per query, 7 queries; `--resolve` adds ~2 per row). Every row needs a human check for headcount and a team page before it becomes a roster.
+
 Always open `outreach/index.html` and check each card before sending. Nothing here validates that a name or title is correct — the gallery is the only check.
 
 ## Environment

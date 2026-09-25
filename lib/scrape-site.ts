@@ -2,7 +2,7 @@ import Firecrawl from '@mendable/firecrawl-js';
 import type { BrandingProfile, Document, FormatOption, FormatString } from '@mendable/firecrawl-js';
 import { z } from 'zod';
 import { brandKitSchema, NEUTRAL_BRAND_KIT, HEX_RE } from './brand-kit-schema';
-import { pickEmailLogo } from './logo-url';
+import { pickEmailLogo, logoSizeHint } from './logo-url';
 import { normHex } from './brand-from-firecrawl';
 import type { BrandKit } from './types';
 
@@ -129,17 +129,22 @@ export type ScrapeResult = {
 // apple-touch-icon is a clean square PNG brand mark on most sites — the best small
 // logo for a signature, ahead of a wide og:image social card. Resolves relative
 // hrefs against the page URL; returns only absolute http(s) URLs.
+// Sites often list several sizes (vercel.com starts at 57x57), so the largest wins.
+// A tag with no size hint counts as 180, the size iOS asks for by default.
 export function iconFromHtml(html: string, baseUrl?: string): string | undefined {
   const tags = html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*>/gi) ?? [];
+  let best: { href: string; size: number } | undefined;
   for (const tag of tags) {
     const href = tag.match(/href=["']([^"']+)["']/i)?.[1];
     if (!href) continue;
-    try {
-      const u = new URL(href, baseUrl || undefined);
-      if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
-    } catch { /* relative href with no base — skip */ }
+    let u: URL;
+    try { u = new URL(href, baseUrl || undefined); } catch { continue; } // relative href with no base
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
+    const sizes = tag.match(/sizes=["'](\d+)x\d+["']/i)?.[1];
+    const size = sizes ? Number(sizes) : logoSizeHint(u.href) ?? 180;
+    if (!best || size > best.size) best = { href: u.href, size };
   }
-  return undefined;
+  return best?.href;
 }
 
 // pull a brand color straight from <meta name="theme-color"> — deterministic, no LLM

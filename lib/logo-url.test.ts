@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isLikelyImageUrl, isSvgUrl, isPoorLogoUrl, isSocialCardUrl, logoSizeHint, pickEmailLogo } from './logo-url';
+import { isLikelyImageUrl, isSvgUrl, isPoorLogoUrl, isSocialCardUrl, logoSizeHint, pickEmailLogo, upgradeWeakLogo } from './logo-url';
 
 describe('isLikelyImageUrl', () => {
   it('accepts image paths (with or without extension)', () => {
@@ -88,5 +88,26 @@ describe('pickEmailLogo', () => {
   it('skips invalid candidates and returns undefined when none are images', () => {
     expect(pickEmailLogo(undefined, 'https://x.com/', 'not a url')).toBeUndefined();
     expect(pickEmailLogo(null, undefined)).toBeUndefined();
+  });
+});
+
+describe('upgradeWeakLogo', () => {
+  const touch = 'https://linear.app/static/apple-touch-icon.png';
+  it('swaps a soft favicon for a sharp touch icon (linear.app, 2026-07-26 eval)', () => {
+    expect(upgradeWeakLogo('https://linear.app/favicon.ico?v=2', touch)).toBe(touch);
+  });
+  it('keeps a good logo, and keeps a favicon when the only alternative is an og:image', () => {
+    expect(upgradeWeakLogo('https://x.com/logo.png', touch)).toBe('https://x.com/logo.png');
+    expect(upgradeWeakLogo('https://x.com/favicon.ico', undefined, 'https://x.com/share.jpg')).toBe('https://x.com/favicon.ico');
+  });
+  it('rejects a touch icon that is itself soft or SVG', () => {
+    expect(upgradeWeakLogo('https://x.com/favicon.ico', 'https://x.com/apple-touch-icon-32x32.png')).toBe('https://x.com/favicon.ico');
+    expect(upgradeWeakLogo('https://x.com/favicon.ico', 'https://x.com/icon.svg')).toBe('https://x.com/favicon.ico');
+  });
+  it('replaces a banner with the touch icon, else the favicon', () => {
+    const banner = 'https://images.ctfassets.net/k/SEO_Banner_2400x1350_04.png';
+    expect(isSocialCardUrl(banner)).toBe(true);
+    expect(upgradeWeakLogo(banner, touch)).toBe(touch);
+    expect(upgradeWeakLogo(banner, undefined, 'https://openai.com/favicon.ico')).toBe('https://openai.com/favicon.ico');
   });
 });

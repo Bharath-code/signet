@@ -28,6 +28,11 @@ describe('iconFromHtml', () => {
     expect(iconFromHtml('<link rel="apple-touch-icon" sizes="180x180" href="https://cdn.acme.com/t.png">'))
       .toBe('https://cdn.acme.com/t.png');
   });
+  it('takes the largest of several sizes', () => {
+    const html = ['57x57', '180x180', '120x120']
+      .map((s) => `<link rel="apple-touch-icon" sizes="${s}" href="/t-${s}.png">`).join('');
+    expect(iconFromHtml(html, 'https://v.com')).toBe('https://v.com/t-180x180.png');
+  });
   it('returns undefined when absent, or relative with no base', () => {
     expect(iconFromHtml('<html></html>')).toBeUndefined();
     expect(iconFromHtml('<link rel="apple-touch-icon" href="/t.png">')).toBeUndefined();
