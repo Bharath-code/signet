@@ -9,6 +9,7 @@ import { SignaturePreview } from './SignaturePreview';
 import { BrandMark } from './Logo';
 import { track, setPersonProperty } from './track';
 import { encodeKitParam } from '@/lib/kit-codec';
+import { joinWaitlist } from '@/lib/waitlist';
 import { DEMO_BRAND_KIT, DEMO_FIELDS } from '@/lib/brand-kit-schema';
 
 const STEPS = [
@@ -165,26 +166,13 @@ export default function LandingPage() {
 
   const handleWaitlist = async (e: FormEvent) => {
     e.preventDefault();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(wlEmail.trim())) {
-      setWlError('Enter a valid email address.');
-      return;
-    }
     setWlLoading(true);
     setWlError('');
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: wlEmail.trim() }),
-      });
-      if (!res.ok) throw new Error('failed');
-      setWlDone(true);
-      track('waitlist_joined');
-    } catch {
-      setWlError("Couldn't save your email — try again.");
-    } finally {
-      setWlLoading(false);
-    }
+    const err = await joinWaitlist(wlEmail.trim());
+    setWlLoading(false);
+    if (err) return setWlError(err);
+    setWlDone(true);
+    track('waitlist_joined');
   };
 
   useEffect(() => { track('page_view'); }, []);

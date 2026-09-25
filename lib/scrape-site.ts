@@ -1,7 +1,7 @@
 import Firecrawl from '@mendable/firecrawl-js';
 import type { BrandingProfile, Document, FormatOption, FormatString } from '@mendable/firecrawl-js';
 import { z } from 'zod';
-import { brandKitSchema, NEUTRAL_BRAND_KIT } from './brand-kit-schema';
+import { brandKitSchema, NEUTRAL_BRAND_KIT, HEX_RE } from './brand-kit-schema';
 import { pickEmailLogo } from './logo-url';
 import { normHex } from './brand-from-firecrawl';
 import type { BrandKit } from './types';
@@ -146,7 +146,7 @@ export function iconFromHtml(html: string, baseUrl?: string): string | undefined
 export function themeColorFromHtml(html: string): string | undefined {
   const tag = html.match(/<meta[^>]*name=["']theme-color["'][^>]*>/i)?.[0];
   const color = tag?.match(/content=["'](#[0-9a-fA-F]{3,8})["']/)?.[1];
-  return color && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color) ? color : undefined;
+  return color && HEX_RE.test(color) ? color : undefined;
 }
 
 // Homepage <title>s are usually "Brand | Tagline" or "Tagline – Brand". The brand

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A validation-stage demo (not the full product): paste a website URL → scrape it → an LLM extracts a brand kit (logo, colors, font) → render three branded email-signature previews live. The goal is to prove the "magic moment" before building the real MVP. Scope is deliberately constrained — **no auth, database, Stripe, OAuth, or persistence.** The email-capture CTAs (landing + `/app`) both POST to `POST /api/waitlist`, which sends a founder notification and optionally upserts to a Resend Audience — notify-only, no app-side DB.
 
-Design spec and implementation plan live in `docs/superpowers/`.
+Design spec and implementation plan live in `docs/superpowers/`. Strategy docs (`MASTER-PLAN.md` is the operative one) live in `docs/`.
 
 ## Commands
 
@@ -49,13 +49,14 @@ Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a track
 - `GEMINI_MODEL` — optional model override (default `gemini-3.5-flash`)
 - `GEMINI_FALLBACK_MODEL` — optional; a second model `extractBrandKit` tries only if `GEMINI_MODEL` throws (e.g. "high demand" 503). Empty = no fallback
 - `RESEND_API_KEY` — Resend API key for waitlist emails (get one free at resend.com)
+- `WAITLIST_NOTIFY_EMAIL` — where waitlist signups are sent; `/api/waitlist` returns `503` without it
 - `HEALTH_TOKEN` — required to call `/api/health` in production (`?token=…`)
 - `BRAND_KIT_DAILY_CAP` — optional; site-wide generations/day across all IPs (default 200)
 - `RESEND_AUDIENCE_ID` — optional; if set, `POST /api/waitlist` also adds contacts to a Resend Audience for bulk emailing later
 
 `GET /api/health` pings both providers and reports `ok` / `quota-exceeded` / `bad-key` / `no-key` plus the model tested and Firecrawl's `credits` remaining. Use it to diagnose key problems instead of reading server logs. The Firecrawl ping hits `/v2/team/credit-usage` — the only endpoint that authenticates the key without spending a credit, so the Firecrawl half is free to poll. Don't swap it for a scrape. The Gemini half is **not** free, so the route is locked: production requires `?token=<HEALTH_TOKEN>` and returns `404` otherwise (and `404` for everyone when `HEALTH_TOKEN` is unset); local dev needs no token.
 
-`POST /api/waitlist` accepts `{ email }`, sends a notification to the founder email, and optionally upserts the contact into a Resend Audience. Returns `{ ok: true }` or `{ error }`. Returns `503` when `RESEND_API_KEY` is not set (graceful — form shows an error, no crash). Limited to 5/hour per IP (`wl` prefix) because every signup emails the founder; returns `429` over the limit and fails open on a Redis error.
+`POST /api/waitlist` accepts `{ email }`, sends a notification to the founder email, and optionally upserts the contact into a Resend Audience. Returns `{ ok: true }` or `{ error }`. Returns `503` when `RESEND_API_KEY` or `WAITLIST_NOTIFY_EMAIL` is not set (graceful — form shows an error, no crash). Limited to 5/hour per IP (`wl` prefix) because every signup emails the founder; returns `429` over the limit and fails open on a Redis error.
 
 ## Architecture: the extraction pipeline
 
@@ -100,7 +101,7 @@ Untrusted website content flows: scraped page → LLM → `BrandKit` → HTML �
 2. `brandKitSchema` validates colors as strict hex at the boundary.
 3. `renderSignature` passes every font through `cssFont()`, which keeps only letters, digits, spaces, `,'"_-`. `esc()` covers the HTML attribute context, not the CSS inside `style=""`, where `;` or `url(` would add declarations. The `?kit=` decoder also accepts only `EMAIL_FONTS` values for `font`.
 
-Note: the schema's `z.url()` on `logoUrl` is permissive (accepts `data:`/`javascript:`), so do **not** rely on it for scheme safety — `logoUrl`'s only sink is `<img src>` (non-executing) and the preview iframes use `sandbox=""`. If you ever add a new sink for `logoUrl` (e.g. an `<a href>`), add scheme validation.
+Note: the schema's `z.url()` on `logoUrl` is permissive (accepts `data:`/`javascript:`), so do **not** rely on it for scheme safety — `logoUrl`'s only sink is `<img src>` (non-executing) and the preview iframes use `sandbox="allow-popups allow-popups-to-escape-sandbox"` — no `allow-scripts`, so scraped content cannot run code; popups are allowed only so signature links open. If you ever add a new sink for `logoUrl` (e.g. an `<a href>`), add scheme validation.
 
 Outreach analytics identify a roster recipient by `recipientId(email)` (`lib/recipient-id.ts`, truncated SHA-256), never the address. `outreach.csv` carries the same value in `posthog_id`.
 

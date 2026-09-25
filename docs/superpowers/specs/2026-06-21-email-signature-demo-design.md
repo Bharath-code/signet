@@ -9,7 +9,7 @@
 Validate the core magic of the email-signature product before building the MVP:
 **paste a website URL → in seconds, see a perfectly branded email signature.**
 
-This is the validation gate from `micro-saas-idea-analysis.md`: build the hero demo
+This is the validation gate from `docs/micro-saas-idea-analysis.md`: build the hero demo
 as a free landing page, drive ~100 visitors, and only proceed to the 2-week MVP if
 it converts (≥5 emails captured per 100 visitors).
 

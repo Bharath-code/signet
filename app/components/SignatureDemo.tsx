@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useBrandKit, LAYOUTS, PRESETS } from './useBrandKit';
@@ -9,7 +9,7 @@ import { BrandMark } from './Logo';
 import { track, identify } from './track';
 import { recipientId } from '@/lib/recipient-id';
 import { EMAIL_FONTS, toEmailSafeFont } from '@/lib/email-fonts';
-import { toEmailSafeFont as fontMatch } from '@/lib/email-fonts';
+import { joinWaitlist } from '@/lib/waitlist';
 import { encodeKitParam, decodeKitParam } from '@/lib/kit-codec';
 import type { Roles } from '@/lib/render-signature';
 import type { SignatureFields, ToggleableField, FieldConfidence } from '@/lib/types';
@@ -104,12 +104,12 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
   const searchParams = useSearchParams();
   const fromParam = searchParams.get('from');
   const kitParam = searchParams.get('kit');
-  const preloaded = kitParam ? decodeKitParam(kitParam) : null;
+  const preloaded = useMemo(() => (kitParam ? decodeKitParam(kitParam) : null), [kitParam]);
 
   const brand = useBrandKit({
     initialKit: preloaded?.brandKit,
     initialFields: preloaded?.fields,
-    initialFont: preloaded?.font ?? (preloaded ? fontMatch(preloaded.brandKit.fontFamily) : undefined),
+    initialFont: preloaded?.font ?? (preloaded ? toEmailSafeFont(preloaded.brandKit.fontFamily) : undefined),
     initialRoles: preloaded?.roles,
     // If kit is preloaded we already have the result — mark siteUrl so extracted labels show.
     initialUrl: fromParam?.replace(/^https?:\/\//i, '') ?? '',
@@ -177,26 +177,13 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
 
   const submitWaitlist = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setSendErr('Enter a valid email address.');
-      return;
-    }
     setSending(true);
     setSendErr('');
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      if (!res.ok) throw new Error('failed');
-      setSent(true);
-      track('waitlist_joined');
-    } catch {
-      setSendErr("Couldn't save your email — try again.");
-    } finally {
-      setSending(false);
-    }
+    const err = await joinWaitlist(email.trim());
+    setSending(false);
+    if (err) return setSendErr(err);
+    setSent(true);
+    track('waitlist_joined');
   };
 
   return (

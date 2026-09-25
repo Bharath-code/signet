@@ -2,8 +2,7 @@ import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { redis, getClientIp } from '@/lib/redis';
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_RE } from '@/lib/waitlist';
 
 // Each signup emails the founder, so an open endpoint is an inbox-flood and a
 // Resend-quota drain. No Redis (local dev) = no limit.
@@ -25,7 +24,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'rate-limited' }, { status: 429 });
   }
 
-  if (!process.env.RESEND_API_KEY) {
+  const notifyTo = process.env.WAITLIST_NOTIFY_EMAIL;
+  if (!process.env.RESEND_API_KEY || !notifyTo) {
     return NextResponse.json({ error: 'no-key' }, { status: 503 });
   }
 
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   const ops: Promise<unknown>[] = [
     resend.emails.send({
       from: 'Signet Waitlist <onboarding@resend.dev>',
-      to: 'kumarbharath63@gmail.com',
+      to: notifyTo,
       subject: `${isExport ? 'Export unlock' : 'Waitlist signup'}: ${email}`,
       text: `${email} ${isExport ? 'unlocked the layout export' : 'joined the Signet waitlist'}.`,
     }),
