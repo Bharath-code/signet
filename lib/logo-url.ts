@@ -46,10 +46,32 @@ export function isPoorLogoUrl(raw: string): boolean {
 // candidate, so this is not a rejection rule — it exists so the eval can count how
 // often we fall back to one. Squeezed into the 84x40 signature cell it reads as a
 // screenshot, not a brand mark.
+// Also caught: a "banner" path and a wide NxM hint (openai.com served
+// "SEO_Banner_2400x1350_04.png" as its logo in the 2026-07-26 eval).
 export function isSocialCardUrl(raw: string): boolean {
   try {
-    return /(^|[/_-])(og|opengraph|social|cover|twitter-card)([/_.-]|$)/i.test(new URL(raw).pathname);
+    const path = new URL(raw).pathname;
+    if (/(^|[/_-])(og|opengraph|social|cover|banner|twitter-card)([/_.-]|$)/i.test(path)) return true;
+    const m = path.match(/(\d{3,4})x(\d{3,4})/);
+    return !!m && Number(m[1]) >= 600 && Number(m[1]) / Number(m[2]) >= 1.5;
   } catch { return false; }
+}
+
+// Second pass after pickEmailLogo, which is positional on purpose (see below). It
+// swaps a weak pick only for a candidate that is known to be better:
+// - a soft favicon → the page's apple-touch-icon, if that icon is a sharp raster.
+//   Nothing else is promoted here: an unlabelled og:image can't be told from a
+//   logo by URL, and promoting it is the 8-of-20 regression described below.
+// - a social card → the touch icon, else `fallback` (usually the favicon), since a
+//   soft favicon still beats a banner.
+export function upgradeWeakLogo(picked: string | undefined, touchIcon?: string, fallback?: string): string | undefined {
+  if (!picked) return picked;
+  const card = isSocialCardUrl(picked);
+  if (!card && !isPoorLogoUrl(picked)) return picked;
+  const usable = (u?: string): u is string =>
+    !!u && u !== picked && isLikelyImageUrl(u) && !isSvgUrl(u) && !isSocialCardUrl(u);
+  if (usable(touchIcon) && !isPoorLogoUrl(touchIcon)) return touchIcon;
+  return card && usable(fallback) ? fallback : picked;
 }
 
 // Pick the best email-renderable logo from candidates given in priority order:

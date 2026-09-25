@@ -6,8 +6,8 @@ import { brandKitSchema, NEUTRAL_BRAND_KIT, hex } from './brand-kit-schema';
 import { safeHref } from './render-signature';
 import { brandColorsFromCss, isLinkBlue, isDefaultLinkBlue } from './extract-colors';
 import { brandKitFromFirecrawl, type FirecrawlBrand } from './brand-from-firecrawl';
-import { isLikelyImageUrl, pickEmailLogo } from './logo-url';
-import { firecrawlClient, brandNameFromTitle, realAnswer, type FcExtractData } from './scrape-site';
+import { isLikelyImageUrl, pickEmailLogo, upgradeWeakLogo } from './logo-url';
+import { firecrawlClient, brandNameFromTitle, iconFromHtml, realAnswer, type FcExtractData } from './scrape-site';
 import type { BrandKit, SignatureFields, BrandKitConfidence, FieldConfidence } from './types';
 import type { SearchResultWeb } from '@mendable/firecrawl-js';
 
@@ -365,7 +365,11 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
 
   const det = {
     companyName,
-    logoUrl: pickEmailLogo(fc.logoUrl, fb.logoUrl),
+    logoUrl: upgradeWeakLogo(
+      pickEmailLogo(fc.logoUrl, fb.logoUrl),
+      iconFromHtml(html, opts.baseUrl),
+      fb.logoUrl !== NEUTRAL_BRAND_KIT.logoUrl ? fb.logoUrl : undefined,
+    ),
     // Firecrawl's branding extractor is a purpose-built brand-detection system — its
     // primaryColor is trustworthy even when it falls in the link-blue hue range (many
     // tech brands intentionally use saturated blues), so we skip isLinkBlue for it —
