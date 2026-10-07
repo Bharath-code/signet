@@ -351,6 +351,26 @@ describe('low-confidence accent routes to vision instead of defaulting to ink', 
   });
 });
 
+describe('a vivid accent in both color slots is not a complete kit', () => {
+  // stripe.com, live 2026-10-07: Firecrawl reported #533afd as both the accent and
+  // the text color, so the signature shipped with no contrast color.
+  it('routes the duplicate to vision instead of shipping one color twice', async () => {
+    const result = await extractBrandKit('<html></html>', SCREENSHOT_URL, {
+      fallbackKit: NEUTRAL_BRAND_KIT,
+      baseUrl: BASE_URL,
+      markdown: 'Stripe',
+      branding: {
+        colors: { primary: '#533afd', textPrimary: '#533afd' },
+        images: { logo: 'https://example.com/logo.png' },
+        typography: { fontFamilies: { heading: 'Inter' } },
+        confidence: { colors: 0.9, buttons: 0.9, overall: 0.9 },
+      } as unknown as BrandingProfile,
+    });
+    expect(result.source).not.toBe('firecrawl');
+    expect(result.brandKit.secondaryColor).not.toBe(result.brandKit.primaryColor);
+  });
+});
+
 describe('a vivid CSS brand token outranks a link-blue Firecrawl accent', () => {
   // moritzlegal.com, measured 2026-07-26: Firecrawl returned #0000ee at
   // confidence 0.9 while the page's own Framer tokens carried #b58159.
