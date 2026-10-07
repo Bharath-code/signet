@@ -405,6 +405,12 @@ export async function extractBrandKit(html: string, screenshotUrl: string, opts:
     secondaryColor: fc.secondaryColor ?? css.secondary,
     fontFamily: fc.fontFamily,
   };
+  // A vivid accent in both slots leaves the signature no contrast color (stripe.com
+  // reports #533afd as its text color). Ink-on-ink stays: that is a real monochrome site.
+  const same = (a?: string, b?: string) => !!a && a.toLowerCase() === b?.toLowerCase();
+  if (same(det.secondaryColor, det.primaryColor) && colorRank(det.primaryColor!).chroma >= 40) {
+    det.secondaryColor = same(css.secondary, det.primaryColor) ? undefined : css.secondary;
+  }
 
   // P3: When the page is in Japanese/Chinese/Korean and no deterministic font
   // exists, pre-set to Arial (universally CJK-safe on all email clients).
