@@ -596,7 +596,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                     onClick={() => track('team_cta_clicked', { placement: 'concierge_primary' })}
                     className={`${btn} mb-6 w-full bg-accent text-paper hover:bg-accent-deep`}
                   >
-                    Set up my whole team — from $99
+                    Set up my whole team — $299
                   </a>
                 )}
                 <span className={label}>{concierge ? 'Or do it yourself' : 'Share with your team'}</span>
@@ -624,7 +624,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                     onClick={() => track('team_cta_clicked', { placement: 'demo_rollout' })}
                     className="mt-3 block text-sm text-accent-deep underline underline-offset-4 hover:text-accent"
                   >
-                    Or let us do it — $99 one-time team setup →
+                    Or let us do it — $299 team setup, up to 30 people →
                   </a>
                 )}
               </div>
@@ -650,7 +650,7 @@ export default function SignatureDemo({ mode = 'studio' }: { mode?: Mode }) {
                         aria-label="Work email address"
                         className={`${field} flex-1`}
                       />
-                      {/* concierge: the $99 button owns the one vermilion stamp on this
+                      {/* concierge: the paid button owns the one vermilion stamp on this
                           page (One Stamp rule), so the fallback ask goes quiet. */}
                       <button
                         disabled={sending}
