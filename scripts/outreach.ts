@@ -10,13 +10,15 @@
 //     Roster mode: scrape ONE site, then build a card per person on the list
 //     ("Name, Title, email?" per line). One scrape, N links — for a team whose
 //     people page is public, so no roster has to be requested before the pitch.
+//     Add --remote to take the kit from SIGNET_URL/api/brand-kit (no local keys).
+//     Add --kit-patch fix.json to correct kit fields after checking the gallery.
 //
 // Output → outreach/index.html (gallery) + outreach/outreach.csv (tracker)
 //          + outreach/*.png when --screenshot is passed (paste straight into email client)
 
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import type { BrandKit, SignatureFields } from '../lib/types';
-import { ctaTextForRole } from '../lib/brand-kit-schema';
+import { ctaTextForRole, brandKitSchema } from '../lib/brand-kit-schema';
 import { encodeKitParam } from '../lib/kit-codec';
 import { recipientId } from '../lib/recipient-id';
 
@@ -32,6 +34,8 @@ const FILE = arg('--file');
 const URL_ARG = arg('--url');
 const ROSTER = arg('--roster');
 const SCREENSHOT = flag('--screenshot');
+const REMOTE = flag('--remote');
+const KIT_PATCH = arg('--kit-patch');
 // Set SIGNET_URL in .env.local (e.g. https://signet.app) for production links.
 // Falls back to localhost for local testing.
 const SIGNET_URL = (process.env.SIGNET_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -100,8 +104,12 @@ function readRoster(path: string): Person[] {
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith('#'))
     .map((l) => {
-      const [fullName, jobTitle = '', email = ''] = l.split(',').map((s) => s.trim());
-      return { fullName, jobTitle, email };
+      // Titles carry commas ("Vice President, Wealth Advisor"), so only a last
+      // field with an @ is the email.
+      const parts = l.split(',').map((s) => s.trim());
+      const email = parts.length > 2 && parts[parts.length - 1].includes('@') ? parts.pop()! : '';
+      const [fullName, ...title] = parts;
+      return { fullName, jobTitle: title.join(', '), email };
     });
 }
 
@@ -144,12 +152,34 @@ async function build(url: string, p: Pipeline): Promise<Row | null> {
 // re-running the pipeline per teammate would burn ~5 credits each for an
 // identical kit. Throws like build() does not — a roster run is one target, and
 // a silent skip would leave the caller with an empty gallery and no reason why.
-async function buildRoster(url: string, people: Person[], p: Pipeline): Promise<Row[]> {
-  const { scrapeSite, extractBrandKit, renderSignature } = p;
-  const s = await scrapeSite(url);
-  const { brandKit } = await extractBrandKit(s.html, s.screenshotUrl, {
+async function localKit(url: string, p: Pipeline): Promise<{ brandKit: BrandKit; finalUrl: string }> {
+  const s = await p.scrapeSite(url);
+  const { brandKit } = await p.extractBrandKit(s.html, s.screenshotUrl, {
     links: s.links, markdown: s.markdown, baseUrl: s.finalUrl, branding: s.branding, fallbackKit: s.fallbackKit, htmlSnippets: s.htmlSnippets, cssVars: s.cssVars,
   });
+  return { brandKit, finalUrl: s.finalUrl };
+}
+
+// --remote: production's keys are Vercel "Sensitive" and can't be pulled, so ask
+// production for the kit. Only the kit is used; every contact field still comes
+// from the roster file. ponytail: counts against the 10/hour per-IP limit.
+async function remoteKit(url: string): Promise<{ brandKit: BrandKit; finalUrl: string }> {
+  const res = await fetch(`${SIGNET_URL}/api/brand-kit`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }),
+  });
+  const j = await res.json();
+  if (j.fallback) throw new Error(`${SIGNET_URL} returned the neutral fallback kit for ${url}`);
+  return { brandKit: j.brandKit, finalUrl: j.finalUrl };
+}
+
+async function buildRoster(url: string, people: Person[], p: Pipeline): Promise<Row[]> {
+  const { renderSignature } = p;
+  const kit = REMOTE ? await remoteKit(url) : await localKit(url, p);
+  // A hand-checked fix (old name, favicon logo, cookie-banner blue) goes through
+  // the same schema as model output, so a typo'd hex fails here, not in a sent card.
+  const brandKit = KIT_PATCH ? brandKitSchema.parse({ ...kit.brandKit, ...JSON.parse(readFileSync(KIT_PATCH, 'utf8')) }) : kit.brandKit;
+  const { finalUrl } = kit;
+  const s = { finalUrl };
   return people.map((person) => {
     const contact: Partial<SignatureFields> = {
       fullName: person.fullName, jobTitle: person.jobTitle,
