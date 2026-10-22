@@ -9,12 +9,11 @@
 | Team size | Price | Notes |
 |-----------|-------|-------|
 | 1 person | Free demo | The hook — never charge for this |
-| Up to 15 | **$99 one-time** | The advertised price, everywhere |
-| 16–30 | **$199 one-time** | Only quoted live when the team turns out to be 16+ — never advertised |
-| 31+ | Quote on call (~$7/seat) | A big team asking is a strong signal, not a problem |
+| Up to 30 | **$299 one-time** | The advertised price, everywhere (set 2026-10-07; was $99 ≤15 / $199 16–30) |
+| 31+ | Quote on call (~$10/seat) | A big team asking is a strong signal, not a problem |
 
 Rules:
-- **Lead with "$99 flat" in every conversation.** One number, no per-seat math, no tiers on the landing page.
+- **Lead with "$299 flat" in every conversation.** One number, no per-seat math, no tiers on the landing page.
 - No discounts. Hesitation on price is the willingness-to-pay signal you're testing — a discount defeats the test.
 - No subscription, ever, in this phase. "One-time, done this week" is the wedge against WiseStamp/Exclaimer.
 
@@ -86,10 +85,10 @@ No reply after this → move on. They're a no; the next lead is cheaper than a t
 
 ## Positive reply → concierge pivot
 
-> Glad it came out clean. If you want the whole team on it, I do a $99 one-time setup — send me your team list (name, role, email) and I'll build everyone's signature + install steps, done this week. No subscription.
+> Glad it came out clean. If you want the whole team on it, I do a $299 one-time setup (up to 30 people) — send me your team list (name, role, email) and I'll build everyone's signature + install steps, done this week. No subscription.
 
-If they say the team is 16–30:
-> For a team your size it's $199 one-time — still flat, still no subscription, still done this week.
+If they say the team is over 30:
+> For a team your size I quote per person — about $10 each, still one-time, still done this week.
 
 Then follow the intake + delivery process in `docs/concierge-pitch.md` (URL + roster → build kit → one signature per person → install doc → optional 10-min screenshare).
 

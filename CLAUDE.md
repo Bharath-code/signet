@@ -65,7 +65,7 @@ Keys go in `.env.local` (gitignored) — **not** `.env.example` (that is a track
 The whole app is one server pipeline plus one client component (`SignatureDemo`) mounted at two routes:
 
 - **`/app`** (`mode="studio"`) — the self-serve product. It has the URL field and the Generate button, so it is the only page that can spend Firecrawl credits. Reached from the landing page. Held for after concierge validation.
-- **`/signature`** (`mode="concierge"`) — the outreach landing page. Every cold email and every copied team link points here with the kit already encoded in `?kit=`. It renders **no URL field and no Generate button**, so the whole outreach funnel costs zero credits however often a recipient edits or reloads. The $99 concierge link is the one vermilion CTA; the waitlist sits below it. `noindex`.
+- **`/signature`** (`mode="concierge"`) — the outreach landing page. Every cold email and every copied team link points here with the kit already encoded in `?kit=`. It renders **no URL field and no Generate button**, so the whole outreach funnel costs zero credits however often a recipient edits or reloads. The $299 concierge link is the one vermilion CTA; the waitlist sits below it. `noindex`.
 
 `/app` still honours `?kit=` for links sent before the split.
 

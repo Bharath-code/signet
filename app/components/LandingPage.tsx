@@ -29,7 +29,7 @@ const urlHint = (v: string) =>
   : '';
 
 
-// Stripe Payment Link for the $99 concierge team setup. When unset, the Team
+// Payment link for the $299 concierge team setup. When unset, the Team
 // tier stays in waitlist mode — nothing changes.
 const CONCIERGE_URL = process.env.NEXT_PUBLIC_CONCIERGE_URL;
 
@@ -67,8 +67,8 @@ const PLANS = [
   CONCIERGE_URL
     ? {
         name: 'Team',
-        price: '$99',
-        desc: 'one-time setup',
+        price: '$299',
+        desc: 'one-time · up to 30 people',
         features: [
           'We generate signatures for your whole team',
           'Built from one URL — everyone on brand',
@@ -128,7 +128,7 @@ const FAQS = [
   {
     q: "Can I roll signatures out to my whole team?",
     a: CONCIERGE_URL
-      ? "Team Setup is a $99 one-time concierge service: we generate on-brand signatures for your whole team from one URL and help you install them in every mail client — done this week."
+      ? "Team Setup is a $299 one-time concierge service for up to 30 people: we generate on-brand signatures for your whole team from one URL and help you install them in every mail client — done this week."
       : "Team (coming soon) adds Google Workspace sync and one-click deployment across everyone at once. Join the waitlist to be notified at launch.",
   },
 ];

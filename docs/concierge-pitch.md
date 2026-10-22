@@ -1,6 +1,6 @@
 # Concierge Team Setup — Pitch, Copy & Delivery
 
-$99 one-time for teams up to 15 people; $199 one-time for 16–30. Larger than 30: quote live on the call (~$7/seat). Lead with "$99 flat" everywhere — the $199 tier is only spoken when a team turns out to be 16+, never advertised up front. Manual fulfillment (see `CLAUDE.md` / `docs/launch-checklist.md`) — no team-generation code exists yet. This doc is the pitch script + copy + intake/delivery process so it can be sold consistently across the call, the landing page, and outbound email.
+$299 one-time for teams up to 30 people (set 2026-10-07; replaces $99 ≤15 / $199 16–30). Larger than 30: quote live on the call (~$10/seat). Lead with "$299 flat" everywhere. Anchor: a per-seat tool at $1.40–2.00/seat/month costs ~$720/year for 30 people. Manual fulfillment (see `CLAUDE.md` / `docs/launch-checklist.md`) — no team-generation code exists yet. This doc is the pitch script + copy + intake/delivery process so it can be sold consistently across the call, the landing page, and outbound email.
 
 ---
 
@@ -46,7 +46,7 @@ Grounded in `MARKET-DOMINATION-PLAN.md` and `competitor-analysis-and-market-domi
 1. **Let the demo talk first, always.** Never describe the product before they've seen their own site rendered — this is why cold outreach opens with a live preview link, not a pitch.
 2. **Extract live on the call if you can** — paste their site (or a competitor's) and narrate nothing. More convincing than any deck.
 3. **Name the specific pain, not the category** — "you've told the team three times to update their signatures, half haven't" beats "email signature management."
-4. **Contrast price out loud, with numbers.** "WiseStamp would run ~$29/mo base plus per-seat for 10 people; we're a flat $99 once." Concrete beats "affordable."
+4. **Contrast price out loud, with numbers.** "WiseStamp would run ~$29/mo base plus per-seat for 10 people; we're a flat $299 once." Concrete beats "affordable."
 5. **Close on turnaround, not features.** "Done this week" beats every incumbent's onboarding cycle — a real gap, not fluff.
 
 ---
@@ -68,10 +68,10 @@ Use after a warm reply or when segmenting "just me" vs. "my team of N" (`docs/la
 > "I'll build the brand kit from your site — same logo/color/font extraction you saw in the demo — then generate one signature per person and send you copy-paste HTML with install steps for whichever mail clients your team uses. Done this week."
 
 **Price + close:**
-> "It's a $99 flat one-time fee for teams up to 15, no subscription. I can send the payment link now and start as soon as it clears."
+> "It's a $299 flat one-time fee for teams up to 30, no subscription. I can send the payment link now and start as soon as it clears."
 
-**If the team is 16–30:**
-> "For a team your size it's $199 one-time — still flat, still no subscription, still done this week."
+**If the team is over 30:**
+> "For a team your size I quote per person — about $10 each, still one-time, still done this week."
 
 **If they hesitate on price:** don't discount — ask what's blocking them. This is the willingness-to-pay signal (`docs/launch-checklist.md` Phase 3 gate); a discount defeats the test.
 
@@ -81,8 +81,8 @@ Use after a warm reply or when segmenting "just me" vs. "my team of N" (`docs/la
 
 Already live in `app/components/LandingPage.tsx` (Team pricing card + FAQ, gated behind `NEXT_PUBLIC_CONCIERGE_URL`). Current copy is on-brand — editorial, no hype (`PRODUCT.md` voice). Reference, not a rewrite:
 
-- Card: **Team — $99, one-time setup** — "Built from one URL — everyone on brand" / "Hands-on install help, every mail client" / "Done this week, not this quarter."
-- FAQ: *"Can I roll signatures out to my whole team?"* → *"Team Setup is a $99 one-time concierge service: we generate on-brand signatures for your whole team from one URL and help you install them in every mail client — done this week."*
+- Card: **Team — $299, one-time · up to 30 people** — "Built from one URL — everyone on brand" / "Hands-on install help, every mail client" / "Done this week, not this quarter."
+- FAQ: *"Can I roll signatures out to my whole team?"* → *"Team Setup is a $299 one-time concierge service for up to 30 people: we generate on-brand signatures for your whole team from one URL and help you install them in every mail client — done this week."*
 
 If you want a stronger intake hint directly on the page, add one line under the card's feature list (small print, not a form — no intake UI exists yet):
 
@@ -111,4 +111,4 @@ Sent manually for now — no webhook automation while in the validation phase. C
 
 ## Cold outreach (first-touch, pre-purchase)
 
-Existing templates in `docs/cold-email-leads.md` lead with the free single-user demo, not the $99 tier — correct sequencing (prove magic moment free → team upsell only after interest, per `PRODUCT.md`'s show-don't-tell principle). Don't put Team Setup pricing in the first cold email; it belongs in the reply/call once they've seen their own signature rendered.
+Existing templates in `docs/cold-email-leads.md` lead with the free single-user demo, not the $299 tier — correct sequencing (prove magic moment free → team upsell only after interest, per `PRODUCT.md`'s show-don't-tell principle). Don't put Team Setup pricing in the first cold email; it belongs in the reply/call once they've seen their own signature rendered.
